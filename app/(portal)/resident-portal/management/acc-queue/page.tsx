@@ -1,0 +1,75 @@
+// app/(portal)/resident-portal/management/acc-queue/page.tsx
+
+import type { Metadata } from "next"
+import { Shield, FileText } from "lucide-react"
+import { siteConfig } from "@/lib/site-config"
+import { AccQueueTable } from "@/components/portal/acc-queue-table"
+import { requirePortalRolePageAccess } from "@/lib/auth/portal-admin"
+
+export const metadata: Metadata = {
+  title: `ACC Workflow Queue | ${siteConfig.name} Resident Portal`,
+  description: "View and manage ACC permit requests and architectural change applications.",
+}
+
+export default async function AccQueuePage() {
+  await requirePortalRolePageAccess(["admin", "acc"], "/resident-portal/management/acc-queue")
+
+  return (
+    <>
+
+      {/* ── Hero ── */}
+      <section className="hero-section" style={{ background: "var(--pp-navy-dark)" }}>
+        <div
+          className="hero-overlay"
+          style={{ background: "linear-gradient(135deg, #1b2e1b 0%, #3A5A40 60%, #2c4a32 100%)" }}
+        />
+        <div className="hero-content stack" style={{ gap: "var(--space-s)" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem" }}>
+            <Shield style={{ width: "1.25rem", height: "1.25rem", color: "var(--pp-gold-light)" }} />
+            <span
+              className="text-fluid-sm font-semibold"
+              style={{ color: "var(--pp-gold-light)", textTransform: "uppercase", letterSpacing: "0.1em" }}
+            >
+              Management
+            </span>
+          </div>
+          <h1 className="hero-title">ACC Workflow Queue</h1>
+          <p className="hero-subtitle" style={{ maxWidth: "56ch" }}>
+            View and track Architectural Control Committee permit requests and approval workflow.
+          </p>
+        </div>
+      </section>
+
+      {/* ── Queue Table ── */}
+      <section className="section" style={{ background: "var(--pp-white)" }}>
+        <div className="container">
+          <div className="stack" style={{ gap: "var(--space-l)" }}>
+
+            <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+              <FileText style={{ width: "1.25rem", height: "1.25rem", color: "var(--pp-navy)" }} />
+              <h2 style={{ color: "var(--pp-navy-dark)" }}>ACC Permit Requests</h2>
+            </div>
+
+            <div
+              style={{
+                border: "1px solid #fcd34d",
+                background: "#fffbeb",
+                color: "#92400e",
+                borderRadius: "var(--radius-md)",
+                padding: "0.65rem 0.8rem",
+              }}
+            >
+              <p className="text-fluid-sm" style={{ margin: 0 }}>
+                Temporary mode: this page reads and writes directly to the legacy WordPress Gravity Forms source.
+              </p>
+            </div>
+
+            <AccQueueTable viewMode="full" />
+
+          </div>
+        </div>
+      </section>
+
+    </>
+  )
+}

@@ -1,0 +1,201 @@
+{
+  "at": "2026-02-24T16:53:51.500Z",
+  "args": [
+    "--dry-run"
+  ],
+  "stats": {
+    "totalCandidates": 168,
+    "selected": 168,
+    "migrated": 137,
+    "skippedNoUrl": 0,
+    "failed": 31
+  },
+  "failures": [
+    {
+      "id": "wp-document-34495",
+      "title": "January 2023 Balance Sheet",
+      "url": "https://staging56.pristineplace.us/wp-content/uploads/gravity_forms/60-10cb9d59b5a786f738edd1976b4d749d/2024/01/01-2023-Balance-Sheet.pdf",
+      "error": "fetch failed"
+    },
+    {
+      "id": "wp-document-34494",
+      "title": "February 2023 Balance Sheet",
+      "url": "https://staging56.pristineplace.us/wp-content/uploads/gravity_forms/60-10cb9d59b5a786f738edd1976b4d749d/2024/01/02-2023-Balance-Sheet.pdf",
+      "error": "fetch failed"
+    },
+    {
+      "id": "wp-document-34493",
+      "title": "March 2023 Balance Sheet",
+      "url": "https://staging56.pristineplace.us/wp-content/uploads/gravity_forms/60-10cb9d59b5a786f738edd1976b4d749d/2024/01/03-2023-Balance-Sheet.pdf",
+      "error": "fetch failed"
+    },
+    {
+      "id": "wp-document-34492",
+      "title": "April 2023 Balance Sheet",
+      "url": "https://staging56.pristineplace.us/wp-content/uploads/gravity_forms/60-10cb9d59b5a786f738edd1976b4d749d/2024/01/04-2023-Balance-Sheet.pdf",
+      "error": "fetch failed"
+    },
+    {
+      "id": "wp-document-34491",
+      "title": "May 2023 Balance Sheet",
+      "url": "https://staging56.pristineplace.us/wp-content/uploads/gravity_forms/60-10cb9d59b5a786f738edd1976b4d749d/2024/01/05-2023-Balance-Sheet.pdf",
+      "error": "fetch failed"
+    },
+    {
+      "id": "wp-document-34490",
+      "title": "June 2023 Balance Sheet",
+      "url": "https://staging56.pristineplace.us/wp-content/uploads/gravity_forms/60-10cb9d59b5a786f738edd1976b4d749d/2024/01/06-2023-Balance-Sheet.pdf",
+      "error": "fetch failed"
+    },
+    {
+      "id": "wp-document-34489",
+      "title": "July 2023 Balance Sheet",
+      "url": "https://staging56.pristineplace.us/wp-content/uploads/gravity_forms/60-10cb9d59b5a786f738edd1976b4d749d/2024/01/07-2023-Balance-Sheet.pdf",
+      "error": "fetch failed"
+    },
+    {
+      "id": "wp-document-34488",
+      "title": "August 2023 Balance Sheet",
+      "url": "https://staging56.pristineplace.us/wp-content/uploads/gravity_forms/60-10cb9d59b5a786f738edd1976b4d749d/2024/01/08-2023-Balance-Sheet.pdf",
+      "error": "fetch failed"
+    },
+    {
+      "id": "wp-document-34487",
+      "title": "September 2023 Balance Sheet",
+      "url": "https://staging56.pristineplace.us/wp-content/uploads/gravity_forms/60-10cb9d59b5a786f738edd1976b4d749d/2024/01/09-2023-Balance-Sheet.pdf",
+      "error": "fetch failed"
+    },
+    {
+      "id": "wp-document-34486",
+      "title": "October 2023 Balance Sheet",
+      "url": "https://staging56.pristineplace.us/wp-content/uploads/gravity_forms/60-10cb9d59b5a786f738edd1976b4d749d/2024/01/10-2023-Balance-Sheet.pdf",
+      "error": "fetch failed"
+    },
+    {
+      "id": "wp-document-34485",
+      "title": "November 2023 Balance Sheet",
+      "url": "https://staging56.pristineplace.us/wp-content/uploads/gravity_forms/60-10cb9d59b5a786f738edd1976b4d749d/2024/01/11-2023-Balance-Sheet.pdf",
+      "error": "fetch failed"
+    },
+    {
+      "id": "wp-document-34484",
+      "title": "December 2023 Balance Sheet",
+      "url": "https://www.staging56.pristineplace.us/wp-content/uploads/2024/01/December-Balance-Sheet.pdf",
+      "error": "fetch failed"
+    },
+    {
+      "id": "wp-document-34483",
+      "title": "January 2024 Balance Sheet",
+      "url": "https://www.staging56.pristineplace.us/wp-content/uploads/2024/02/January-Balance-Sheet.pdf",
+      "error": "fetch failed"
+    },
+    {
+      "id": "wp-document-34482",
+      "title": "February 2024 Balance Sheet",
+      "url": "https://www.staging56.pristineplace.us/wp-content/uploads/2024/03/February-2024-Balance-Sheet.pdf",
+      "error": "fetch failed"
+    },
+    {
+      "id": "wp-document-34481",
+      "title": "March 2024 Balance Sheet",
+      "url": "https://www.staging56.pristineplace.us/wp-content/uploads/2024/04/March-2024-Balance-Sheet-1.pdf",
+      "error": "fetch failed"
+    },
+    {
+      "id": "wp-document-34480",
+      "title": "May 2024 Balance Sheet",
+      "url": "https://www.staging56.pristineplace.us/wp-content/uploads/2024/07/May-2024-Balance-Sheet.pdf",
+      "error": "fetch failed"
+    },
+    {
+      "id": "wp-document-34479",
+      "title": "June 2024 Balance Sheet",
+      "url": "https://www.staging56.pristineplace.us/wp-content/uploads/2024/08/June-2024-Balance-Sheet.pdf",
+      "error": "fetch failed"
+    },
+    {
+      "id": "wp-document-34478",
+      "title": "July 2024 Balance Sheet",
+      "url": "https://www.staging56.pristineplace.us/wp-content/uploads/2024/08/July-2024-Balance-Sheet.pdf",
+      "error": "fetch failed"
+    },
+    {
+      "id": "wp-document-34477",
+      "title": "April 2024 Balance Sheet",
+      "url": "https://www.staging56.pristineplace.us/wp-content/uploads/2024/08/April-2024-Balance-Sheet.pdf",
+      "error": "fetch failed"
+    },
+    {
+      "id": "wp-document-34476",
+      "title": "August 2024 Balance Sheet",
+      "url": "https://www.staging56.pristineplace.us/wp-content/uploads/2024/09/August-2024-Balance-Sheet.pdf",
+      "error": "fetch failed"
+    },
+    {
+      "id": "wp-document-34475",
+      "title": "September 2024 Balance Sheet",
+      "url": "https://www.staging56.pristineplace.us/wp-content/uploads/2024/10/September-2024-Balance-Sheet.pdf",
+      "error": "fetch failed"
+    },
+    {
+      "id": "wp-document-34474",
+      "title": "October 2024 Balance Sheet",
+      "url": "https://www.staging56.pristineplace.us/wp-content/uploads/2024/11/October-2024-Balance-Sheet.pdf",
+      "error": "fetch failed"
+    },
+    {
+      "id": "wp-document-34473",
+      "title": "November 2024 Balance Sheet",
+      "url": "https://www.staging56.pristineplace.us/wp-content/uploads/2025/01/November-2024-Balance-Sheet.pdf",
+      "error": "fetch failed"
+    },
+    {
+      "id": "wp-document-34472",
+      "title": "December 2024 Balance Sheet",
+      "url": "https://www.staging56.pristineplace.us/wp-content/uploads/2025/01/December-2024-Balance-Sheet.pdf",
+      "error": "fetch failed"
+    },
+    {
+      "id": "wp-document-34471",
+      "title": "January 2025 Balance Sheet",
+      "url": "https://www.staging56.pristineplace.us/wp-content/uploads/2025/03/January-2025-Balance-Sheet.pdf",
+      "error": "fetch failed"
+    },
+    {
+      "id": "wp-document-34470",
+      "title": "February 2025 Balance Sheet",
+      "url": "https://www.staging56.pristineplace.us/wp-content/uploads/2025/03/February-2025-Balance-Sheet.pdf",
+      "error": "fetch failed"
+    },
+    {
+      "id": "wp-document-34469",
+      "title": "March 2025 Balance Sheet",
+      "url": "https://www.staging56.pristineplace.us/wp-content/uploads/2025/05/March-2025-Balance-Sheet.pdf",
+      "error": "fetch failed"
+    },
+    {
+      "id": "wp-document-34468",
+      "title": "April 2025 Balance Sheet",
+      "url": "https://www.staging56.pristineplace.us/wp-content/uploads/2025/05/April-2025-Balance-Sheet.pdf",
+      "error": "fetch failed"
+    },
+    {
+      "id": "wp-document-34467",
+      "title": "July 2025 Balance Sheet",
+      "url": "https://www.staging56.pristineplace.us/wp-content/uploads/2025/08/July-2025-Balance-Sheet.pdf",
+      "error": "fetch failed"
+    },
+    {
+      "id": "wp-document-34466",
+      "title": "June 2025 Balance Sheet",
+      "url": "https://www.staging56.pristineplace.us/wp-content/uploads/2025/08/June-2025-Balance-Sheet.pdf",
+      "error": "fetch failed"
+    },
+    {
+      "id": "wp-document-34465",
+      "title": "May 2025 Balance Sheet",
+      "url": "https://www.staging56.pristineplace.us/wp-content/uploads/2025/08/May-2025-Balance-Sheet.pdf",
+      "error": "fetch failed"
+    }
+  ]
+}

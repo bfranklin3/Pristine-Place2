@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 116" role="img" aria-labelledby="title desc">
+  <title id="title">Social Committee logo remake</title>
+  <desc id="desc">Two-line Social Committee wordmark with smile icons replacing the O letters.</desc>
+
+  <defs>
+    <style>
+      .word {
+        font-family: "Arial Black", "Segoe UI", Arial, sans-serif;
+        font-weight: 900;
+        letter-spacing: 1px;
+        fill: #1f2340;
+      }
+      .smile-eye { fill: #1f2340; }
+      .smile-mouth { stroke: #1f2340; stroke-width: 4; fill: none; stroke-linecap: round; }
+    </style>
+  </defs>
+
+  <rect width="360" height="116" fill="transparent"/>
+
+  <text class="word" x="18" y="42" font-size="50">S</text>
+  <text class="word" x="74" y="42" font-size="50">CIAL</text>
+
+  <text class="word" x="18" y="92" font-size="50">C</text>
+  <text class="word" x="98" y="92" font-size="50">MMITTEE</text>
+
+  <circle cx="55" cy="26" r="20" fill="#c4d332"/>
+  <circle class="smile-eye" cx="47.5" cy="21.5" r="2.3"/>
+  <circle class="smile-eye" cx="58.8" cy="21.5" r="2.3"/>
+  <path class="smile-mouth" d="M45 29 Q55 36 65 28"/>
+
+  <circle cx="80" cy="72" r="24" fill="#24a6a6"/>
+  <circle class="smile-eye" cx="70.5" cy="66" r="2.7"/>
+  <circle class="smile-eye" cx="84.5" cy="66" r="2.7"/>
+  <path class="smile-mouth" d="M67.5 75.5 Q79.5 84.5 91.5 74.5"/>
+</svg>
