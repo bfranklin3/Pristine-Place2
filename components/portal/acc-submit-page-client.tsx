@@ -2,7 +2,7 @@
 
 import { useMemo, useState, type CSSProperties } from "react"
 import Link from "next/link"
-import { CheckCircle2, ClipboardCheck, FileText, Info, Shield, Upload, Wrench } from "lucide-react"
+import { ClipboardCheck, FileText, Info, Save, Shield, Wrench } from "lucide-react"
 
 type WorkType = "paint" | "roof" | "fence" | "landscaping" | "other" | ""
 type RoleType = "owner" | "authorized_rep" | ""
@@ -22,6 +22,14 @@ type FormState = {
   startDate: string
   completionDate: string
   hasSupportingDocs: "no" | "yes" | ""
+  paintBodyColor: string
+  paintTrimColor: string
+  paintDoorColor: string
+  roofColor: string
+  roofType: string
+  fenceStyle: string
+  landscapingDetails: string
+  otherWorkDetails: string
 }
 
 const initialForm: FormState = {
@@ -39,6 +47,14 @@ const initialForm: FormState = {
   startDate: "",
   completionDate: "",
   hasSupportingDocs: "",
+  paintBodyColor: "",
+  paintTrimColor: "",
+  paintDoorColor: "",
+  roofColor: "",
+  roofType: "",
+  fenceStyle: "",
+  landscapingDetails: "",
+  otherWorkDetails: "",
 }
 
 const fullTerms = [
@@ -76,6 +92,17 @@ export function AccSubmitPageClient() {
       "Site plan with marked location",
       "Contractor details (if applicable)",
       "Expected start and completion dates",
+    ],
+    [],
+  )
+  const fenceStyleOptions = useMemo(
+    () => [
+      "4' High Black Chain Link",
+      "4' High Green Chain Link",
+      "4' High Black Metal Panel - Puppy",
+      "4' High Black Metal Panel - Sierra",
+      "4' High Black Metal Panel - Outback",
+      "4' High Black Metal Panel - Carolina",
     ],
     [],
   )
@@ -128,6 +155,13 @@ export function AccSubmitPageClient() {
       type: "success",
       message:
         "Request captured. Final submit integration is the next step; for immediate processing please continue using the current ACC WordPress workflow.",
+    })
+  }
+
+  function onSaveDraft() {
+    setStatus({
+      type: "success",
+      message: "Draft save clicked. Full save-and-resume backend wiring is the next step in this plan.",
     })
   }
 
@@ -365,6 +399,121 @@ export function AccSubmitPageClient() {
                     </div>
                   </label>
 
+                  {form.workType ? (
+                    <div
+                      style={{
+                        border: "1px solid #d4e8da",
+                        borderRadius: "var(--radius-md)",
+                        background: "#f8fffb",
+                        padding: "0.8rem 0.9rem",
+                        marginBottom: "0.8rem",
+                        display: "grid",
+                        gap: "0.75rem",
+                      }}
+                    >
+                      <p className="text-fluid-sm" style={{ fontWeight: 700, color: "var(--pp-navy-dark)", margin: 0 }}>
+                        Project-specific details
+                      </p>
+
+                      {form.workType === "paint" ? (
+                        <>
+                          <p className="text-fluid-sm" style={{ color: "var(--pp-slate-700)", margin: 0 }}>
+                            For paint requests, provide the requested color selections.
+                          </p>
+                          <div className="acc-three-col" style={{ display: "grid", gap: "0.8rem" }}>
+                            <label style={{ display: "grid", gap: "0.3rem" }}>
+                              <span className="text-fluid-sm" style={{ fontWeight: 600 }}>Body Color</span>
+                              <input value={form.paintBodyColor} onChange={(e) => updateField("paintBodyColor", e.target.value)} style={inputStyle} />
+                            </label>
+                            <label style={{ display: "grid", gap: "0.3rem" }}>
+                              <span className="text-fluid-sm" style={{ fontWeight: 600 }}>Trim Color</span>
+                              <input value={form.paintTrimColor} onChange={(e) => updateField("paintTrimColor", e.target.value)} style={inputStyle} />
+                            </label>
+                            <label style={{ display: "grid", gap: "0.3rem" }}>
+                              <span className="text-fluid-sm" style={{ fontWeight: 600 }}>Door Color</span>
+                              <input value={form.paintDoorColor} onChange={(e) => updateField("paintDoorColor", e.target.value)} style={inputStyle} />
+                            </label>
+                          </div>
+                        </>
+                      ) : null}
+
+                      {form.workType === "roof" ? (
+                        <>
+                          <p className="text-fluid-sm" style={{ color: "var(--pp-slate-700)", margin: 0 }}>
+                            For roof requests, provide roof color and material type.
+                          </p>
+                          <div className="acc-two-col" style={{ display: "grid", gap: "0.8rem" }}>
+                            <label style={{ display: "grid", gap: "0.3rem" }}>
+                              <span className="text-fluid-sm" style={{ fontWeight: 600 }}>Roof Color</span>
+                              <input value={form.roofColor} onChange={(e) => updateField("roofColor", e.target.value)} style={inputStyle} />
+                            </label>
+                            <label style={{ display: "grid", gap: "0.3rem" }}>
+                              <span className="text-fluid-sm" style={{ fontWeight: 600 }}>Roof Type</span>
+                              <select value={form.roofType} onChange={(e) => updateField("roofType", e.target.value)} style={inputStyle}>
+                                <option value="">Select roof type…</option>
+                                <option value="Dimensional Shingle">Dimensional Shingle</option>
+                                <option value="Tile Roof">Tile Roof</option>
+                              </select>
+                            </label>
+                          </div>
+                        </>
+                      ) : null}
+
+                      {form.workType === "fence" ? (
+                        <>
+                          <p className="text-fluid-sm" style={{ color: "var(--pp-slate-700)", margin: 0 }}>
+                            For fence requests, choose the proposed fence style.
+                          </p>
+                          <label style={{ display: "grid", gap: "0.3rem" }}>
+                            <span className="text-fluid-sm" style={{ fontWeight: 600 }}>Fence Style</span>
+                            <select value={form.fenceStyle} onChange={(e) => updateField("fenceStyle", e.target.value)} style={inputStyle}>
+                              <option value="">Select fence style…</option>
+                              {fenceStyleOptions.map((option) => (
+                                <option key={option} value={option}>{option}</option>
+                              ))}
+                            </select>
+                          </label>
+                        </>
+                      ) : null}
+
+                      {form.workType === "landscaping" ? (
+                        <>
+                          <p className="text-fluid-sm" style={{ color: "var(--pp-slate-700)", margin: 0 }}>
+                            For landscaping requests, include key materials, plantings, and any hardscape details.
+                          </p>
+                          <label style={{ display: "grid", gap: "0.3rem" }}>
+                            <span className="text-fluid-sm" style={{ fontWeight: 600 }}>Landscaping Details</span>
+                            <textarea
+                              value={form.landscapingDetails}
+                              onChange={(e) => updateField("landscapingDetails", e.target.value)}
+                              rows={4}
+                              placeholder="Describe plants, edging, stone, lighting, irrigation, and placement."
+                              style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit" }}
+                            />
+                          </label>
+                        </>
+                      ) : null}
+
+                      {form.workType === "other" ? (
+                        <>
+                          <p className="text-fluid-sm" style={{ color: "var(--pp-slate-700)", margin: 0 }}>
+                            For other requests, provide a brief category and enough detail for ACC review.
+                          </p>
+                          <label style={{ display: "grid", gap: "0.3rem" }}>
+                            <span className="text-fluid-sm" style={{ fontWeight: 600 }}>Other Work Details</span>
+                            <textarea
+                              value={form.otherWorkDetails}
+                              onChange={(e) => updateField("otherWorkDetails", e.target.value)}
+                              rows={4}
+                              placeholder="Describe the work category, materials, and installation location."
+                              style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit" }}
+                            />
+                          </label>
+                        </>
+                      ) : null}
+                    </div>
+                  ) : null}
+
                   <label style={{ display: "grid", gap: "0.3rem", marginBottom: "0.8rem" }}>
                     <span className="text-fluid-sm" style={{ fontWeight: 600 }}>Project Description <span style={{ color: "#b91c1c" }}>*</span></span>
                     <textarea
@@ -434,9 +583,10 @@ export function AccSubmitPageClient() {
                   </div>
                 ) : null}
 
-                <div style={{ display: "flex", gap: "0.7rem", flexWrap: "wrap", alignItems: "center", borderTop: "1px solid var(--pp-slate-200)", paddingTop: "1rem" }}>
+                <div className="acc-actions" style={{ display: "flex", gap: "0.7rem", flexWrap: "wrap", alignItems: "stretch", borderTop: "1px solid var(--pp-slate-200)", paddingTop: "1rem" }}>
                   <button
                     type="submit"
+                    className="acc-primary-action"
                     style={{
                       borderRadius: "var(--radius-md)",
                       border: "none",
@@ -448,6 +598,7 @@ export function AccSubmitPageClient() {
                       display: "inline-flex",
                       alignItems: "center",
                       gap: "0.45rem",
+                      justifyContent: "center",
                     }}
                   >
                     <ClipboardCheck style={{ width: "1rem", height: "1rem" }} />
@@ -455,6 +606,8 @@ export function AccSubmitPageClient() {
                   </button>
                   <button
                     type="button"
+                    onClick={onSaveDraft}
+                    className="acc-secondary-action"
                     style={{
                       borderRadius: "var(--radius-md)",
                       border: "1.5px solid var(--pp-slate-300)",
@@ -463,14 +616,24 @@ export function AccSubmitPageClient() {
                       padding: "0.68rem 1.1rem",
                       fontWeight: 700,
                       cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "0.4rem",
                     }}
                   >
+                    <Save style={{ width: "0.95rem", height: "0.95rem" }} />
                     Save & Continue Later
                   </button>
                 </div>
-                <small style={{ ...helperStyle, marginTop: "-0.3rem" }}>
-                  Not ready? Save your progress and return later.
-                </small>
+                <div className="acc-actions-help" style={{ display: "grid", gap: "0.35rem", marginTop: "-0.3rem" }}>
+                  <small style={helperStyle}>
+                    <strong>Submit My Request:</strong> sends your application to ACC for review.
+                  </small>
+                  <small style={helperStyle}>
+                    <strong>Save & Continue Later:</strong> stores progress so you can finish later.
+                  </small>
+                </div>
               </form>
             </div>
 
@@ -544,6 +707,14 @@ export function AccSubmitPageClient() {
         .acc-work-grid {
           grid-template-columns: repeat(5, minmax(0, 1fr));
         }
+        .acc-actions {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, auto));
+        }
+        .acc-primary-action,
+        .acc-secondary-action {
+          min-height: 2.75rem;
+        }
         @media (max-width: 1100px) {
           .acc-submit-grid {
             grid-template-columns: minmax(0, 1fr);
@@ -553,8 +724,19 @@ export function AccSubmitPageClient() {
           .acc-two-col {
             grid-template-columns: minmax(0, 1fr);
           }
+          .acc-three-col {
+            grid-template-columns: minmax(0, 1fr);
+          }
           .acc-work-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+          .acc-actions {
+            grid-template-columns: minmax(0, 1fr);
+          }
+        }
+        @media (min-width: 761px) {
+          .acc-three-col {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
           }
         }
       `}</style>
