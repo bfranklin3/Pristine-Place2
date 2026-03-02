@@ -358,7 +358,7 @@ export function AccSubmitPageClient() {
             }}
             className="acc-submit-grid"
           >
-            <div className="card" style={{ padding: "var(--space-l)", background: "#fffef9" }}>
+            <div className="card acc-form-card" style={{ padding: "var(--space-l)", background: "#fffef9" }}>
               <h2 style={{ color: "var(--pp-navy-dark)", marginBottom: "0.35rem" }}>ACC Change Request Form</h2>
               <p className="text-fluid-sm" style={{ color: "var(--pp-slate-500)" }}>
                 Please acknowledge the Terms and Conditions checkbox below, then complete your project request.
@@ -877,7 +877,7 @@ export function AccSubmitPageClient() {
               </form>
             </div>
 
-            <aside className="card" style={{ padding: "var(--space-l)", background: "#fcfff9" }}>
+            <aside className="card acc-sidebar-card" style={{ padding: "var(--space-l)", background: "#fcfff9" }}>
               <div style={{ display: "grid", gap: "1rem" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "0.45rem" }}>
                   <Info style={{ width: "1.1rem", height: "1.1rem", color: "var(--pp-navy-dark)" }} />
@@ -978,6 +978,10 @@ export function AccSubmitPageClient() {
           }
         }
         @media (max-width: 760px) {
+          .acc-form-card,
+          .acc-sidebar-card {
+            padding: 0.9rem !important;
+          }
           .acc-two-col {
             grid-template-columns: minmax(0, 1fr);
           }
@@ -985,10 +989,36 @@ export function AccSubmitPageClient() {
             grid-template-columns: minmax(0, 1fr);
           }
           .acc-work-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+            grid-template-columns: minmax(0, 1fr);
           }
           .acc-actions {
             grid-template-columns: minmax(0, 1fr);
+            gap: 0.55rem;
+          }
+          .acc-actions-help {
+            margin-top: 0 !important;
+          }
+          .acc-primary-action,
+          .acc-secondary-action {
+            width: 100%;
+            min-height: 2.6rem;
+            padding-top: 0.62rem !important;
+            padding-bottom: 0.62rem !important;
+          }
+          .acc-upload-block {
+            padding: 0.6rem 0.6rem;
+          }
+          .acc-upload-files {
+            padding: 0.45rem 0.5rem;
+          }
+          .acc-upload-files ul {
+            padding-left: 0.9rem !important;
+          }
+          .acc-sidebar-card :global(ul) {
+            padding-left: 1rem;
+          }
+          .acc-sidebar-card :global(li) {
+            margin-bottom: 0.15rem;
           }
         }
         @media (min-width: 761px) {
