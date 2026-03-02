@@ -8,9 +8,12 @@ import { requireManagementApiAccess } from "@/lib/auth/portal-management-api"
 const GF_API_URL = process.env.GRAVITY_FORMS_API_URL ?? "https://www.pristineplace.us/wp-json/gf/v2"
 const GF_KEY = process.env.GRAVITY_FORMS_API_KEY ?? ""
 const GF_SECRET = process.env.GRAVITY_FORMS_API_SECRET ?? ""
+const WP_JSON_API_URL = process.env.WORDPRESS_API_URL ?? "https://www.pristineplace.us/wp-json"
+const WP_USER = process.env.WORDPRESS_USERNAME ?? ""
+const WP_PASS = process.env.WORDPRESS_APP_PASSWORD ?? ""
 const ACC_FORM_ID = process.env.ACC_FORM_ID ?? "1"
 
-type DispositionStatus = "approved" | "rejected" | "conditional" | "duplicate" | "canceled" | "unknown"
+type DispositionStatus = "approved" | "rejected" | "conditional" | "duplicate" | "canceled" | "pending" | "unknown"
 type DispositionFilter = "all" | Exclude<DispositionStatus, "unknown">
 
 interface GfEntry {
@@ -30,6 +33,14 @@ function gfAuthHeaders() {
   }
 }
 
+function wpAuthHeaders() {
+  const token = Buffer.from(`${WP_USER}:${WP_PASS}`).toString("base64")
+  return {
+    Authorization: `Basic ${token}`,
+    "Content-Type": "application/json",
+  }
+}
+
 function normalizeDisposition(raw: unknown): DispositionStatus {
   if (typeof raw !== "string") return "unknown"
   const v = raw.trim().toLowerCase()
@@ -38,6 +49,7 @@ function normalizeDisposition(raw: unknown): DispositionStatus {
   if (["conditional", "conditionally approved", "approve with conditions"].includes(v)) return "conditional"
   if (["duplicate", "dup"].includes(v)) return "duplicate"
   if (["canceled", "cancelled", "cancel"].includes(v)) return "canceled"
+  if (["pending", "new", "submitted", "in review", "in_review", "awaiting review", "awaiting approval"].includes(v)) return "pending"
   return "unknown"
 }
 
@@ -50,7 +62,7 @@ function dispositionFromIsApproved(raw: unknown): DispositionStatus | null {
   return null
 }
 
-function getAccDisposition(entry: GfEntry): DispositionStatus {
+function getAccDisposition(entry: GfEntry, workflowStatusRaw?: unknown): DispositionStatus {
   const preferred = [
     entry.acc_disposition,
     entry.disposition,
@@ -85,10 +97,48 @@ function getAccDisposition(entry: GfEntry): DispositionStatus {
   const viaApprovedFlag = dispositionFromIsApproved(entry.is_approved)
   if (viaApprovedFlag) return viaApprovedFlag
 
+  // Use explicit workflow status from custom endpoint when available.
+  const workflowStatus = normalizeDisposition(workflowStatusRaw)
+  if (workflowStatus !== "unknown") return workflowStatus
+
   // Last fallback from GF lifecycle status.
-  if (entry.status === "active") return "conditional"
+  // "active" in GF means entry exists, not that ACC disposition is Conditional.
+  if (entry.status === "active") return "pending"
   if (entry.status === "trash") return "canceled"
   return "unknown"
+}
+
+async function fetchWorkflowStatusMap(entryIds: string[]): Promise<Map<string, DispositionStatus>> {
+  const map = new Map<string, DispositionStatus>()
+  if (!WP_USER || !WP_PASS || entryIds.length === 0) return map
+
+  const batchSize = 100
+  for (let i = 0; i < entryIds.length; i += batchSize) {
+    const batch = entryIds.slice(i, i + batchSize)
+    const url = new URL(`${WP_JSON_API_URL}/pp/v1/acc-workflow-status`)
+    url.searchParams.set("entry_ids", batch.join(","))
+
+    const res = await fetch(url.toString(), {
+      headers: wpAuthHeaders(),
+      cache: "no-store",
+    })
+    if (!res.ok) continue
+
+    const payload = (await res.json().catch(() => null)) as
+      | { results?: Record<string, { ok?: boolean; resolved_status?: unknown; workflow_status?: unknown; acc_disposition?: unknown }> }
+      | null
+
+    const results = payload?.results ?? {}
+    for (const [entryId, row] of Object.entries(results)) {
+      if (!row?.ok) continue
+      const normalized = normalizeDisposition(row.resolved_status ?? row.workflow_status ?? row.acc_disposition)
+      if (normalized !== "unknown") {
+        map.set(entryId, normalized)
+      }
+    }
+  }
+
+  return map
 }
 
 function stringifyValue(value: unknown): string {
@@ -157,9 +207,10 @@ export async function GET(req: NextRequest) {
 
   try {
     const all = await fetchAllActiveEntries()
+    const workflowStatusMap = await fetchWorkflowStatusMap(all.map((entry) => String(entry.id)))
 
     const filtered = all.filter((entry) => {
-      const d = getAccDisposition(entry)
+      const d = getAccDisposition(entry, workflowStatusMap.get(String(entry.id)))
       if (disposition !== "all" && d !== disposition) return false
 
       if (q) {
@@ -179,7 +230,10 @@ export async function GET(req: NextRequest) {
     const end = start + perPage
     const entries: GfEntryWithDisposition[] = filtered
       .slice(start, end)
-      .map((entry) => ({ ...entry, _accDisposition: getAccDisposition(entry) }))
+      .map((entry) => ({
+        ...entry,
+        _accDisposition: getAccDisposition(entry, workflowStatusMap.get(String(entry.id))),
+      }))
 
     return NextResponse.json({
       entries,

@@ -23,7 +23,7 @@ interface GfEntry {
   [key: string]: unknown  // Dynamic form fields (1, 2, 3, etc.)
 }
 
-type DispositionStatus = "approved" | "rejected" | "conditional" | "duplicate" | "canceled" | "unknown"
+type DispositionStatus = "approved" | "rejected" | "conditional" | "duplicate" | "canceled" | "pending" | "unknown"
 type DispositionFilter = "all" | Exclude<DispositionStatus, "unknown">
 type ModalMode = "view" | "edit"
 type AttachmentFieldId = "19" | "60"
@@ -81,12 +81,13 @@ function dispositionToGfValue(value: DispositionStatus): string {
 
 /* ── Status badge ───────────────────────────────────────────── */
 
-const STATUS_STYLE: Record<string, { bg: string; color: string; icon: React.ElementType }> = {
+const STATUS_STYLE: Record<string, { bg: string; color: string; icon: React.ElementType; border?: string }> = {
   approved: { bg: "#d1fae5", color: "#065f46", icon: CheckCircle },  // approved (green)
   rejected: { bg: "#fee2e2", color: "#991b1b", icon: XCircle },      // rejected (red)
   conditional: { bg: "#fef3c7", color: "#92400e", icon: Clock },      // yellow
   duplicate: { bg: "#e0e7ff", color: "#3730a3", icon: FileText },     // indigo
   canceled: { bg: "#f3f4f6", color: "#4b5563", icon: XCircle },       // neutral gray
+  pending: { bg: "#dbeafe", color: "#1e3a8a", border: "#93c5fd", icon: Clock }, // stronger contrast pending
   unknown: { bg: "var(--pp-slate-100)", color: "var(--pp-slate-600)", icon: FileText },
 }
 
@@ -99,6 +100,7 @@ function StatusBadge({ status }: { status: string }) {
     status === "conditional" ? "Conditional" :
     status === "duplicate" ? "Duplicate" :
     status === "canceled" ? "Canceled" :
+    status === "pending" ? "Pending" :
     "Unknown"
   return (
     <span
@@ -112,6 +114,7 @@ function StatusBadge({ status }: { status: string }) {
         fontWeight: 600,
         background: s.bg,
         color: s.color,
+        border: `1px solid ${s.border ?? "transparent"}`,
         whiteSpace: "nowrap",
       }}
     >
@@ -129,6 +132,7 @@ function normalizeDisposition(raw: unknown): DispositionStatus {
   if (["conditional", "conditionally approved", "approve with conditions"].includes(v)) return "conditional"
   if (["duplicate", "dup"].includes(v)) return "duplicate"
   if (["canceled", "cancelled", "cancel"].includes(v)) return "canceled"
+  if (["pending", "new", "submitted", "in review", "in_review", "awaiting review", "awaiting approval"].includes(v)) return "pending"
   return "unknown"
 }
 
