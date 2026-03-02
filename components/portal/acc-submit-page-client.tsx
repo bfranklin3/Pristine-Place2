@@ -153,6 +153,13 @@ export function AccSubmitPageClient() {
     if (!form.startDate) nextErrors.startDate = "Estimated start date is required."
     if (!form.completionDate) nextErrors.completionDate = "Estimated completion date is required."
     if (!form.hasSupportingDocs) nextErrors.hasSupportingDocs = "Please indicate whether you have supporting documents."
+    if (form.startDate && form.completionDate) {
+      const start = new Date(form.startDate)
+      const completion = new Date(form.completionDate)
+      if (completion < start) {
+        nextErrors.completionDate = "Estimated completion date cannot be earlier than the start date."
+      }
+    }
 
     if (form.role === "authorized_rep" && !form.authorizedRepName.trim()) {
       nextErrors.authorizedRepName = "Authorized representative name is required."
@@ -173,7 +180,11 @@ export function AccSubmitPageClient() {
 
     setErrors(nextErrors)
     if (Object.keys(nextErrors).length > 0) {
-      setStatus({ type: "error", message: "Please fix the highlighted fields and try again." })
+      if (nextErrors.completionDate === "Estimated completion date cannot be earlier than the start date.") {
+        setStatus({ type: "error", message: "Completion date must be the same day as or after the start date." })
+      } else {
+        setStatus({ type: "error", message: "Please fix the highlighted fields and try again." })
+      }
       return
     }
 
