@@ -31,6 +31,8 @@ type FormState = {
   otherWorkDetails: string
 }
 
+type FormErrors = Partial<Record<keyof FormState | "agreedToTerms", string>>
+
 const initialForm: FormState = {
   ownerName: "",
   streetAddress: "",
@@ -73,6 +75,7 @@ export function AccSubmitPageClient() {
   const [agreedToTerms, setAgreedToTerms] = useState(false)
   const [showFullTerms, setShowFullTerms] = useState(false)
   const [status, setStatus] = useState<{ type: "success" | "error"; message: string } | null>(null)
+  const [errors, setErrors] = useState<FormErrors>({})
 
   const workTypeCards = [
     { value: "paint" as WorkType, icon: "🎨", label: "Paint" },
@@ -93,6 +96,7 @@ export function AccSubmitPageClient() {
     ],
     [],
   )
+
   const fenceStyleOptions = useMemo(
     () => [
       "4' High Black Chain Link",
@@ -107,62 +111,69 @@ export function AccSubmitPageClient() {
 
   function updateField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }))
+    setErrors((prev) => {
+      if (!prev[key]) return prev
+      const next = { ...prev }
+      delete next[key]
+      return next
+    })
+  }
+
+  function setTerms(value: boolean) {
+    setAgreedToTerms(value)
+    if (value) {
+      setErrors((prev) => {
+        if (!prev.agreedToTerms) return prev
+        const next = { ...prev }
+        delete next.agreedToTerms
+        return next
+      })
+    }
+  }
+
+  function describedBy(...ids: Array<string | false | null | undefined>) {
+    const value = ids.filter(Boolean).join(" ")
+    return value || undefined
   }
 
   function onSubmit(e: React.FormEvent) {
     e.preventDefault()
     setStatus(null)
 
-    if (!agreedToTerms) {
-      setStatus({ type: "error", message: "Please acknowledge the Terms & Conditions before submitting." })
-      return
-    }
+    const nextErrors: FormErrors = {}
 
-    const requiredMissing = [
-      !form.ownerName.trim(),
-      !form.streetAddress.trim(),
-      !form.ownerPhone.trim(),
-      !form.ownerEmail.trim(),
-      !form.role,
-      !form.workType,
-      !form.projectDescription.trim(),
-      !form.startDate,
-      !form.completionDate,
-      !form.hasSupportingDocs,
-    ].some(Boolean)
-
-    if (requiredMissing) {
-      setStatus({ type: "error", message: "Please complete all required fields before submitting." })
-      return
-    }
+    if (!agreedToTerms) nextErrors.agreedToTerms = "Please acknowledge the Terms & Conditions."
+    if (!form.ownerName.trim()) nextErrors.ownerName = "Owner name is required."
+    if (!form.streetAddress.trim()) nextErrors.streetAddress = "Street address is required."
+    if (!form.ownerPhone.trim()) nextErrors.ownerPhone = "Owner phone number is required."
+    if (!form.ownerEmail.trim()) nextErrors.ownerEmail = "Owner email address is required."
+    if (!form.role) nextErrors.role = "Please select your role."
+    if (!form.workType) nextErrors.workType = "Please choose a work type."
+    if (!form.projectDescription.trim()) nextErrors.projectDescription = "Project description is required."
+    if (!form.startDate) nextErrors.startDate = "Estimated start date is required."
+    if (!form.completionDate) nextErrors.completionDate = "Estimated completion date is required."
+    if (!form.hasSupportingDocs) nextErrors.hasSupportingDocs = "Please indicate whether you have supporting documents."
 
     if (form.role === "authorized_rep" && !form.authorizedRepName.trim()) {
-      setStatus({ type: "error", message: "Please enter the authorized representative name." })
-      return
+      nextErrors.authorizedRepName = "Authorized representative name is required."
     }
 
-    if (form.workType === "paint" && (!form.paintBodyColor.trim() || !form.paintTrimColor.trim() || !form.paintDoorColor.trim())) {
-      setStatus({ type: "error", message: "For paint requests, body, trim, and door colors are required." })
-      return
+    if (form.workType === "paint") {
+      if (!form.paintBodyColor.trim()) nextErrors.paintBodyColor = "Body color is required."
+      if (!form.paintTrimColor.trim()) nextErrors.paintTrimColor = "Trim color is required."
+      if (!form.paintDoorColor.trim()) nextErrors.paintDoorColor = "Door color is required."
     }
-
-    if (form.workType === "roof" && (!form.roofColor.trim() || !form.roofType.trim())) {
-      setStatus({ type: "error", message: "For roof requests, roof color and roof type are required." })
-      return
+    if (form.workType === "roof") {
+      if (!form.roofColor.trim()) nextErrors.roofColor = "Roof color is required."
+      if (!form.roofType.trim()) nextErrors.roofType = "Roof type is required."
     }
+    if (form.workType === "fence" && !form.fenceStyle.trim()) nextErrors.fenceStyle = "Fence style is required."
+    if (form.workType === "landscaping" && !form.landscapingDetails.trim()) nextErrors.landscapingDetails = "Landscaping details are required."
+    if (form.workType === "other" && !form.otherWorkDetails.trim()) nextErrors.otherWorkDetails = "Other work details are required."
 
-    if (form.workType === "fence" && !form.fenceStyle.trim()) {
-      setStatus({ type: "error", message: "For fence requests, fence style is required." })
-      return
-    }
-
-    if (form.workType === "landscaping" && !form.landscapingDetails.trim()) {
-      setStatus({ type: "error", message: "For landscaping requests, landscaping details are required." })
-      return
-    }
-
-    if (form.workType === "other" && !form.otherWorkDetails.trim()) {
-      setStatus({ type: "error", message: "For other requests, additional details are required." })
+    setErrors(nextErrors)
+    if (Object.keys(nextErrors).length > 0) {
+      setStatus({ type: "error", message: "Please fix the highlighted fields and try again." })
       return
     }
 
@@ -293,11 +304,19 @@ export function AccSubmitPageClient() {
                     Terms & Conditions
                   </p>
                   <label style={{ display: "flex", alignItems: "flex-start", gap: "0.5rem", cursor: "pointer" }}>
-                    <input type="checkbox" checked={agreedToTerms} onChange={(e) => setAgreedToTerms(e.target.checked)} style={{ marginTop: "0.2rem" }} />
+                    <input
+                      type="checkbox"
+                      checked={agreedToTerms}
+                      onChange={(e) => setTerms(e.target.checked)}
+                      style={{ marginTop: "0.2rem" }}
+                      aria-invalid={!!errors.agreedToTerms}
+                      aria-describedby={errors.agreedToTerms ? "agreedToTerms-error" : undefined}
+                    />
                     <span style={{ color: "var(--pp-slate-700)", fontWeight: 600, lineHeight: 1.5 }}>
                       I hereby acknowledge that I have read and consent to the Pristine Place Terms & Conditions.
                     </span>
                   </label>
+                  {errors.agreedToTerms ? <small id="agreedToTerms-error" style={errorStyle}>{errors.agreedToTerms}</small> : null}
                 </div>
 
                 <div style={{ borderTop: "1px solid var(--pp-slate-200)", paddingTop: "0.9rem" }}>
@@ -307,21 +326,54 @@ export function AccSubmitPageClient() {
                   <div className="acc-two-col" style={{ display: "grid", gap: "0.8rem", alignItems: "start" }}>
                     <label style={{ display: "grid", gap: "0.3rem", alignContent: "start" }}>
                       <span className="text-fluid-sm" style={{ fontWeight: 600 }}>Owner&apos;s Name <span style={{ color: "#b91c1c" }}>*</span></span>
-                      <input value={form.ownerName} onChange={(e) => updateField("ownerName", e.target.value)} required style={inputStyle} />
+                      <input
+                        value={form.ownerName}
+                        onChange={(e) => updateField("ownerName", e.target.value)}
+                        required
+                        style={inputStyle}
+                        aria-invalid={!!errors.ownerName}
+                        aria-describedby={errors.ownerName ? "ownerName-error" : undefined}
+                      />
+                      {errors.ownerName ? <small id="ownerName-error" style={errorStyle}>{errors.ownerName}</small> : null}
                     </label>
                     <label style={{ display: "grid", gap: "0.3rem", alignContent: "start" }}>
                       <span className="text-fluid-sm" style={{ fontWeight: 600 }}>Street Address <span style={{ color: "#b91c1c" }}>*</span></span>
-                      <input value={form.streetAddress} onChange={(e) => updateField("streetAddress", e.target.value)} required style={inputStyle} />
-                      <small style={helperStyle}>Street address only — no need to include city or state.</small>
+                      <input
+                        value={form.streetAddress}
+                        onChange={(e) => updateField("streetAddress", e.target.value)}
+                        required
+                        style={inputStyle}
+                        aria-invalid={!!errors.streetAddress}
+                        aria-describedby={describedBy("streetAddress-help", errors.streetAddress && "streetAddress-error")}
+                      />
+                      <small id="streetAddress-help" style={helperStyle}>Street address only — no need to include city or state.</small>
+                      {errors.streetAddress ? <small id="streetAddress-error" style={errorStyle}>{errors.streetAddress}</small> : null}
                     </label>
                     <label style={{ display: "grid", gap: "0.3rem", alignContent: "start" }}>
                       <span className="text-fluid-sm" style={{ fontWeight: 600 }}>Owner&apos;s Phone Number <span style={{ color: "#b91c1c" }}>*</span></span>
-                      <input value={form.ownerPhone} onChange={(e) => updateField("ownerPhone", e.target.value)} required style={inputStyle} />
-                      <small style={helperStyle}>Best phone number for contact.</small>
+                      <input
+                        value={form.ownerPhone}
+                        onChange={(e) => updateField("ownerPhone", e.target.value)}
+                        required
+                        style={inputStyle}
+                        aria-invalid={!!errors.ownerPhone}
+                        aria-describedby={describedBy("ownerPhone-help", errors.ownerPhone && "ownerPhone-error")}
+                      />
+                      <small id="ownerPhone-help" style={helperStyle}>Best phone number for contact.</small>
+                      {errors.ownerPhone ? <small id="ownerPhone-error" style={errorStyle}>{errors.ownerPhone}</small> : null}
                     </label>
                     <label style={{ display: "grid", gap: "0.3rem", alignContent: "start" }}>
                       <span className="text-fluid-sm" style={{ fontWeight: 600 }}>Owner&apos;s Email Address <span style={{ color: "#b91c1c" }}>*</span></span>
-                      <input type="email" value={form.ownerEmail} onChange={(e) => updateField("ownerEmail", e.target.value)} required style={inputStyle} />
+                      <input
+                        type="email"
+                        value={form.ownerEmail}
+                        onChange={(e) => updateField("ownerEmail", e.target.value)}
+                        required
+                        style={inputStyle}
+                        aria-invalid={!!errors.ownerEmail}
+                        aria-describedby={errors.ownerEmail ? "ownerEmail-error" : undefined}
+                      />
+                      {errors.ownerEmail ? <small id="ownerEmail-error" style={errorStyle}>{errors.ownerEmail}</small> : null}
                     </label>
                   </div>
                 </div>
@@ -359,7 +411,7 @@ export function AccSubmitPageClient() {
 
                   <label style={{ display: "grid", gap: "0.3rem", marginBottom: "0.8rem" }}>
                     <span className="text-fluid-sm" style={{ fontWeight: 600 }}>Your role <span style={{ color: "#b91c1c" }}>*</span></span>
-                    <div style={{ display: "grid", gap: "0.45rem" }}>
+                    <div style={{ display: "grid", gap: "0.45rem" }} aria-invalid={!!errors.role} aria-describedby={errors.role ? "role-error" : undefined}>
                       <label style={radioLabelStyle}>
                         <input type="radio" name="role" value="owner" checked={form.role === "owner"} onChange={() => updateField("role", "owner")} />
                         <span>I am the owner</span>
@@ -369,18 +421,27 @@ export function AccSubmitPageClient() {
                         <span>I am an authorized representative acting on the owner&apos;s behalf</span>
                       </label>
                     </div>
+                    {errors.role ? <small id="role-error" style={errorStyle}>{errors.role}</small> : null}
                   </label>
 
                   {form.role === "authorized_rep" ? (
                     <label style={{ display: "grid", gap: "0.3rem", marginBottom: "0.8rem" }}>
                       <span className="text-fluid-sm" style={{ fontWeight: 600 }}>Authorized Representative Name <span style={{ color: "#b91c1c" }}>*</span></span>
-                      <input value={form.authorizedRepName} onChange={(e) => updateField("authorizedRepName", e.target.value)} style={inputStyle} required />
+                      <input
+                        value={form.authorizedRepName}
+                        onChange={(e) => updateField("authorizedRepName", e.target.value)}
+                        style={inputStyle}
+                        required
+                        aria-invalid={!!errors.authorizedRepName}
+                        aria-describedby={errors.authorizedRepName ? "authorizedRepName-error" : undefined}
+                      />
+                      {errors.authorizedRepName ? <small id="authorizedRepName-error" style={errorStyle}>{errors.authorizedRepName}</small> : null}
                     </label>
                   ) : null}
 
                   <label style={{ display: "grid", gap: "0.45rem", marginBottom: "0.8rem" }}>
                     <span className="text-fluid-sm" style={{ fontWeight: 600 }}>Type of work requested <span style={{ color: "#b91c1c" }}>*</span></span>
-                    <div className="acc-work-grid" style={{ display: "grid", gap: "0.5rem" }}>
+                    <div className="acc-work-grid" style={{ display: "grid", gap: "0.5rem" }} role="radiogroup" aria-invalid={!!errors.workType} aria-describedby={errors.workType ? "workType-error" : undefined}>
                       {workTypeCards.map((item) => {
                         const active = form.workType === item.value
                         return (
@@ -388,6 +449,8 @@ export function AccSubmitPageClient() {
                             key={item.value}
                             type="button"
                             onClick={() => updateField("workType", item.value)}
+                            role="radio"
+                            aria-checked={active}
                             style={{
                               borderRadius: "var(--radius-md)",
                               border: active ? "2px solid var(--pp-navy-dark)" : "1.5px solid var(--pp-slate-200)",
@@ -408,6 +471,7 @@ export function AccSubmitPageClient() {
                         )
                       })}
                     </div>
+                    {errors.workType ? <small id="workType-error" style={errorStyle}>{errors.workType}</small> : null}
                   </label>
 
                   {form.workType ? (
@@ -434,15 +498,18 @@ export function AccSubmitPageClient() {
                           <div className="acc-three-col" style={{ display: "grid", gap: "0.8rem" }}>
                             <label style={{ display: "grid", gap: "0.3rem" }}>
                               <span className="text-fluid-sm" style={{ fontWeight: 600 }}>Body Color</span>
-                              <input value={form.paintBodyColor} onChange={(e) => updateField("paintBodyColor", e.target.value)} required style={inputStyle} />
+                              <input value={form.paintBodyColor} onChange={(e) => updateField("paintBodyColor", e.target.value)} required style={inputStyle} aria-invalid={!!errors.paintBodyColor} aria-describedby={errors.paintBodyColor ? "paintBodyColor-error" : undefined} />
+                              {errors.paintBodyColor ? <small id="paintBodyColor-error" style={errorStyle}>{errors.paintBodyColor}</small> : null}
                             </label>
                             <label style={{ display: "grid", gap: "0.3rem" }}>
                               <span className="text-fluid-sm" style={{ fontWeight: 600 }}>Trim Color</span>
-                              <input value={form.paintTrimColor} onChange={(e) => updateField("paintTrimColor", e.target.value)} required style={inputStyle} />
+                              <input value={form.paintTrimColor} onChange={(e) => updateField("paintTrimColor", e.target.value)} required style={inputStyle} aria-invalid={!!errors.paintTrimColor} aria-describedby={errors.paintTrimColor ? "paintTrimColor-error" : undefined} />
+                              {errors.paintTrimColor ? <small id="paintTrimColor-error" style={errorStyle}>{errors.paintTrimColor}</small> : null}
                             </label>
                             <label style={{ display: "grid", gap: "0.3rem" }}>
                               <span className="text-fluid-sm" style={{ fontWeight: 600 }}>Door Color</span>
-                              <input value={form.paintDoorColor} onChange={(e) => updateField("paintDoorColor", e.target.value)} required style={inputStyle} />
+                              <input value={form.paintDoorColor} onChange={(e) => updateField("paintDoorColor", e.target.value)} required style={inputStyle} aria-invalid={!!errors.paintDoorColor} aria-describedby={errors.paintDoorColor ? "paintDoorColor-error" : undefined} />
+                              {errors.paintDoorColor ? <small id="paintDoorColor-error" style={errorStyle}>{errors.paintDoorColor}</small> : null}
                             </label>
                           </div>
                         </>
@@ -456,15 +523,17 @@ export function AccSubmitPageClient() {
                           <div className="acc-two-col" style={{ display: "grid", gap: "0.8rem" }}>
                             <label style={{ display: "grid", gap: "0.3rem" }}>
                               <span className="text-fluid-sm" style={{ fontWeight: 600 }}>Roof Color</span>
-                              <input value={form.roofColor} onChange={(e) => updateField("roofColor", e.target.value)} required style={inputStyle} />
+                              <input value={form.roofColor} onChange={(e) => updateField("roofColor", e.target.value)} required style={inputStyle} aria-invalid={!!errors.roofColor} aria-describedby={errors.roofColor ? "roofColor-error" : undefined} />
+                              {errors.roofColor ? <small id="roofColor-error" style={errorStyle}>{errors.roofColor}</small> : null}
                             </label>
                             <label style={{ display: "grid", gap: "0.3rem" }}>
                               <span className="text-fluid-sm" style={{ fontWeight: 600 }}>Roof Type</span>
-                              <select value={form.roofType} onChange={(e) => updateField("roofType", e.target.value)} required style={inputStyle}>
+                              <select value={form.roofType} onChange={(e) => updateField("roofType", e.target.value)} required style={inputStyle} aria-invalid={!!errors.roofType} aria-describedby={errors.roofType ? "roofType-error" : undefined}>
                                 <option value="">Select roof type…</option>
                                 <option value="Dimensional Shingle">Dimensional Shingle</option>
                                 <option value="Tile Roof">Tile Roof</option>
                               </select>
+                              {errors.roofType ? <small id="roofType-error" style={errorStyle}>{errors.roofType}</small> : null}
                             </label>
                           </div>
                         </>
@@ -477,12 +546,13 @@ export function AccSubmitPageClient() {
                           </p>
                           <label style={{ display: "grid", gap: "0.3rem" }}>
                             <span className="text-fluid-sm" style={{ fontWeight: 600 }}>Fence Style</span>
-                            <select value={form.fenceStyle} onChange={(e) => updateField("fenceStyle", e.target.value)} required style={inputStyle}>
+                            <select value={form.fenceStyle} onChange={(e) => updateField("fenceStyle", e.target.value)} required style={inputStyle} aria-invalid={!!errors.fenceStyle} aria-describedby={errors.fenceStyle ? "fenceStyle-error" : undefined}>
                               <option value="">Select fence style…</option>
                               {fenceStyleOptions.map((option) => (
                                 <option key={option} value={option}>{option}</option>
                               ))}
                             </select>
+                            {errors.fenceStyle ? <small id="fenceStyle-error" style={errorStyle}>{errors.fenceStyle}</small> : null}
                           </label>
                         </>
                       ) : null}
@@ -501,7 +571,10 @@ export function AccSubmitPageClient() {
                               placeholder="Describe plants, edging, stone, lighting, irrigation, and placement."
                               required
                               style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit" }}
+                              aria-invalid={!!errors.landscapingDetails}
+                              aria-describedby={errors.landscapingDetails ? "landscapingDetails-error" : undefined}
                             />
+                            {errors.landscapingDetails ? <small id="landscapingDetails-error" style={errorStyle}>{errors.landscapingDetails}</small> : null}
                           </label>
                         </>
                       ) : null}
@@ -520,7 +593,10 @@ export function AccSubmitPageClient() {
                               placeholder="Describe the work category, materials, and installation location."
                               required
                               style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit" }}
+                              aria-invalid={!!errors.otherWorkDetails}
+                              aria-describedby={errors.otherWorkDetails ? "otherWorkDetails-error" : undefined}
                             />
+                            {errors.otherWorkDetails ? <small id="otherWorkDetails-error" style={errorStyle}>{errors.otherWorkDetails}</small> : null}
                           </label>
                         </>
                       ) : null}
@@ -536,17 +612,22 @@ export function AccSubmitPageClient() {
                       rows={7}
                       placeholder="Describe your scope of work, materials, dimensions, location on property, and finish details."
                       style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit" }}
+                      aria-invalid={!!errors.projectDescription}
+                      aria-describedby={errors.projectDescription ? "projectDescription-error" : undefined}
                     />
+                    {errors.projectDescription ? <small id="projectDescription-error" style={errorStyle}>{errors.projectDescription}</small> : null}
                   </label>
 
                   <div className="acc-two-col" style={{ display: "grid", gap: "0.8rem" }}>
                     <label style={{ display: "grid", gap: "0.3rem" }}>
                       <span className="text-fluid-sm" style={{ fontWeight: 600 }}>Estimated Start Date <span style={{ color: "#b91c1c" }}>*</span></span>
-                      <input type="date" value={form.startDate} onChange={(e) => updateField("startDate", e.target.value)} required style={inputStyle} />
+                      <input type="date" value={form.startDate} onChange={(e) => updateField("startDate", e.target.value)} required style={inputStyle} aria-invalid={!!errors.startDate} aria-describedby={errors.startDate ? "startDate-error" : undefined} />
+                      {errors.startDate ? <small id="startDate-error" style={errorStyle}>{errors.startDate}</small> : null}
                     </label>
                     <label style={{ display: "grid", gap: "0.3rem" }}>
                       <span className="text-fluid-sm" style={{ fontWeight: 600 }}>Estimated Completion Date <span style={{ color: "#b91c1c" }}>*</span></span>
-                      <input type="date" value={form.completionDate} onChange={(e) => updateField("completionDate", e.target.value)} required style={inputStyle} />
+                      <input type="date" value={form.completionDate} onChange={(e) => updateField("completionDate", e.target.value)} required style={inputStyle} aria-invalid={!!errors.completionDate} aria-describedby={errors.completionDate ? "completionDate-error" : undefined} />
+                      {errors.completionDate ? <small id="completionDate-error" style={errorStyle}>{errors.completionDate}</small> : null}
                     </label>
                   </div>
                 </div>
@@ -559,7 +640,7 @@ export function AccSubmitPageClient() {
                     <span className="text-fluid-sm" style={{ fontWeight: 600 }}>
                       Do you have supporting documents to attach? (photos, site plans, material specs) <span style={{ color: "#b91c1c" }}>*</span>
                     </span>
-                    <div style={{ display: "grid", gap: "0.45rem" }}>
+                    <div style={{ display: "grid", gap: "0.45rem" }} aria-invalid={!!errors.hasSupportingDocs} aria-describedby={errors.hasSupportingDocs ? "hasSupportingDocs-error" : undefined}>
                       <label style={radioLabelStyle}>
                         <input type="radio" name="docs" value="no" checked={form.hasSupportingDocs === "no"} onChange={() => updateField("hasSupportingDocs", "no")} />
                         <span>Not at this time</span>
@@ -569,6 +650,7 @@ export function AccSubmitPageClient() {
                         <span>Yes, I am prepared to submit my documents now.</span>
                       </label>
                     </div>
+                    {errors.hasSupportingDocs ? <small id="hasSupportingDocs-error" style={errorStyle}>{errors.hasSupportingDocs}</small> : null}
                   </label>
 
                   {form.hasSupportingDocs === "yes" ? (
@@ -584,6 +666,8 @@ export function AccSubmitPageClient() {
 
                 {status ? (
                   <div
+                    role={status.type === "error" ? "alert" : "status"}
+                    aria-live="polite"
                     style={{
                       borderRadius: "var(--radius-md)",
                       border: status.type === "success" ? "1px solid #86efac" : "1px solid #fca5a5",
@@ -770,6 +854,12 @@ const inputStyle: CSSProperties = {
 const helperStyle: CSSProperties = {
   color: "var(--pp-slate-500)",
   fontSize: "0.78rem",
+}
+
+const errorStyle: CSSProperties = {
+  color: "#b91c1c",
+  fontSize: "0.82rem",
+  fontWeight: 600,
 }
 
 const radioLabelStyle: CSSProperties = {

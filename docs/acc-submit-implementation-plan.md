@@ -23,7 +23,7 @@ Page: `/resident-portal/acc/submit`
 | ACC-SUB-05 | Remove Confirm Email field | P0 | Quick Win | Dev | Done | Form has one owner email field only; no confirm-email UI or validation references remain. |
 | ACC-SUB-06 | Make Phase optional dropdown (Phase 1-6) | P0 | Quick Win | Dev | Done | Phase is select input with values Phase 1..Phase 6 and can be left blank. |
 | ACC-SUB-07 | Make Lot# optional | P0 | Quick Win | Dev | Done | Lot# is not required and submit succeeds without it. |
-| ACC-SUB-08 | Inline validation + accessibility attributes | P1 | Medium | Dev | Not Started | Field-level errors render under each invalid input with `aria-invalid` and `aria-describedby`; status area uses `aria-live`. |
+| ACC-SUB-08 | Inline validation + accessibility attributes | P1 | Medium | Dev | Done | Field-level errors render under each invalid input with `aria-invalid` and `aria-describedby`; status area uses `aria-live`. |
 | ACC-SUB-09 | Date logic validation | P1 | Quick Win | Dev | Not Started | Completion date cannot be earlier than start date; clear error shown inline and at summary. |
 | ACC-SUB-10 | Improve upload UX (types/size/list/progress) | P1 | Medium | Dev | Not Started | Users can see allowed types/size, selected files list, and upload state; failures are actionable. |
 | ACC-SUB-11 | Primary/secondary CTA polish and microcopy | P2 | Quick Win | Dev | Done | Submit and Save actions are visually distinct and explanatory help text is present. |
