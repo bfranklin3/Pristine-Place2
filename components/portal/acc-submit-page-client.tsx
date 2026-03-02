@@ -12,7 +12,6 @@ type FormState = {
   streetAddress: string
   ownerPhone: string
   ownerEmail: string
-  ownerEmailConfirm: string
   phase: string
   lot: string
   role: RoleType
@@ -37,7 +36,6 @@ const initialForm: FormState = {
   streetAddress: "",
   ownerPhone: "",
   ownerEmail: "",
-  ownerEmailConfirm: "",
   phase: "",
   lot: "",
   role: "",
@@ -125,9 +123,6 @@ export function AccSubmitPageClient() {
       !form.streetAddress.trim(),
       !form.ownerPhone.trim(),
       !form.ownerEmail.trim(),
-      !form.ownerEmailConfirm.trim(),
-      !form.phase.trim(),
-      !form.lot.trim(),
       !form.role,
       !form.workType,
       !form.projectDescription.trim(),
@@ -141,13 +136,33 @@ export function AccSubmitPageClient() {
       return
     }
 
-    if (form.ownerEmail.trim().toLowerCase() !== form.ownerEmailConfirm.trim().toLowerCase()) {
-      setStatus({ type: "error", message: "Owner email and confirm email do not match." })
+    if (form.role === "authorized_rep" && !form.authorizedRepName.trim()) {
+      setStatus({ type: "error", message: "Please enter the authorized representative name." })
       return
     }
 
-    if (form.role === "authorized_rep" && !form.authorizedRepName.trim()) {
-      setStatus({ type: "error", message: "Please enter the authorized representative name." })
+    if (form.workType === "paint" && (!form.paintBodyColor.trim() || !form.paintTrimColor.trim() || !form.paintDoorColor.trim())) {
+      setStatus({ type: "error", message: "For paint requests, body, trim, and door colors are required." })
+      return
+    }
+
+    if (form.workType === "roof" && (!form.roofColor.trim() || !form.roofType.trim())) {
+      setStatus({ type: "error", message: "For roof requests, roof color and roof type are required." })
+      return
+    }
+
+    if (form.workType === "fence" && !form.fenceStyle.trim()) {
+      setStatus({ type: "error", message: "For fence requests, fence style is required." })
+      return
+    }
+
+    if (form.workType === "landscaping" && !form.landscapingDetails.trim()) {
+      setStatus({ type: "error", message: "For landscaping requests, landscaping details are required." })
+      return
+    }
+
+    if (form.workType === "other" && !form.otherWorkDetails.trim()) {
+      setStatus({ type: "error", message: "For other requests, additional details are required." })
       return
     }
 
@@ -289,38 +304,25 @@ export function AccSubmitPageClient() {
                   <p className="text-fluid-sm" style={{ fontWeight: 700, color: "var(--pp-navy-dark)", marginBottom: "0.55rem" }}>
                     Your Information
                   </p>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "0.8rem" }}>
-                    <div className="acc-two-col" style={{ display: "grid", gap: "0.8rem" }}>
-                      <label style={{ display: "grid", gap: "0.3rem" }}>
-                        <span className="text-fluid-sm" style={{ fontWeight: 600 }}>Owner&apos;s Name <span style={{ color: "#b91c1c" }}>*</span></span>
-                        <input value={form.ownerName} onChange={(e) => updateField("ownerName", e.target.value)} required style={inputStyle} />
-                      </label>
-                      <label style={{ display: "grid", gap: "0.3rem" }}>
-                        <span className="text-fluid-sm" style={{ fontWeight: 600 }}>Street Address <span style={{ color: "#b91c1c" }}>*</span></span>
-                        <input value={form.streetAddress} onChange={(e) => updateField("streetAddress", e.target.value)} required style={inputStyle} />
-                        <small style={helperStyle}>Street address only — no need to include city or state.</small>
-                      </label>
-                    </div>
-
-                    <div className="acc-two-col" style={{ display: "grid", gap: "0.8rem" }}>
-                      <label style={{ display: "grid", gap: "0.3rem" }}>
-                        <span className="text-fluid-sm" style={{ fontWeight: 600 }}>Owner&apos;s Phone Number <span style={{ color: "#b91c1c" }}>*</span></span>
-                        <input value={form.ownerPhone} onChange={(e) => updateField("ownerPhone", e.target.value)} required style={inputStyle} />
-                        <small style={helperStyle}>Best phone number for contact.</small>
-                      </label>
-                      <label style={{ display: "grid", gap: "0.3rem" }}>
-                        <span className="text-fluid-sm" style={{ fontWeight: 600 }}>Owner&apos;s Email Address <span style={{ color: "#b91c1c" }}>*</span></span>
-                        <input type="email" value={form.ownerEmail} onChange={(e) => updateField("ownerEmail", e.target.value)} required style={inputStyle} />
-                      </label>
-                    </div>
-
-                    <div className="acc-two-col" style={{ display: "grid", gap: "0.8rem" }}>
-                      <label style={{ display: "grid", gap: "0.3rem" }}>
-                        <span className="text-fluid-sm" style={{ fontWeight: 600 }}>Confirm Email <span style={{ color: "#b91c1c" }}>*</span></span>
-                        <input type="email" value={form.ownerEmailConfirm} onChange={(e) => updateField("ownerEmailConfirm", e.target.value)} required style={inputStyle} />
-                      </label>
-                      <div />
-                    </div>
+                  <div className="acc-two-col" style={{ display: "grid", gap: "0.8rem", alignItems: "start" }}>
+                    <label style={{ display: "grid", gap: "0.3rem", alignContent: "start" }}>
+                      <span className="text-fluid-sm" style={{ fontWeight: 600 }}>Owner&apos;s Name <span style={{ color: "#b91c1c" }}>*</span></span>
+                      <input value={form.ownerName} onChange={(e) => updateField("ownerName", e.target.value)} required style={inputStyle} />
+                    </label>
+                    <label style={{ display: "grid", gap: "0.3rem", alignContent: "start" }}>
+                      <span className="text-fluid-sm" style={{ fontWeight: 600 }}>Street Address <span style={{ color: "#b91c1c" }}>*</span></span>
+                      <input value={form.streetAddress} onChange={(e) => updateField("streetAddress", e.target.value)} required style={inputStyle} />
+                      <small style={helperStyle}>Street address only — no need to include city or state.</small>
+                    </label>
+                    <label style={{ display: "grid", gap: "0.3rem", alignContent: "start" }}>
+                      <span className="text-fluid-sm" style={{ fontWeight: 600 }}>Owner&apos;s Phone Number <span style={{ color: "#b91c1c" }}>*</span></span>
+                      <input value={form.ownerPhone} onChange={(e) => updateField("ownerPhone", e.target.value)} required style={inputStyle} />
+                      <small style={helperStyle}>Best phone number for contact.</small>
+                    </label>
+                    <label style={{ display: "grid", gap: "0.3rem", alignContent: "start" }}>
+                      <span className="text-fluid-sm" style={{ fontWeight: 600 }}>Owner&apos;s Email Address <span style={{ color: "#b91c1c" }}>*</span></span>
+                      <input type="email" value={form.ownerEmail} onChange={(e) => updateField("ownerEmail", e.target.value)} required style={inputStyle} />
+                    </label>
                   </div>
                 </div>
 
@@ -330,13 +332,22 @@ export function AccSubmitPageClient() {
                   </p>
                   <div className="acc-two-col" style={{ display: "grid", gap: "0.8rem" }}>
                     <label style={{ display: "grid", gap: "0.3rem" }}>
-                      <span className="text-fluid-sm" style={{ fontWeight: 600 }}>Phase <span style={{ color: "#b91c1c" }}>*</span></span>
-                      <input value={form.phase} onChange={(e) => updateField("phase", e.target.value)} required style={inputStyle} />
+                      <span className="text-fluid-sm" style={{ fontWeight: 600 }}>Phase</span>
+                      <select value={form.phase} onChange={(e) => updateField("phase", e.target.value)} style={inputStyle}>
+                        <option value="">Select phase (optional)…</option>
+                        <option value="Phase 1">Phase 1</option>
+                        <option value="Phase 2">Phase 2</option>
+                        <option value="Phase 3">Phase 3</option>
+                        <option value="Phase 4">Phase 4</option>
+                        <option value="Phase 5">Phase 5</option>
+                        <option value="Phase 6">Phase 6</option>
+                      </select>
                       <small style={helperStyle}>The section or phase of Pristine Place where your home is located.</small>
                     </label>
                     <label style={{ display: "grid", gap: "0.3rem" }}>
-                      <span className="text-fluid-sm" style={{ fontWeight: 600 }}>Lot# <span style={{ color: "#b91c1c" }}>*</span></span>
-                      <input value={form.lot} onChange={(e) => updateField("lot", e.target.value)} required style={inputStyle} />
+                      <span className="text-fluid-sm" style={{ fontWeight: 600 }}>Lot#</span>
+                      <input value={form.lot} onChange={(e) => updateField("lot", e.target.value)} style={inputStyle} />
+                      <small style={helperStyle}>Optional. Enter if known.</small>
                     </label>
                   </div>
                 </div>
@@ -423,15 +434,15 @@ export function AccSubmitPageClient() {
                           <div className="acc-three-col" style={{ display: "grid", gap: "0.8rem" }}>
                             <label style={{ display: "grid", gap: "0.3rem" }}>
                               <span className="text-fluid-sm" style={{ fontWeight: 600 }}>Body Color</span>
-                              <input value={form.paintBodyColor} onChange={(e) => updateField("paintBodyColor", e.target.value)} style={inputStyle} />
+                              <input value={form.paintBodyColor} onChange={(e) => updateField("paintBodyColor", e.target.value)} required style={inputStyle} />
                             </label>
                             <label style={{ display: "grid", gap: "0.3rem" }}>
                               <span className="text-fluid-sm" style={{ fontWeight: 600 }}>Trim Color</span>
-                              <input value={form.paintTrimColor} onChange={(e) => updateField("paintTrimColor", e.target.value)} style={inputStyle} />
+                              <input value={form.paintTrimColor} onChange={(e) => updateField("paintTrimColor", e.target.value)} required style={inputStyle} />
                             </label>
                             <label style={{ display: "grid", gap: "0.3rem" }}>
                               <span className="text-fluid-sm" style={{ fontWeight: 600 }}>Door Color</span>
-                              <input value={form.paintDoorColor} onChange={(e) => updateField("paintDoorColor", e.target.value)} style={inputStyle} />
+                              <input value={form.paintDoorColor} onChange={(e) => updateField("paintDoorColor", e.target.value)} required style={inputStyle} />
                             </label>
                           </div>
                         </>
@@ -445,11 +456,11 @@ export function AccSubmitPageClient() {
                           <div className="acc-two-col" style={{ display: "grid", gap: "0.8rem" }}>
                             <label style={{ display: "grid", gap: "0.3rem" }}>
                               <span className="text-fluid-sm" style={{ fontWeight: 600 }}>Roof Color</span>
-                              <input value={form.roofColor} onChange={(e) => updateField("roofColor", e.target.value)} style={inputStyle} />
+                              <input value={form.roofColor} onChange={(e) => updateField("roofColor", e.target.value)} required style={inputStyle} />
                             </label>
                             <label style={{ display: "grid", gap: "0.3rem" }}>
                               <span className="text-fluid-sm" style={{ fontWeight: 600 }}>Roof Type</span>
-                              <select value={form.roofType} onChange={(e) => updateField("roofType", e.target.value)} style={inputStyle}>
+                              <select value={form.roofType} onChange={(e) => updateField("roofType", e.target.value)} required style={inputStyle}>
                                 <option value="">Select roof type…</option>
                                 <option value="Dimensional Shingle">Dimensional Shingle</option>
                                 <option value="Tile Roof">Tile Roof</option>
@@ -466,7 +477,7 @@ export function AccSubmitPageClient() {
                           </p>
                           <label style={{ display: "grid", gap: "0.3rem" }}>
                             <span className="text-fluid-sm" style={{ fontWeight: 600 }}>Fence Style</span>
-                            <select value={form.fenceStyle} onChange={(e) => updateField("fenceStyle", e.target.value)} style={inputStyle}>
+                            <select value={form.fenceStyle} onChange={(e) => updateField("fenceStyle", e.target.value)} required style={inputStyle}>
                               <option value="">Select fence style…</option>
                               {fenceStyleOptions.map((option) => (
                                 <option key={option} value={option}>{option}</option>
@@ -488,6 +499,7 @@ export function AccSubmitPageClient() {
                               onChange={(e) => updateField("landscapingDetails", e.target.value)}
                               rows={4}
                               placeholder="Describe plants, edging, stone, lighting, irrigation, and placement."
+                              required
                               style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit" }}
                             />
                           </label>
@@ -506,6 +518,7 @@ export function AccSubmitPageClient() {
                               onChange={(e) => updateField("otherWorkDetails", e.target.value)}
                               rows={4}
                               placeholder="Describe the work category, materials, and installation location."
+                              required
                               style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit" }}
                             />
                           </label>

@@ -19,10 +19,10 @@ Page: `/resident-portal/acc/submit`
 | ACC-SUB-01 | Wire submit to backend (Phase 1 WordPress GF 44) | P0 | Medium | Dev | Not Started | Submit creates a new GF Form 44 entry with mapped fields; request is visible in WP/Gravity View and follows Gravity Flow path. |
 | ACC-SUB-02 | Implement Save & Continue Later draft persistence | P0 | Medium | Dev | Not Started | Clicking save stores a draft and allows resume; user sees "draft saved" timestamp; no data loss on refresh. |
 | ACC-SUB-03 | Project type cards drive conditional sections | P0 | Medium | Dev | Done | Selecting Paint/Roof/Fence/Landscaping/Other immediately shows only relevant fields/rules and hides unrelated sections. |
-| ACC-SUB-04 | Conditional required validation by project type | P0 | Medium | Dev | Not Started | Required checks only apply to visible project-specific fields; invalid fields show inline messages. |
-| ACC-SUB-05 | Remove Confirm Email field | P0 | Quick Win | Dev | Not Started | Form has one owner email field only; no confirm-email UI or validation references remain. |
-| ACC-SUB-06 | Make Phase optional dropdown (Phase 1-6) | P0 | Quick Win | Dev | Not Started | Phase is select input with values Phase 1..Phase 6 and can be left blank. |
-| ACC-SUB-07 | Make Lot# optional | P0 | Quick Win | Dev | Not Started | Lot# is not required and submit succeeds without it. |
+| ACC-SUB-04 | Conditional required validation by project type | P0 | Medium | Dev | Done | Required checks only apply to visible project-specific fields; invalid fields show inline messages. |
+| ACC-SUB-05 | Remove Confirm Email field | P0 | Quick Win | Dev | Done | Form has one owner email field only; no confirm-email UI or validation references remain. |
+| ACC-SUB-06 | Make Phase optional dropdown (Phase 1-6) | P0 | Quick Win | Dev | Done | Phase is select input with values Phase 1..Phase 6 and can be left blank. |
+| ACC-SUB-07 | Make Lot# optional | P0 | Quick Win | Dev | Done | Lot# is not required and submit succeeds without it. |
 | ACC-SUB-08 | Inline validation + accessibility attributes | P1 | Medium | Dev | Not Started | Field-level errors render under each invalid input with `aria-invalid` and `aria-describedby`; status area uses `aria-live`. |
 | ACC-SUB-09 | Date logic validation | P1 | Quick Win | Dev | Not Started | Completion date cannot be earlier than start date; clear error shown inline and at summary. |
 | ACC-SUB-10 | Improve upload UX (types/size/list/progress) | P1 | Medium | Dev | Not Started | Users can see allowed types/size, selected files list, and upload state; failures are actionable. |
