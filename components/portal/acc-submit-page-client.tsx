@@ -743,7 +743,7 @@ export function AccSubmitPageClient() {
                   </label>
 
                   {form.hasSupportingDocs === "yes" ? (
-                    <label style={{ display: "grid", gap: "0.3rem", marginTop: "0.8rem" }}>
+                    <label className="acc-upload-block" style={{ display: "grid", gap: "0.3rem", marginTop: "0.8rem" }}>
                       <span className="text-fluid-sm" style={{ fontWeight: 600 }}>
                         Upload supporting files
                       </span>
@@ -759,15 +759,20 @@ export function AccSubmitPageClient() {
                       </small>
                       {uploadStatus ? (
                         <small
+                          className="acc-upload-status"
                           role="status"
                           aria-live="polite"
-                          style={uploadStatus.type === "error" ? errorStyle : helperStyle}
+                          style={{
+                            ...(uploadStatus.type === "error" ? errorStyle : helperStyle),
+                            background: uploadStatus.type === "error" ? "#fff1f2" : "#f3fbf6",
+                            borderColor: uploadStatus.type === "error" ? "#fecdd3" : "#d4e8da",
+                          }}
                         >
                           {uploadStatus.message}
                         </small>
                       ) : null}
                       {selectedFiles.length > 0 ? (
-                        <div style={{ display: "grid", gap: "0.35rem", marginTop: "0.25rem" }}>
+                        <div className="acc-upload-files" style={{ display: "grid", gap: "0.35rem", marginTop: "0.25rem" }}>
                           <small style={{ ...helperStyle, fontWeight: 700 }}>Selected files ({selectedFiles.length})</small>
                           <ul style={{ margin: 0, paddingLeft: "1rem", color: "var(--pp-slate-700)", fontSize: "0.86rem", lineHeight: 1.5 }}>
                             {selectedFiles.map((file) => (
@@ -791,6 +796,7 @@ export function AccSubmitPageClient() {
                               padding: "0.35rem 0.55rem",
                               fontSize: "0.82rem",
                               cursor: "pointer",
+                              marginTop: "0.15rem",
                             }}
                           >
                             Clear selected files
@@ -917,7 +923,6 @@ export function AccSubmitPageClient() {
                     textAlign: "center",
                     display: "inline-flex",
                     alignItems: "center",
-                    justifyContent: "center",
                     gap: "0.4rem",
                   }}
                 >
@@ -944,6 +949,24 @@ export function AccSubmitPageClient() {
         .acc-actions {
           display: grid;
           grid-template-columns: repeat(2, minmax(0, auto));
+        }
+        .acc-upload-block {
+          border: 1px solid #d9ece0;
+          border-radius: var(--radius-md);
+          background: #f9fffb;
+          padding: 0.7rem 0.75rem;
+        }
+        .acc-upload-status {
+          border-radius: var(--radius-sm);
+          padding: 0.35rem 0.45rem;
+          background: #f3fbf6;
+          border: 1px solid #d4e8da;
+        }
+        .acc-upload-files {
+          border: 1px solid #e1ece4;
+          border-radius: var(--radius-sm);
+          background: #ffffff;
+          padding: 0.5rem 0.6rem;
         }
         .acc-primary-action,
         .acc-secondary-action {
