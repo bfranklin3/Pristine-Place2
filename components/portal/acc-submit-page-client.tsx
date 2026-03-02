@@ -32,6 +32,11 @@ type FormState = {
 }
 
 type FormErrors = Partial<Record<keyof FormState | "agreedToTerms", string>>
+type UploadStatus = { type: "info" | "error" | "success"; message: string } | null
+
+const MAX_UPLOAD_FILES = 20
+const MAX_FILE_BYTES = 256 * 1024 * 1024
+const ALLOWED_EXTENSIONS = ["jpg", "jpeg", "png", "bmp", "pdf", "doc", "docx", "xls", "xlsx", "xlsm", "txt"]
 
 const initialForm: FormState = {
   ownerName: "",
@@ -76,6 +81,8 @@ export function AccSubmitPageClient() {
   const [showFullTerms, setShowFullTerms] = useState(false)
   const [status, setStatus] = useState<{ type: "success" | "error"; message: string } | null>(null)
   const [errors, setErrors] = useState<FormErrors>({})
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([])
+  const [uploadStatus, setUploadStatus] = useState<UploadStatus>(null)
 
   const workTypeCards = [
     { value: "paint" as WorkType, icon: "🎨", label: "Paint" },
@@ -115,6 +122,54 @@ export function AccSubmitPageClient() {
       if (!prev[key]) return prev
       const next = { ...prev }
       delete next[key]
+      return next
+    })
+  }
+
+  function validateSelectedFiles(files: File[]) {
+    const validationErrors: string[] = []
+
+    if (files.length > MAX_UPLOAD_FILES) {
+      validationErrors.push(`You can upload up to ${MAX_UPLOAD_FILES} files.`)
+    }
+
+    for (const file of files) {
+      const extension = file.name.split(".").pop()?.toLowerCase() || ""
+      if (!ALLOWED_EXTENSIONS.includes(extension)) {
+        validationErrors.push(`Unsupported file type: ${file.name}`)
+      }
+      if (file.size > MAX_FILE_BYTES) {
+        validationErrors.push(`${file.name} exceeds 256 MB.`)
+      }
+    }
+
+    return validationErrors
+  }
+
+  function handleFilesSelected(fileList: FileList | null) {
+    if (!fileList) {
+      setSelectedFiles([])
+      setUploadStatus(null)
+      return
+    }
+
+    const files = Array.from(fileList)
+    const validationErrors = validateSelectedFiles(files)
+    setSelectedFiles(files)
+
+    if (validationErrors.length > 0) {
+      setUploadStatus({ type: "error", message: validationErrors[0] })
+      return
+    }
+
+    setUploadStatus({
+      type: "success",
+      message: `${files.length} file${files.length === 1 ? "" : "s"} selected. Files will be submitted with your request.`,
+    })
+    setErrors((prev) => {
+      if (!prev.hasSupportingDocs) return prev
+      const next = { ...prev }
+      delete next.hasSupportingDocs
       return next
     })
   }
@@ -177,6 +232,10 @@ export function AccSubmitPageClient() {
     if (form.workType === "fence" && !form.fenceStyle.trim()) nextErrors.fenceStyle = "Fence style is required."
     if (form.workType === "landscaping" && !form.landscapingDetails.trim()) nextErrors.landscapingDetails = "Landscaping details are required."
     if (form.workType === "other" && !form.otherWorkDetails.trim()) nextErrors.otherWorkDetails = "Other work details are required."
+    if (form.hasSupportingDocs === "yes") {
+      if (selectedFiles.length === 0) nextErrors.hasSupportingDocs = "Please select at least one file to upload."
+      if (validateSelectedFiles(selectedFiles).length > 0) nextErrors.hasSupportingDocs = "Please resolve file upload issues before submitting."
+    }
 
     setErrors(nextErrors)
     if (Object.keys(nextErrors).length > 0) {
@@ -191,8 +250,11 @@ export function AccSubmitPageClient() {
     setStatus({
       type: "success",
       message:
-        "Request captured. Final submit integration is the next step; for immediate processing please continue using the current ACC WordPress workflow.",
+        `Request captured${form.hasSupportingDocs === "yes" ? ` with ${selectedFiles.length} attachment${selectedFiles.length === 1 ? "" : "s"}` : ""}. Final submit integration is the next step; for immediate processing please continue using the current ACC WordPress workflow.`,
     })
+    if (form.hasSupportingDocs === "yes" && selectedFiles.length > 0) {
+      setUploadStatus({ type: "info", message: "Attachments are queued with this submission request." })
+    }
   }
 
   function onSaveDraft() {
@@ -653,11 +715,27 @@ export function AccSubmitPageClient() {
                     </span>
                     <div style={{ display: "grid", gap: "0.45rem" }} aria-invalid={!!errors.hasSupportingDocs} aria-describedby={errors.hasSupportingDocs ? "hasSupportingDocs-error" : undefined}>
                       <label style={radioLabelStyle}>
-                        <input type="radio" name="docs" value="no" checked={form.hasSupportingDocs === "no"} onChange={() => updateField("hasSupportingDocs", "no")} />
+                        <input
+                          type="radio"
+                          name="docs"
+                          value="no"
+                          checked={form.hasSupportingDocs === "no"}
+                          onChange={() => {
+                            updateField("hasSupportingDocs", "no")
+                            setSelectedFiles([])
+                            setUploadStatus(null)
+                          }}
+                        />
                         <span>Not at this time</span>
                       </label>
                       <label style={radioLabelStyle}>
-                        <input type="radio" name="docs" value="yes" checked={form.hasSupportingDocs === "yes"} onChange={() => updateField("hasSupportingDocs", "yes")} />
+                        <input
+                          type="radio"
+                          name="docs"
+                          value="yes"
+                          checked={form.hasSupportingDocs === "yes"}
+                          onChange={() => updateField("hasSupportingDocs", "yes")}
+                        />
                         <span>Yes, I am prepared to submit my documents now.</span>
                       </label>
                     </div>
@@ -669,8 +747,56 @@ export function AccSubmitPageClient() {
                       <span className="text-fluid-sm" style={{ fontWeight: 600 }}>
                         Upload supporting files
                       </span>
-                      <input type="file" multiple style={inputStyle} />
-                      <small style={helperStyle}>Accepted formats: JPG, PNG, PDF, DOC, DOCX, XLS, XLSX</small>
+                      <input
+                        type="file"
+                        multiple
+                        onChange={(e) => handleFilesSelected(e.target.files)}
+                        style={inputStyle}
+                        aria-describedby="upload-help"
+                      />
+                      <small id="upload-help" style={helperStyle}>
+                        Accepted formats: JPG, JPEG, PNG, BMP, PDF, DOC, DOCX, XLS, XLSX, XLSM, TXT. Max 256 MB per file, max 20 files.
+                      </small>
+                      {uploadStatus ? (
+                        <small
+                          role="status"
+                          aria-live="polite"
+                          style={uploadStatus.type === "error" ? errorStyle : helperStyle}
+                        >
+                          {uploadStatus.message}
+                        </small>
+                      ) : null}
+                      {selectedFiles.length > 0 ? (
+                        <div style={{ display: "grid", gap: "0.35rem", marginTop: "0.25rem" }}>
+                          <small style={{ ...helperStyle, fontWeight: 700 }}>Selected files ({selectedFiles.length})</small>
+                          <ul style={{ margin: 0, paddingLeft: "1rem", color: "var(--pp-slate-700)", fontSize: "0.86rem", lineHeight: 1.5 }}>
+                            {selectedFiles.map((file) => (
+                              <li key={`${file.name}-${file.size}`}>
+                                {file.name} ({Math.max(1, Math.round(file.size / 1024))} KB)
+                              </li>
+                            ))}
+                          </ul>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedFiles([])
+                              setUploadStatus({ type: "info", message: "Selection cleared." })
+                            }}
+                            style={{
+                              width: "fit-content",
+                              borderRadius: "var(--radius-sm)",
+                              border: "1px solid var(--pp-slate-300)",
+                              background: "var(--pp-white)",
+                              color: "var(--pp-slate-700)",
+                              padding: "0.35rem 0.55rem",
+                              fontSize: "0.82rem",
+                              cursor: "pointer",
+                            }}
+                          >
+                            Clear selected files
+                          </button>
+                        </div>
+                      ) : null}
                     </label>
                   ) : null}
                 </div>

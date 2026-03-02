@@ -25,7 +25,7 @@ Page: `/resident-portal/acc/submit`
 | ACC-SUB-07 | Make Lot# optional | P0 | Quick Win | Dev | Done | Lot# is not required and submit succeeds without it. |
 | ACC-SUB-08 | Inline validation + accessibility attributes | P1 | Medium | Dev | Done | Field-level errors render under each invalid input with `aria-invalid` and `aria-describedby`; status area uses `aria-live`. |
 | ACC-SUB-09 | Date logic validation | P1 | Quick Win | Dev | Done | Completion date cannot be earlier than start date; clear error shown inline and at summary. |
-| ACC-SUB-10 | Improve upload UX (types/size/list/progress) | P1 | Medium | Dev | Not Started | Users can see allowed types/size, selected files list, and upload state; failures are actionable. |
+| ACC-SUB-10 | Improve upload UX (types/size/list/progress) | P1 | Medium | Dev | Done | Users can see allowed types/size, selected files list, and upload state; failures are actionable. |
 | ACC-SUB-11 | Primary/secondary CTA polish and microcopy | P2 | Quick Win | Dev | Done | Submit and Save actions are visually distinct and explanatory help text is present. |
 | ACC-SUB-12 | Mobile layout pass for long form | P2 | Quick Win | Dev | Not Started | Form is usable at mobile breakpoints without horizontal overflow; touch targets are comfortable. |
 | ACC-SUB-13 | Wire email notifications (resident + ACC chairs) | P2 | Medium | Dev + Bill | Not Started | On successful submit, resident receives confirmation and chair recipients receive intake notification. |
