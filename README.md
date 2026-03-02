@@ -9,5 +9,6 @@ Pristine-Place-HOA using next.js
 - ACC submit page pending wiring notes: [`docs/acc-submit-followups.md`](docs/acc-submit-followups.md)
 - ACC workflow specification (target states/rules): [`docs/acc-workflow-spec.md`](docs/acc-workflow-spec.md)
 - ACC workflow implementation plan (phased WordPress -> Neon): [`docs/acc-workflow-implementation-plan.md`](docs/acc-workflow-implementation-plan.md)
+- ACC Gravity Flow bridge implementation plan (transition): [`docs/acc-gravityflow-bridge-implementation-plan.md`](docs/acc-gravityflow-bridge-implementation-plan.md)
 
   
