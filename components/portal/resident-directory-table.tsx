@@ -1197,7 +1197,7 @@ export function ResidentDirectoryTable() {
                       <td style={{ padding: "0.75rem", verticalAlign: "top", fontWeight: 600 }}>
                         {statusLabel(row.status)}
                       </td>
-                      <td style={{ padding: "0.75rem", verticalAlign: "top", fontWeight: 600 }}>
+                      <td style={{ padding: "0.75rem", verticalAlign: "top" }}>
                         {formatLastActive(row.lastActiveAt)}
                       </td>
                       <td style={{ padding: "0.75rem", verticalAlign: "top" }}>
