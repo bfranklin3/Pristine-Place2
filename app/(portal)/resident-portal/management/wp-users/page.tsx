@@ -1,19 +1,23 @@
+// app/(portal)/resident-portal/management/wp-users/page.tsx
+
 import type { Metadata } from "next"
 import { Shield, Users } from "lucide-react"
 import { siteConfig } from "@/lib/site-config"
+import { UserManagementTable } from "@/components/portal/user-management-table"
 import { requirePortalAdminPageAccess } from "@/lib/auth/portal-admin"
-import { ResidentDirectoryTable } from "@/components/portal/resident-directory-table"
 
 export const metadata: Metadata = {
-  title: `Resident Directory | ${siteConfig.name} Resident Portal`,
-  description: "View all registered Clerk users and their resident-portal registration status.",
+  title: `User Management | ${siteConfig.name} Resident Portal`,
+  description: "Create, edit, and manage WordPress user accounts for the Pristine Place portal.",
 }
 
-export default async function ResidentDirectoryPage() {
-  await requirePortalAdminPageAccess("/resident-portal/management/resident-directory")
+export default async function UserManagementPage() {
+  await requirePortalAdminPageAccess("/resident-portal/management/wp-users")
 
   return (
     <>
+
+      {/* ── Hero ── */}
       <section className="hero-section" style={{ background: "var(--pp-navy-dark)" }}>
         <div
           className="hero-overlay"
@@ -29,24 +33,29 @@ export default async function ResidentDirectoryPage() {
               Management
             </span>
           </div>
-          <h1 className="hero-title">Resident Directory</h1>
-          <p className="hero-subtitle" style={{ maxWidth: "60ch" }}>
-            View all Clerk accounts, filter by portal registration status, manage approvals, and assign committee access.
+          <h1 className="hero-title">User Management</h1>
+          <p className="hero-subtitle" style={{ maxWidth: "50ch" }}>
+            Create, edit, and manage WordPress user accounts for the {siteConfig.name} portal.
           </p>
         </div>
       </section>
 
+      {/* ── User Table ── */}
       <section className="section" style={{ background: "var(--pp-white)" }}>
         <div className="container">
           <div className="stack" style={{ gap: "var(--space-l)" }}>
+
             <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
-              <Users style={{ width: "1.2rem", height: "1.2rem", color: "var(--pp-navy)" }} />
-              <h2 style={{ color: "var(--pp-navy-dark)" }}>All Registered Accounts</h2>
+              <Users style={{ width: "1.25rem", height: "1.25rem", color: "var(--pp-navy)" }} />
+              <h2 style={{ color: "var(--pp-navy-dark)" }}>WordPress Users</h2>
             </div>
-            <ResidentDirectoryTable />
+
+            <UserManagementTable />
+
           </div>
         </div>
       </section>
+
     </>
   )
 }

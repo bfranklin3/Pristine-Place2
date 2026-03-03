@@ -1,23 +1,19 @@
-// app/(portal)/resident-portal/user-management/page.tsx
-
 import type { Metadata } from "next"
 import { Shield, Users } from "lucide-react"
 import { siteConfig } from "@/lib/site-config"
-import { UserManagementTable } from "@/components/portal/user-management-table"
 import { requirePortalAdminPageAccess } from "@/lib/auth/portal-admin"
+import { ResidentDirectoryTable } from "@/components/portal/resident-directory-table"
 
 export const metadata: Metadata = {
-  title: `User Management | ${siteConfig.name} Resident Portal`,
-  description: "Create, edit, and manage WordPress user accounts for the Pristine Place portal.",
+  title: `Portal User Management | ${siteConfig.name} Resident Portal`,
+  description: "View all registered Clerk users and their resident-portal registration status.",
 }
 
-export default async function UserManagementPage() {
+export default async function PortalUserManagementPage() {
   await requirePortalAdminPageAccess("/resident-portal/management/users")
 
   return (
     <>
-
-      {/* ── Hero ── */}
       <section className="hero-section" style={{ background: "var(--pp-navy-dark)" }}>
         <div
           className="hero-overlay"
@@ -33,29 +29,24 @@ export default async function UserManagementPage() {
               Management
             </span>
           </div>
-          <h1 className="hero-title">User Management</h1>
-          <p className="hero-subtitle" style={{ maxWidth: "50ch" }}>
-            Create, edit, and manage WordPress user accounts for the {siteConfig.name} portal.
+          <h1 className="hero-title">Portal User Management</h1>
+          <p className="hero-subtitle" style={{ maxWidth: "60ch" }}>
+            View all Clerk accounts, filter by portal registration status, manage approvals, and assign committee access.
           </p>
         </div>
       </section>
 
-      {/* ── User Table ── */}
       <section className="section" style={{ background: "var(--pp-white)" }}>
         <div className="container">
           <div className="stack" style={{ gap: "var(--space-l)" }}>
-
             <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
-              <Users style={{ width: "1.25rem", height: "1.25rem", color: "var(--pp-navy)" }} />
-              <h2 style={{ color: "var(--pp-navy-dark)" }}>WordPress Users</h2>
+              <Users style={{ width: "1.2rem", height: "1.2rem", color: "var(--pp-navy)" }} />
+              <h2 style={{ color: "var(--pp-navy-dark)" }}>All Registered Accounts</h2>
             </div>
-
-            <UserManagementTable />
-
+            <ResidentDirectoryTable />
           </div>
         </div>
       </section>
-
     </>
   )
 }

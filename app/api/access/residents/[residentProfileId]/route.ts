@@ -30,20 +30,25 @@ export async function PATCH(
   const { residentProfileId } = await context.params
   const body = await req.json().catch(() => ({}))
   const reason = typeof body.reason === "string" ? body.reason : null
+  const has = (key: string) => Object.prototype.hasOwnProperty.call(body, key)
 
   try {
     const detail = await patchResidentPrisma(
       residentProfileId,
       {
-        residentCategory: body.residentCategory ?? undefined,
-        includeInDirectory: typeof body.includeInDirectory === "boolean" ? body.includeInDirectory : undefined,
-        confidentialPhone: typeof body.confidentialPhone === "boolean" ? body.confidentialPhone : undefined,
-        phase: body.phase ?? undefined,
-        addressNumber: body.addressNumber ?? undefined,
-        streetName: body.streetName ?? undefined,
-        addressFull: body.addressFull ?? undefined,
-        entryCode: body.entryCode ?? undefined,
-        comments: body.comments ?? undefined,
+        residentCategory: has("residentCategory") ? body.residentCategory : undefined,
+        includeInDirectory: has("includeInDirectory") && typeof body.includeInDirectory === "boolean"
+          ? body.includeInDirectory
+          : undefined,
+        confidentialPhone: has("confidentialPhone") && typeof body.confidentialPhone === "boolean"
+          ? body.confidentialPhone
+          : undefined,
+        phase: has("phase") ? body.phase : undefined,
+        addressNumber: has("addressNumber") ? body.addressNumber : undefined,
+        streetName: has("streetName") ? body.streetName : undefined,
+        addressFull: has("addressFull") ? body.addressFull : undefined,
+        entryCode: has("entryCode") ? body.entryCode : undefined,
+        comments: has("comments") ? body.comments : undefined,
       },
       access.identity.userId,
       reason,

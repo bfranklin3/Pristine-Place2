@@ -58,7 +58,7 @@ const managementItems = [
   },
   {
     label: "ACC Workflow Queue",
-    href: "/resident-portal/management/acc-queue-neon",
+    href: "/resident-portal/management/acc-queue",
     description: "Neon-backed ACC workflow queue (target state)",
     allowed: ["admin", "acc"] as Array<CommitteeSlug | "admin">,
   },
@@ -76,7 +76,7 @@ const managementItems = [
   },
   {
     label: "ACC Workflow Queue Wordpress",
-    href: "/resident-portal/management/acc-queue",
+    href: "/resident-portal/management/wp-acc-queue",
     description: "Review ACC applications (ACC committee)",
     allowed: ["admin", "acc"] as Array<CommitteeSlug | "admin">,
   },
@@ -105,15 +105,15 @@ const managementItems = [
     allowed: ["admin"] as Array<CommitteeSlug | "admin">,
   },
   {
-    label: "Resident Directory",
-    href: "/resident-portal/management/resident-directory",
-    description: "View all portal accounts and statuses",
+    label: "User Management Wordpress",
+    href: "/resident-portal/management/wp-users",
+    description: "Manage resident accounts (admin only)",
     allowed: ["admin"] as Array<CommitteeSlug | "admin">,
   },
   {
-    label: "User Management Wordpress",
+    label: "Portal User Management",
     href: "/resident-portal/management/users",
-    description: "Manage resident accounts (admin only)",
+    description: "Manage portal users, approvals, committees, and capabilities",
     allowed: ["admin"] as Array<CommitteeSlug | "admin">,
   },
 ]

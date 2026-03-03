@@ -1,19 +1,23 @@
+// app/(portal)/resident-portal/management/wp-acc-queue/page.tsx
+
 import type { Metadata } from "next"
-import { Database, Shield } from "lucide-react"
-import Link from "next/link"
+import { Shield, FileText } from "lucide-react"
 import { siteConfig } from "@/lib/site-config"
+import { AccQueueTable } from "@/components/portal/acc-queue-table"
 import { requirePortalCapabilityPageAccess } from "@/lib/auth/portal-admin"
 
 export const metadata: Metadata = {
   title: `ACC Workflow Queue | ${siteConfig.name} Resident Portal`,
-  description: "Neon-backed ACC workflow queue (target state).",
+  description: "View and manage ACC permit requests and architectural change applications.",
 }
 
-export default async function AccQueueNeonPage() {
-  await requirePortalCapabilityPageAccess(["acc.view"], "/resident-portal/management/acc-queue-neon")
+export default async function AccQueuePage() {
+  await requirePortalCapabilityPageAccess(["acc.view"], "/resident-portal/management/wp-acc-queue")
 
   return (
     <>
+
+      {/* ── Hero ── */}
       <section className="hero-section" style={{ background: "var(--pp-navy-dark)" }}>
         <div
           className="hero-overlay"
@@ -31,40 +35,41 @@ export default async function AccQueueNeonPage() {
           </div>
           <h1 className="hero-title">ACC Workflow Queue</h1>
           <p className="hero-subtitle" style={{ maxWidth: "56ch" }}>
-            Target-state ACC queue powered by Neon. Data wiring will be connected after migration and validation.
+            View and track Architectural Control Committee permit requests and approval workflow.
           </p>
         </div>
       </section>
 
+      {/* ── Queue Table ── */}
       <section className="section" style={{ background: "var(--pp-white)" }}>
         <div className="container">
           <div className="stack" style={{ gap: "var(--space-l)" }}>
+
             <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
-              <Database style={{ width: "1.25rem", height: "1.25rem", color: "var(--pp-navy)" }} />
-              <h2 style={{ color: "var(--pp-navy-dark)" }}>Neon ACC Queue (Setup Pending)</h2>
+              <FileText style={{ width: "1.25rem", height: "1.25rem", color: "var(--pp-navy)" }} />
+              <h2 style={{ color: "var(--pp-navy-dark)" }}>ACC Permit Requests</h2>
             </div>
+
             <div
               style={{
-                border: "1px solid var(--pp-slate-200)",
-                background: "var(--pp-slate-50)",
-                color: "var(--pp-slate-700)",
+                border: "1px solid #fcd34d",
+                background: "#fffbeb",
+                color: "#92400e",
                 borderRadius: "var(--radius-md)",
-                padding: "0.75rem 0.9rem",
+                padding: "0.65rem 0.8rem",
               }}
             >
               <p className="text-fluid-sm" style={{ margin: 0 }}>
-                This page is intentionally not wired yet. Next steps are schema migration, ACC import into Neon,
-                and then enabling the Neon-backed queue.
+                Temporary mode: this page reads and writes directly to the legacy WordPress Gravity Forms source.
               </p>
             </div>
-            <div>
-              <Link href="/resident-portal/management/acc-match-review" className="btn btn-secondary">
-                Open ACC Match Review
-              </Link>
-            </div>
+
+            <AccQueueTable viewMode="full" />
+
           </div>
         </div>
       </section>
+
     </>
   )
 }

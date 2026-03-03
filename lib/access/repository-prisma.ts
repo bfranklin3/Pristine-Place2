@@ -255,19 +255,25 @@ export async function patchResidentPrisma(
   if (!existing) return null
 
   const updated = await prisma.$transaction(async (tx) => {
+    const residentData: Prisma.ResidentProfileUpdateInput = {
+      residentCategory: payload.residentCategory !== undefined ? payload.residentCategory : existing.residentCategory,
+      includeInDirectory: payload.includeInDirectory !== undefined
+        ? payload.includeInDirectory
+        : existing.includeInDirectory,
+      confidentialPhone: payload.confidentialPhone !== undefined
+        ? payload.confidentialPhone
+        : existing.confidentialPhone,
+      phase: payload.phase !== undefined ? payload.phase : existing.phase,
+      addressNumber: payload.addressNumber !== undefined ? payload.addressNumber : existing.addressNumber,
+      streetName: payload.streetName !== undefined ? payload.streetName : existing.streetName,
+      addressFull: payload.addressFull !== undefined ? payload.addressFull : existing.addressFull,
+      entryCode: payload.entryCode !== undefined ? payload.entryCode : existing.entryCode,
+      comments: payload.comments !== undefined ? payload.comments : existing.comments,
+    }
+
     const resident = await tx.residentProfile.update({
       where: { id: residentProfileId },
-      data: {
-        residentCategory: payload.residentCategory ?? existing.residentCategory,
-        includeInDirectory: payload.includeInDirectory ?? existing.includeInDirectory,
-        confidentialPhone: payload.confidentialPhone ?? existing.confidentialPhone,
-        phase: payload.phase ?? existing.phase,
-        addressNumber: payload.addressNumber ?? existing.addressNumber,
-        streetName: payload.streetName ?? existing.streetName,
-        addressFull: payload.addressFull ?? existing.addressFull,
-        entryCode: payload.entryCode ?? existing.entryCode,
-        comments: payload.comments ?? existing.comments,
-      },
+      data: residentData,
     })
 
     await tx.accessAuditLog.create({
