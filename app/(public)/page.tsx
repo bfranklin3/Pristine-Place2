@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 
 const content = {
   hero: {
-    title: "Pristine Place Homeowners Association",
+    title: "Pristine Place HOA",
     subtitle:
       "Community information, resources, and resident services for homeowners of Pristine Place in Spring Hill, Florida.",
     cta: { text: "View Community Resources", href: "/our-community" },
