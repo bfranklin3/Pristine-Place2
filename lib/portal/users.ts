@@ -26,6 +26,7 @@ export interface PortalUserRow {
   username: string
   emailAddress: string
   status: PortalUserStatus
+  lastActiveAt: string
   submittedAt: string
   reviewedAt: string
   reviewedBy: string
@@ -37,6 +38,12 @@ export interface PortalUserRow {
   capabilityOverridesUpdatedBy: string
   committeesUpdatedAt: string
   committeesUpdatedBy: string
+}
+
+function toIsoOrEmpty(value: unknown): string {
+  if (!value) return ""
+  const date = value instanceof Date ? value : new Date(value as string | number)
+  return Number.isNaN(date.getTime()) ? "" : date.toISOString()
 }
 
 function getPrimaryEmail(user: any) {
@@ -83,6 +90,7 @@ export function toPortalUserRow(user: any): PortalUserRow {
     username: registration.username || user.username || "",
     emailAddress: registration.emailAddress || getPrimaryEmail(user),
     status,
+    lastActiveAt: toIsoOrEmpty(user.lastSignInAt),
     submittedAt: registration.submittedAt || "",
     reviewedAt: (publicMetadata.portalRegistrationReviewedAt as string) || "",
     reviewedBy: (publicMetadata.portalRegistrationReviewedBy as string) || "",

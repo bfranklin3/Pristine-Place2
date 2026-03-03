@@ -31,6 +31,7 @@ interface PortalUserRow {
   username: string
   emailAddress: string
   status: Exclude<DirectoryStatus, "all">
+  lastActiveAt: string
   submittedAt: string
   reviewedAt: string
   reviewedBy: string
@@ -42,6 +43,10 @@ interface PortalUserRow {
   capabilityOverridesUpdatedBy: string
   committeesUpdatedAt: string
   committeesUpdatedBy: string
+}
+
+function formatLastActive(lastActiveAt: string) {
+  return lastActiveAt ? new Date(lastActiveAt).toLocaleString() : "Never"
 }
 
 const statusOptions: Array<{ key: DirectoryStatus; label: string }> = [
@@ -1087,6 +1092,7 @@ export function ResidentDirectoryTable() {
                   <div style={{ marginTop: "0.35rem", display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
                     <span style={{ fontSize: "0.8rem", fontWeight: 700, color: "var(--pp-slate-700)" }}>Status: {statusLabel(row.status)}</span>
                     <span style={{ fontSize: "0.8rem", fontWeight: 700, color: "var(--pp-slate-700)" }}>Admin: {row.portalAdmin ? "Yes" : "No"}</span>
+                    <span style={{ fontSize: "0.8rem", fontWeight: 700, color: "var(--pp-slate-700)" }}>Last Active: {formatLastActive(row.lastActiveAt)}</span>
                   </div>
                   <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap", alignItems: "center", marginTop: "0.6rem" }}>
                     <button
@@ -1159,11 +1165,12 @@ export function ResidentDirectoryTable() {
         </div>
       ) : (
         <div style={{ overflowX: "auto", borderRadius: "var(--radius-md)", border: "1px solid var(--pp-slate-200)" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "780px" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "920px" }}>
             <thead style={{ background: "var(--pp-slate-50)" }}>
               <tr>
                 <th style={{ textAlign: "left", padding: "0.75rem", fontSize: "0.78rem" }}>Resident</th>
                 <th style={{ textAlign: "left", padding: "0.75rem", fontSize: "0.78rem", width: "9.5rem" }}>Portal Status</th>
+                <th style={{ textAlign: "left", padding: "0.75rem", fontSize: "0.78rem", width: "13rem" }}>Last Active</th>
                 <th style={{ textAlign: "left", padding: "0.75rem", fontSize: "0.78rem", width: "4.5rem" }}>Admin</th>
                 <th style={{ textAlign: "left", padding: "0.75rem", fontSize: "0.78rem", width: "23rem" }}>Actions</th>
                 <th style={{ textAlign: "center", padding: "0.75rem", fontSize: "0.78rem", width: "3rem" }} aria-label="Expand" />
@@ -1189,6 +1196,9 @@ export function ResidentDirectoryTable() {
                       </td>
                       <td style={{ padding: "0.75rem", verticalAlign: "top", fontWeight: 600 }}>
                         {statusLabel(row.status)}
+                      </td>
+                      <td style={{ padding: "0.75rem", verticalAlign: "top", fontWeight: 600 }}>
+                        {formatLastActive(row.lastActiveAt)}
                       </td>
                       <td style={{ padding: "0.75rem", verticalAlign: "top" }}>
                         {row.portalAdmin ? "Yes" : "No"}
@@ -1261,7 +1271,7 @@ export function ResidentDirectoryTable() {
                         id={`resident-row-details-${row.userId}`}
                         style={{ borderTop: "1px solid var(--pp-slate-100)" }}
                       >
-                        <td colSpan={5} style={{ padding: "1rem", background: "var(--pp-slate-50)" }}>
+                        <td colSpan={6} style={{ padding: "1rem", background: "var(--pp-slate-50)" }}>
                           {renderExpandedDetails(
                             row,
                             busy,
