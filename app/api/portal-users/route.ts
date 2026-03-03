@@ -3,6 +3,7 @@ import { clerkClient } from "@clerk/nextjs/server"
 import { getPortalAdminIdentity } from "@/lib/auth/portal-admin"
 import { sendPortalRegistrationDecisionEmail } from "@/lib/email/portal-registration-notifications"
 import { sendEmail } from "@/lib/email/service"
+import { getPasswordResetEmailFromSanity } from "@/lib/email/templates/password-reset-sanity"
 import {
   type PortalRegistrationMetadata,
   type PortalUserStatus,
@@ -279,24 +280,34 @@ export async function PATCH(req: Request) {
 
       const appBaseUrl = (process.env.NEXT_PUBLIC_SITE_URL || new URL(req.url).origin).replace(/\/$/, "")
       const resetUrl = `${appBaseUrl}/forgot-password?email=${encodeURIComponent(primaryEmail)}`
+      const signInUrl = `${appBaseUrl}/sign-in`
+
+      const template = await getPasswordResetEmailFromSanity({
+        firstName: user.firstName || "Resident",
+        resetUrl,
+        signInUrl,
+      })
+
+      const fallbackSubject = "Reset your Pristine Place portal password"
+      const fallbackHtml = `
+        <div style="font-family:Arial,sans-serif;line-height:1.6;color:#1f2937">
+          <p>Hello,</p>
+          <p>An administrator sent you a password reset link for your Pristine Place portal account.</p>
+          <p>
+            <a href="${resetUrl}" style="display:inline-block;padding:10px 14px;border-radius:8px;background:#3A5A40;color:#ffffff;text-decoration:none;font-weight:600">
+              Reset Password
+            </a>
+          </p>
+          <p>If the button does not work, copy and paste this URL into your browser:</p>
+          <p><a href="${resetUrl}">${resetUrl}</a></p>
+          <p>If you did not request this, you can ignore this email.</p>
+        </div>
+      `
 
       const emailResult = await sendEmail({
         to: primaryEmail,
-        subject: "Reset your Pristine Place portal password",
-        html: `
-          <div style="font-family:Arial,sans-serif;line-height:1.6;color:#1f2937">
-            <p>Hello,</p>
-            <p>An administrator sent you a password reset link for your Pristine Place portal account.</p>
-            <p>
-              <a href="${resetUrl}" style="display:inline-block;padding:10px 14px;border-radius:8px;background:#3A5A40;color:#ffffff;text-decoration:none;font-weight:600">
-                Reset Password
-              </a>
-            </p>
-            <p>If the button does not work, copy and paste this URL into your browser:</p>
-            <p><a href="${resetUrl}">${resetUrl}</a></p>
-            <p>If you did not request this, you can ignore this email.</p>
-          </div>
-        `,
+        subject: template?.subject || fallbackSubject,
+        html: template?.html || fallbackHtml,
       })
 
       if (!emailResult.success) {

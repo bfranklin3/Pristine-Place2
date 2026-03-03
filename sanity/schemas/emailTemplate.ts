@@ -16,6 +16,7 @@ export const emailTemplate = defineType({
             { title: "Portal Registration Rejected", value: "portal_registration_rejected" },
             { title: "Portal Registration Submitted (Resident)", value: "portal_registration_submitted_resident" },
             { title: "Portal Registration Submitted (Admin)", value: "portal_registration_submitted_admin" },
+            { title: "Portal Password Reset (Admin Sent)", value: "portal_password_reset_admin_sent" },
           ],
         },
     }),
@@ -32,7 +33,7 @@ export const emailTemplate = defineType({
       rows: 18,
       validation: (rule) => rule.required(),
       description:
-        "Available placeholders (by template): {{firstName}}, {{portalUrl}}, {{contactEmail}}, {{approvalSupportEmail}}, {{lastName}}, {{homeAddress}}, {{username}}, {{emailAddress}}, {{submittedAt}}, {{reviewUrl}}",
+        "Available placeholders (by template): {{firstName}}, {{portalUrl}}, {{contactEmail}}, {{approvalSupportEmail}}, {{lastName}}, {{homeAddress}}, {{username}}, {{emailAddress}}, {{submittedAt}}, {{reviewUrl}}, {{resetUrl}}, {{signInUrl}}",
     }),
     defineField({
       name: "textBody",
@@ -41,7 +42,7 @@ export const emailTemplate = defineType({
       rows: 14,
       validation: (rule) => rule.required(),
       description:
-        "Available placeholders (by template): {{firstName}}, {{portalUrl}}, {{contactEmail}}, {{approvalSupportEmail}}, {{lastName}}, {{homeAddress}}, {{username}}, {{emailAddress}}, {{submittedAt}}, {{reviewUrl}}",
+        "Available placeholders (by template): {{firstName}}, {{portalUrl}}, {{contactEmail}}, {{approvalSupportEmail}}, {{lastName}}, {{homeAddress}}, {{username}}, {{emailAddress}}, {{submittedAt}}, {{reviewUrl}}, {{resetUrl}}, {{signInUrl}}",
     }),
     defineField({
       name: "isActive",
