@@ -12,6 +12,6 @@ Pristine-Place-HOA using next.js
 - ACC Gravity Flow bridge implementation plan (transition): [`docs/acc-gravityflow-bridge-implementation-plan.md`](docs/acc-gravityflow-bridge-implementation-plan.md)
 - Permissions model plan (committee roles + capability overrides): [`docs/permissions-model-plan.md`](docs/permissions-model-plan.md)
 
-
+Added a test line
 
 Upload 03-02-26-2
