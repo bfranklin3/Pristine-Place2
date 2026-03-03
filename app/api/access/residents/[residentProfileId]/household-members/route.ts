@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server"
 import { addHouseholdMemberPrisma } from "@/lib/access/repository-prisma"
-import { requireManagementApiAccess } from "@/lib/auth/portal-management-api"
+import { requireManagementCapabilityAccess } from "@/lib/auth/portal-management-api"
 import type { HouseholdRole } from "@/lib/access/types"
 
 export async function POST(
   req: NextRequest,
   context: { params: Promise<{ residentProfileId: string }> },
 ) {
-  const access = await requireManagementApiAccess(["admin", "access_control"])
+  const access = await requireManagementCapabilityAccess(["access.edit"])
   if (!access.ok) return access.response
 
   const { residentProfileId } = await context.params

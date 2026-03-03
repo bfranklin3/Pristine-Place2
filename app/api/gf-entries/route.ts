@@ -3,7 +3,7 @@
 // with server-side disposition/search/date filtering and pagination.
 
 import { NextRequest, NextResponse } from "next/server"
-import { requireManagementApiAccess } from "@/lib/auth/portal-management-api"
+import { requireManagementCapabilityAccess } from "@/lib/auth/portal-management-api"
 
 const GF_API_URL = process.env.GRAVITY_FORMS_API_URL ?? "https://www.pristineplace.us/wp-json/gf/v2"
 const GF_KEY = process.env.GRAVITY_FORMS_API_KEY ?? ""
@@ -194,7 +194,7 @@ async function fetchAllActiveEntries(): Promise<GfEntry[]> {
 }
 
 export async function GET(req: NextRequest) {
-  const access = await requireManagementApiAccess(["admin", "acc"])
+  const access = await requireManagementCapabilityAccess(["acc.view"])
   if (!access.ok) return access.response
 
   const { searchParams } = new URL(req.url)

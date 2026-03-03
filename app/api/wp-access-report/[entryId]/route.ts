@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { requireManagementCapabilityAccess } from "@/lib/auth/portal-management-api"
 
 const WP_API = process.env.WORDPRESS_API_URL ?? "https://www.pristineplace.us/wp-json/wp/v2"
 const WP_USER = process.env.WORDPRESS_USERNAME ?? ""
@@ -38,6 +39,9 @@ function resolveEntryUrl(entryId: string): URL | null {
 }
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ entryId: string }> }) {
+  const access = await requireManagementCapabilityAccess(["access.edit"])
+  if (!access.ok) return access.response
+
   try {
     const { entryId } = await params
     const body = await req.json()
@@ -93,4 +97,3 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ entr
     )
   }
 }
-

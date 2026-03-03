@@ -3,14 +3,14 @@ import {
   deleteHouseholdMemberPrisma,
   patchHouseholdMemberPrisma,
 } from "@/lib/access/repository-prisma"
-import { requireManagementApiAccess } from "@/lib/auth/portal-management-api"
+import { requireManagementCapabilityAccess } from "@/lib/auth/portal-management-api"
 import type { HouseholdRole } from "@/lib/access/types"
 
 export async function PATCH(
   req: NextRequest,
   context: { params: Promise<{ id: string }> },
 ) {
-  const access = await requireManagementApiAccess(["admin", "access_control"])
+  const access = await requireManagementCapabilityAccess(["access.edit"])
   if (!access.ok) return access.response
 
   const { id } = await context.params
@@ -53,7 +53,7 @@ export async function DELETE(
   req: NextRequest,
   context: { params: Promise<{ id: string }> },
 ) {
-  const access = await requireManagementApiAccess(["admin", "access_control"])
+  const access = await requireManagementCapabilityAccess(["access.edit"])
   if (!access.ok) return access.response
 
   const { id } = await context.params

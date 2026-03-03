@@ -2,7 +2,7 @@ import type { Metadata } from "next"
 import { KeyRound, Shield } from "lucide-react"
 import { siteConfig } from "@/lib/site-config"
 import { AccessManagementTable } from "@/components/portal/access-management-table"
-import { requirePortalRolePageAccess } from "@/lib/auth/portal-admin"
+import { requirePortalCapabilityPageAccess } from "@/lib/auth/portal-admin"
 
 export const metadata: Metadata = {
   title: `Resident Access Management | ${siteConfig.name} Resident Portal`,
@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 }
 
 export default async function AccessManagementPage() {
-  await requirePortalRolePageAccess(["admin", "access_control"], "/resident-portal/management/access")
+  await requirePortalCapabilityPageAccess(["access.view"], "/resident-portal/management/access")
 
   return (
     <>

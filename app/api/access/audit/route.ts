@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server"
 import { listAuditPrisma } from "@/lib/access/repository-prisma"
-import { requireManagementApiAccess } from "@/lib/auth/portal-management-api"
+import { requireManagementCapabilityAccess } from "@/lib/auth/portal-management-api"
 import type { AccessAuditEntityType } from "@/lib/access/types"
 
 export async function GET(req: NextRequest) {
-  const access = await requireManagementApiAccess(["admin", "access_control"])
+  const access = await requireManagementCapabilityAccess(["access.view"])
   if (!access.ok) return access.response
 
   const { searchParams } = new URL(req.url)

@@ -1,6 +1,7 @@
 import { auth, currentUser } from "@clerk/nextjs/server"
 import { redirect } from "next/navigation"
 import { normalizeCommitteeSlugs, type CommitteeSlug } from "@/lib/portal/committees"
+import { hasCapability, type CapabilityKey } from "@/lib/auth/permissions"
 
 export interface PortalAdminIdentity {
   userId: string
@@ -103,6 +104,36 @@ export async function requirePortalRolePageAccess(
   }
 
   if (!hasAnyCommittee(user, allowed)) {
+    redirect("/resident-portal")
+  }
+}
+
+export async function requirePortalCapabilityPageAccess(
+  requiredCapabilities: CapabilityKey[],
+  redirectPath = "/resident-portal",
+  mode: "all" | "any" = "all",
+) {
+  const { userId } = await auth()
+
+  if (!userId) {
+    redirect(`/sign-in?redirect_url=${encodeURIComponent(redirectPath)}`)
+  }
+
+  const user = await currentUser()
+  const admin = isPortalAdmin(user)
+  const approved = user?.publicMetadata?.portalApproved === true
+
+  if (!admin && !approved) {
+    redirect("/portal-registration")
+  }
+
+  const decisions = requiredCapabilities.map((capability) => hasCapability(user, capability))
+  const allowed =
+    mode === "all"
+      ? decisions.every(Boolean)
+      : decisions.some(Boolean)
+
+  if (!allowed) {
     redirect("/resident-portal")
   }
 }

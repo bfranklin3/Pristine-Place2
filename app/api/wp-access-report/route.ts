@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { requireManagementCapabilityAccess } from "@/lib/auth/portal-management-api"
 
 const WP_API = process.env.WORDPRESS_API_URL ?? "https://www.pristineplace.us/wp-json/wp/v2"
 const WP_USER = process.env.WORDPRESS_USERNAME ?? ""
@@ -68,6 +69,9 @@ function rowKey(row: Record<string, unknown>): string {
 }
 
 export async function GET(req: NextRequest) {
+  const access = await requireManagementCapabilityAccess(["access.view"])
+  if (!access.ok) return access.response
+
   try {
     const inputUrl = new URL(req.url)
     const upstream = new URL(ACCESS_REPORT_URL)

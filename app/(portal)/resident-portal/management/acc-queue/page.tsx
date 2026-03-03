@@ -4,7 +4,7 @@ import type { Metadata } from "next"
 import { Shield, FileText } from "lucide-react"
 import { siteConfig } from "@/lib/site-config"
 import { AccQueueTable } from "@/components/portal/acc-queue-table"
-import { requirePortalRolePageAccess } from "@/lib/auth/portal-admin"
+import { requirePortalCapabilityPageAccess } from "@/lib/auth/portal-admin"
 
 export const metadata: Metadata = {
   title: `ACC Workflow Queue | ${siteConfig.name} Resident Portal`,
@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 }
 
 export default async function AccQueuePage() {
-  await requirePortalRolePageAccess(["admin", "acc"], "/resident-portal/management/acc-queue")
+  await requirePortalCapabilityPageAccess(["acc.view"], "/resident-portal/management/acc-queue")
 
   return (
     <>

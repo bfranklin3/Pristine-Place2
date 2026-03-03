@@ -75,6 +75,11 @@ enum AccMatchStatus {
   rejected
 }
 
+enum CapabilityEffect {
+  allow
+  deny
+}
+
 model ResidentProfile {
   id               String            @id @default(cuid())
   primaryUserId    String?
@@ -235,4 +240,33 @@ model ResidentAccMatch {
   @@index([status, matchScore])
   @@index([residentProfileId])
   @@index([accRequestId])
+}
+
+model UserCapabilityOverride {
+  id            String           @id @default(cuid())
+  clerkUserId   String
+  capabilityKey String
+  effect        CapabilityEffect
+  reason        String?
+  updatedBy     String?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@unique([clerkUserId, capabilityKey])
+  @@index([clerkUserId])
+  @@index([capabilityKey])
+}
+
+model UserCapabilityOverrideAudit {
+  id            String   @id @default(cuid())
+  clerkUserId   String
+  capabilityKey String
+  beforeEffect  String?
+  afterEffect   String?
+  reason        String?
+  actorUserId   String?
+  createdAt     DateTime @default(now())
+
+  @@index([clerkUserId, createdAt])
+  @@index([capabilityKey, createdAt])
 }

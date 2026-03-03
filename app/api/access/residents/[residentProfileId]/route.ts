@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getResidentDetailPrisma, patchResidentPrisma } from "@/lib/access/repository-prisma"
-import { requireManagementApiAccess } from "@/lib/auth/portal-management-api"
+import { requireManagementCapabilityAccess } from "@/lib/auth/portal-management-api"
 
 export async function GET(
   _req: NextRequest,
   context: { params: Promise<{ residentProfileId: string }> },
 ) {
-  const access = await requireManagementApiAccess(["admin", "access_control"])
+  const access = await requireManagementCapabilityAccess(["access.view"])
   if (!access.ok) return access.response
 
   const { residentProfileId } = await context.params
@@ -24,7 +24,7 @@ export async function PATCH(
   req: NextRequest,
   context: { params: Promise<{ residentProfileId: string }> },
 ) {
-  const access = await requireManagementApiAccess(["admin", "access_control"])
+  const access = await requireManagementCapabilityAccess(["access.edit"])
   if (!access.ok) return access.response
 
   const { residentProfileId } = await context.params

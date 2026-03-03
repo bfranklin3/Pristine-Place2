@@ -1,4 +1,5 @@
-import { normalizeCommitteeSlugs } from "@/lib/portal/committees"
+import { normalizeCommitteeChairSlugs, normalizeCommitteeSlugs } from "@/lib/portal/committees"
+import { normalizeCapabilityOverrides } from "@/lib/auth/capabilities"
 
 export type PortalUserStatus = "not_submitted" | "pending" | "approved" | "rejected"
 
@@ -30,6 +31,10 @@ export interface PortalUserRow {
   reviewedBy: string
   portalAdmin: boolean
   committees: string[]
+  committeeChairs: string[]
+  capabilityOverrides: Partial<Record<string, "allow" | "deny">>
+  capabilityOverridesUpdatedAt: string
+  capabilityOverridesUpdatedBy: string
   committeesUpdatedAt: string
   committeesUpdatedBy: string
 }
@@ -66,6 +71,8 @@ export function toPortalUserRow(user: any): PortalUserRow {
   const fullName = [firstName, lastName].filter(Boolean).join(" ").trim()
 
   const committees = normalizeCommitteeSlugs(publicMetadata.committees)
+  const committeeChairs = normalizeCommitteeChairSlugs(publicMetadata.committeeChairs)
+  const capabilityOverrides = normalizeCapabilityOverrides(publicMetadata.capabilityOverrides)
 
   return {
     userId: user.id,
@@ -81,6 +88,10 @@ export function toPortalUserRow(user: any): PortalUserRow {
     reviewedBy: (publicMetadata.portalRegistrationReviewedBy as string) || "",
     portalAdmin: publicMetadata.portalAdmin === true,
     committees,
+    committeeChairs,
+    capabilityOverrides,
+    capabilityOverridesUpdatedAt: (publicMetadata.capabilityOverridesUpdatedAt as string) || "",
+    capabilityOverridesUpdatedBy: (publicMetadata.capabilityOverridesUpdatedBy as string) || "",
     committeesUpdatedAt: (publicMetadata.committeesUpdatedAt as string) || "",
     committeesUpdatedBy: (publicMetadata.committeesUpdatedBy as string) || "",
   }

@@ -8,7 +8,8 @@ import {
   sortPortalRows,
   toPortalUserRow,
 } from "@/lib/portal/users"
-import { normalizeCommitteeSlugs } from "@/lib/portal/committees"
+import { normalizeCommitteeChairSlugs, normalizeCommitteeSlugs } from "@/lib/portal/committees"
+import { CAPABILITY_KEYS, normalizeCapabilityOverrides } from "@/lib/auth/capabilities"
 
 type DirectoryAction =
   | "approve"
@@ -16,6 +17,7 @@ type DirectoryAction =
   | "set_admin"
   | "unset_admin"
   | "set_committees"
+  | "set_capability_overrides"
   | "delete_user"
   | "reset_by_email"
 
@@ -116,6 +118,8 @@ export async function PATCH(req: Request) {
       userId?: string
       action?: DirectoryAction
       committees?: unknown
+      committeeChairs?: unknown
+      capabilityOverrides?: unknown
       emailAddress?: string
     }
     const userId = (payload.userId || "").trim()
@@ -136,6 +140,7 @@ export async function PATCH(req: Request) {
       "set_admin",
       "unset_admin",
       "set_committees",
+      "set_capability_overrides",
       "delete_user",
       "reset_by_email",
     ]
@@ -221,14 +226,36 @@ export async function PATCH(req: Request) {
     }
 
     if (action === "set_committees") {
-      const committees = normalizeCommitteeSlugs(payload.committees)
+      const requestedCommittees = normalizeCommitteeSlugs(payload.committees)
+      const requestedCommitteeChairs = normalizeCommitteeChairSlugs(payload.committeeChairs)
+      const committees = normalizeCommitteeSlugs([...requestedCommittees, ...requestedCommitteeChairs])
+      const committeeChairs = requestedCommitteeChairs.filter((slug) => committees.includes(slug))
 
       await client.users.updateUserMetadata(userId, {
         publicMetadata: {
           ...publicMetadata,
           committees,
+          committeeChairs,
           committeesUpdatedAt: nowIso,
           committeesUpdatedBy: actor,
+        },
+      })
+
+      return NextResponse.json({ success: true })
+    }
+
+    if (action === "set_capability_overrides") {
+      const requestedOverrides = normalizeCapabilityOverrides(payload.capabilityOverrides)
+      const capabilityOverrides = Object.fromEntries(
+        CAPABILITY_KEYS.map((key) => [key, requestedOverrides[key] ?? null]),
+      )
+
+      await client.users.updateUserMetadata(userId, {
+        publicMetadata: {
+          ...publicMetadata,
+          capabilityOverrides,
+          capabilityOverridesUpdatedAt: nowIso,
+          capabilityOverridesUpdatedBy: actor,
         },
       })
 

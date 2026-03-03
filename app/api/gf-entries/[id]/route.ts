@@ -2,7 +2,7 @@
 // Proxy to Gravity Forms REST API — get or update a single ACC permit entry.
 
 import { NextRequest, NextResponse } from "next/server"
-import { requireManagementApiAccess } from "@/lib/auth/portal-management-api"
+import { requireManagementCapabilityAccess } from "@/lib/auth/portal-management-api"
 import { prisma } from "@/lib/db/prisma"
 
 const GF_API_URL = process.env.GRAVITY_FORMS_API_URL ?? "https://www.pristineplace.us/wp-json/gf/v2"
@@ -22,7 +22,7 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const access = await requireManagementApiAccess(["admin", "acc"])
+  const access = await requireManagementCapabilityAccess(["acc.view"])
   if (!access.ok) return access.response
 
   const { id } = await params
@@ -41,7 +41,7 @@ export async function PUT(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const access = await requireManagementApiAccess(["admin", "acc"])
+  const access = await requireManagementCapabilityAccess(["acc.edit"])
   if (!access.ok) return access.response
 
   const { id } = await params
