@@ -12,6 +12,8 @@ build/
 .env.development.local
 .env.test.local
 .env.production.local
+.env-old
+env
 
 # Logs
 npm-debug.log*
