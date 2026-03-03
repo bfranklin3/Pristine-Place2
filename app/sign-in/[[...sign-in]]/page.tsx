@@ -1,4 +1,5 @@
 import { SignIn } from "@clerk/nextjs"
+import Link from "next/link"
 
 export default function SignInPage() {
   return (
@@ -12,7 +13,14 @@ export default function SignInPage() {
         background: "var(--pp-slate-50)",
       }}
     >
-      <SignIn />
+      <div style={{ display: "grid", gap: "0.8rem" }}>
+        <SignIn />
+        <div style={{ textAlign: "center" }}>
+          <Link href="/forgot-password" style={{ color: "var(--pp-navy-dark)", fontWeight: 600, textDecoration: "underline" }}>
+            Forgot password?
+          </Link>
+        </div>
+      </div>
     </div>
   )
 }

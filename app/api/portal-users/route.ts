@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { clerkClient } from "@clerk/nextjs/server"
 import { getPortalAdminIdentity } from "@/lib/auth/portal-admin"
 import { sendPortalRegistrationDecisionEmail } from "@/lib/email/portal-registration-notifications"
+import { sendEmail } from "@/lib/email/service"
 import {
   type PortalRegistrationMetadata,
   type PortalUserStatus,
@@ -18,6 +19,7 @@ type DirectoryAction =
   | "unset_admin"
   | "set_committees"
   | "set_capability_overrides"
+  | "send_password_reset"
   | "delete_user"
   | "reset_by_email"
 
@@ -141,6 +143,7 @@ export async function PATCH(req: Request) {
       "unset_admin",
       "set_committees",
       "set_capability_overrides",
+      "send_password_reset",
       "delete_user",
       "reset_by_email",
     ]
@@ -260,6 +263,61 @@ export async function PATCH(req: Request) {
       })
 
       return NextResponse.json({ success: true })
+    }
+
+    if (action === "send_password_reset") {
+      const primaryEmail =
+        user.emailAddresses?.find((email) => email.id === user.primaryEmailAddressId)?.emailAddress ||
+        ""
+
+      if (!primaryEmail) {
+        return NextResponse.json(
+          { success: false, error: "User has no primary email address." },
+          { status: 400 },
+        )
+      }
+
+      const appBaseUrl = (process.env.NEXT_PUBLIC_SITE_URL || new URL(req.url).origin).replace(/\/$/, "")
+      const resetUrl = `${appBaseUrl}/forgot-password?email=${encodeURIComponent(primaryEmail)}`
+
+      const emailResult = await sendEmail({
+        to: primaryEmail,
+        subject: "Reset your Pristine Place portal password",
+        html: `
+          <div style="font-family:Arial,sans-serif;line-height:1.6;color:#1f2937">
+            <p>Hello,</p>
+            <p>An administrator sent you a password reset link for your Pristine Place portal account.</p>
+            <p>
+              <a href="${resetUrl}" style="display:inline-block;padding:10px 14px;border-radius:8px;background:#3A5A40;color:#ffffff;text-decoration:none;font-weight:600">
+                Reset Password
+              </a>
+            </p>
+            <p>If the button does not work, copy and paste this URL into your browser:</p>
+            <p><a href="${resetUrl}">${resetUrl}</a></p>
+            <p>If you did not request this, you can ignore this email.</p>
+          </div>
+        `,
+      })
+
+      if (!emailResult.success) {
+        return NextResponse.json(
+          { success: false, error: emailResult.error || "Failed to send password reset email." },
+          { status: 500 },
+        )
+      }
+
+      await client.users.updateUserMetadata(userId, {
+        publicMetadata: {
+          ...publicMetadata,
+          passwordResetSentAt: nowIso,
+          passwordResetSentBy: actor,
+        },
+      })
+
+      return NextResponse.json({
+        success: true,
+        warning: emailResult.error,
+      })
     }
 
     const status = action === "approve" ? "approved" : "rejected"

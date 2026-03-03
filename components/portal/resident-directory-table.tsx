@@ -20,6 +20,7 @@ type DirectoryAction =
   | "unset_admin"
   | "set_committees"
   | "set_capability_overrides"
+  | "send_password_reset"
   | "delete_user"
 
 interface PortalUserRow {
@@ -43,6 +44,8 @@ interface PortalUserRow {
   capabilityOverridesUpdatedBy: string
   committeesUpdatedAt: string
   committeesUpdatedBy: string
+  passwordResetSentAt: string
+  passwordResetSentBy: string
 }
 
 function formatLastActive(lastActiveAt: string) {
@@ -174,6 +177,9 @@ export function ResidentDirectoryTable() {
       if (!response.ok || !data.success) {
         setError(data.error || "Failed to save changes.")
         return
+      }
+      if (action === "send_password_reset") {
+        setWarning("Password reset email sent.")
       }
       if (data.warning) {
         setWarning(data.warning)
@@ -633,6 +639,51 @@ export function ResidentDirectoryTable() {
             {committeeMessage}
           </div>
         )}
+        <div
+          style={{
+            marginTop: "0.7rem",
+            paddingTop: "0.7rem",
+            borderTop: "1px solid var(--pp-slate-200)",
+            display: "flex",
+            gap: "0.45rem",
+            alignItems: "center",
+            flexWrap: "wrap",
+          }}
+        >
+          <button
+            type="button"
+            className="btn btn-outline btn-sm"
+            onClick={() => runAction(row.userId, "send_password_reset")}
+            disabled={busy}
+            title={`Send password reset email to ${row.emailAddress || "primary email"}`}
+          >
+            Send Password Reset
+          </button>
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              padding: "0.3rem 0.5rem",
+              borderRadius: "999px",
+              border: "1px solid var(--pp-slate-200)",
+              background: "var(--pp-slate-50)",
+              color: "var(--pp-slate-700)",
+              fontSize: "0.7rem",
+              fontWeight: 600,
+              lineHeight: 1.2,
+              overflowWrap: "anywhere",
+            }}
+            title={
+              row.passwordResetSentAt
+                ? `Last reset email sent by ${row.passwordResetSentBy || "Unknown"} on ${new Date(row.passwordResetSentAt).toLocaleString()}`
+                : "No password reset emails sent yet"
+            }
+          >
+            {row.passwordResetSentAt
+              ? `Reset sent ${new Date(row.passwordResetSentAt).toLocaleDateString()} by ${row.passwordResetSentBy || "Unknown"}`
+              : "No reset emails sent yet"}
+          </span>
+        </div>
       </div>
     )
 
