@@ -278,6 +278,21 @@ export function ResidentDirectoryTable() {
     return "none"
   }
 
+  function hasCommitteeRoleChanged(
+    row: PortalUserRow,
+    slug: CommitteeSlug,
+    draftCommittees: CommitteeSlug[],
+    draftCommitteeChairs: CommitteeChairSlug[],
+  ): boolean {
+    const currentRole = getCommitteeRole(
+      slug,
+      row.committees.filter(isCommitteeSlug),
+      row.committeeChairs.filter(isCommitteeChairSlug),
+    )
+    const draftRole = getCommitteeRole(slug, draftCommittees, draftCommitteeChairs)
+    return currentRole !== draftRole
+  }
+
   function clearCommittees(row: PortalUserRow) {
     setCommitteeMessages((current) => {
       const next = { ...current }
@@ -514,6 +529,12 @@ export function ResidentDirectoryTable() {
           {COMMITTEE_OPTIONS.map((committee) => {
             const roleValue = getCommitteeRole(committee.slug, draftCommittees, draftCommitteeChairs)
             const canBeChair = CHAIR_ELIGIBLE_COMMITTEES.has(committee.slug)
+            const roleChanged = hasCommitteeRoleChanged(
+              row,
+              committee.slug,
+              draftCommittees,
+              draftCommitteeChairs,
+            )
             return (
               <Fragment
                 key={committee.slug}
@@ -524,10 +545,14 @@ export function ResidentDirectoryTable() {
                     fontSize: "0.82rem",
                     lineHeight: 1.25,
                     overflowWrap: "anywhere",
-                    border: "1px solid var(--pp-slate-200)",
+                    border: roleChanged ? "1px solid #f59e0b" : "1px solid var(--pp-slate-200)",
                     borderRadius: "0.45rem",
                     padding: "0.38rem 0.5rem",
-                    background: roleValue === "none" ? "var(--pp-white)" : "var(--pp-slate-50)",
+                    background: roleChanged
+                      ? "#fff7ed"
+                      : roleValue === "none"
+                        ? "var(--pp-white)"
+                        : "var(--pp-slate-50)",
                   }}
                 >
                   {committee.label}
@@ -540,10 +565,10 @@ export function ResidentDirectoryTable() {
                   disabled={busy}
                   style={{
                     width: "100%",
-                    border: "1px solid var(--pp-slate-200)",
+                    border: roleChanged ? "1px solid #f59e0b" : "1px solid var(--pp-slate-200)",
                     borderRadius: "0.45rem",
                     padding: "0.38rem 0.5rem",
-                    background: "var(--pp-white)",
+                    background: roleChanged ? "#fff7ed" : "var(--pp-white)",
                     color: "var(--pp-slate-800)",
                   }}
                 >
@@ -610,27 +635,140 @@ export function ResidentDirectoryTable() {
       ? `Last saved ${new Date(row.capabilityOverridesUpdatedAt).toLocaleDateString()} by ${row.capabilityOverridesUpdatedBy || "Unknown"}`
       : "No capability override saves yet"
 
+    const grants = new Set<CapabilityKey>()
+    const roleKeys: string[] = []
+    if (draftCommittees.includes("board_of_directors")) roleKeys.push("board_of_directors")
+    if (draftCommittees.includes("acc")) roleKeys.push("committee.acc.member")
+    if (draftCommitteeChairs.includes("acc")) roleKeys.push("committee.acc.chair")
+    if (draftCommittees.includes("access_control")) roleKeys.push("committee.access_control.member")
+    if (draftCommitteeChairs.includes("access_control")) roleKeys.push("committee.access_control.chair")
+    for (const roleKey of roleKeys) {
+      for (const capability of DEFAULT_ROLE_GRANTS[roleKey] || []) {
+        grants.add(capability)
+      }
+    }
+    const currentCapabilityOverrides = getCurrentCapabilityOverrides(row)
+
+    const capabilityRows = CAPABILITY_OPTIONS.map((capability) => {
+      const override = draftCapabilityOverrides[capability.key]
+      const selected = override ?? ""
+      const currentSelected = currentCapabilityOverrides[capability.key] ?? ""
+      const overrideChanged = selected !== currentSelected
+      const isAllowed = row.portalAdmin || override === "allow" || (override !== "deny" && grants.has(capability.key))
+      const source = row.portalAdmin
+        ? "Admin"
+        : override === "allow"
+          ? "Override: Allow"
+          : override === "deny"
+            ? "Override: Deny"
+            : grants.has(capability.key)
+              ? "Role/Committee"
+              : "None"
+      return { capability, selected, isAllowed, source, overrideChanged }
+    })
+    const capabilityGridColumns = singleColumn
+      ? "1fr"
+      : "minmax(0, 1fr) minmax(10.75rem, 12rem) minmax(5.75rem, 6.5rem)"
+
     const capabilityCard = (
       <div style={{ background: "var(--pp-white)", border: "1px solid var(--pp-slate-200)", borderRadius: "0.65rem", padding: "0.7rem 0.8rem", minWidth: 0 }}>
         <div style={{ fontSize: "0.74rem", color: "var(--pp-slate-600)", fontWeight: 700, marginBottom: "0.35rem" }}>
-          Capability Overrides
+          Capability Overrides & Effective Summary
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "0.45rem" }}>
-          {CAPABILITY_OPTIONS.map((capability) => {
-            const selected = draftCapabilityOverrides[capability.key] ?? ""
-            return (
-              <div
-                key={capability.key}
-                style={{
-                  border: "1px solid var(--pp-slate-200)",
-                  borderRadius: "0.45rem",
-                  padding: "0.45rem 0.5rem",
-                  background: "var(--pp-white)",
-                }}
-              >
-                <div style={{ color: "var(--pp-slate-800)", fontSize: "0.83rem", fontWeight: 700 }}>{capability.label}</div>
-                <div style={{ color: "var(--pp-slate-600)", fontSize: "0.75rem", marginTop: "0.1rem" }}>{capability.description}</div>
-                <div style={{ marginTop: "0.35rem" }}>
+        <div
+          style={{
+            border: "1px solid var(--pp-slate-200)",
+            borderRadius: "0.55rem",
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: capabilityGridColumns,
+              gap: "0.4rem",
+              padding: "0.45rem 0.55rem",
+              background: "var(--pp-slate-50)",
+              borderBottom: "1px solid var(--pp-slate-200)",
+              color: "var(--pp-slate-600)",
+              fontSize: "0.72rem",
+              fontWeight: 700,
+            }}
+          >
+            <div>Overrides</div>
+            {!singleColumn ? <div>Current Override</div> : null}
+            {!singleColumn ? <div style={{ textAlign: "right" }}>Effective</div> : null}
+          </div>
+          {capabilityRows.map(({ capability, selected, isAllowed, source, overrideChanged }, index) => (
+            <div
+              key={capability.key}
+              style={{
+                display: "grid",
+                gridTemplateColumns: capabilityGridColumns,
+                gap: "0.4rem",
+                padding: "0.45rem 0.55rem",
+                alignItems: "center",
+                borderTop: index === 0 ? "none" : "1px solid var(--pp-slate-100)",
+                background: overrideChanged ? "#fff7ed" : "var(--pp-white)",
+              }}
+            >
+              <div style={{ minWidth: 0 }}>
+                <div style={{ color: "var(--pp-slate-800)", fontSize: "0.8rem", fontWeight: 700 }}>
+                  {capability.label}
+                </div>
+                <div
+                  style={{ color: "var(--pp-slate-500)", fontSize: "0.72rem" }}
+                  title={capability.description}
+                >
+                  {source}
+                </div>
+              </div>
+              {singleColumn ? (
+                <div style={{ display: "flex", gap: "0.4rem", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" }}>
+                  <select
+                    value={selected}
+                    onChange={(event) =>
+                      setCapabilityOverride(
+                        row.userId,
+                        capability.key,
+                        event.target.value as "" | CapabilityOverrideValue,
+                      )
+                    }
+                    disabled={busy}
+                    style={{
+                      flex: "1 1 12rem",
+                      minWidth: "12rem",
+                      border: overrideChanged ? "1px solid #f59e0b" : "1px solid var(--pp-slate-200)",
+                      borderRadius: "0.45rem",
+                      padding: "0.35rem 0.45rem",
+                      background: overrideChanged ? "#fff7ed" : "var(--pp-white)",
+                      color: "var(--pp-slate-800)",
+                      fontSize: "0.82rem",
+                    }}
+                  >
+                    <option value="">Default (role/committee)</option>
+                    <option value="allow">Allow</option>
+                    <option value="deny">Deny</option>
+                  </select>
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      borderRadius: "999px",
+                      padding: "0.2rem 0.5rem",
+                      fontSize: "0.72rem",
+                      fontWeight: 700,
+                      background: isAllowed ? "#dcfce7" : "#fee2e2",
+                      color: isAllowed ? "#166534" : "#991b1b",
+                      border: `1px solid ${isAllowed ? "#86efac" : "#fca5a5"}`,
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {isAllowed ? "Granted" : "Denied"}
+                  </span>
+                </div>
+              ) : (
+                <>
                   <select
                     value={selected}
                     onChange={(event) =>
@@ -643,76 +781,19 @@ export function ResidentDirectoryTable() {
                     disabled={busy}
                     style={{
                       width: "100%",
-                      border: "1px solid var(--pp-slate-200)",
+                      border: overrideChanged ? "1px solid #f59e0b" : "1px solid var(--pp-slate-200)",
                       borderRadius: "0.45rem",
-                      padding: "0.38rem 0.5rem",
-                      background: "var(--pp-white)",
+                      padding: "0.35rem 0.45rem",
+                      background: overrideChanged ? "#fff7ed" : "var(--pp-white)",
                       color: "var(--pp-slate-800)",
+                      fontSize: "0.82rem",
                     }}
                   >
-                    <option value="">Default (from role/committee)</option>
+                    <option value="">Default (role/committee)</option>
                     <option value="allow">Allow</option>
                     <option value="deny">Deny</option>
                   </select>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-        <div style={{ marginTop: "0.7rem", borderTop: "1px solid var(--pp-slate-200)", paddingTop: "0.55rem" }}>
-          <div style={{ fontSize: "0.74rem", color: "var(--pp-slate-600)", fontWeight: 700, marginBottom: "0.3rem" }}>
-            Effective Access Preview
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "0.35rem" }}>
-            {(() => {
-              const grants = new Set<CapabilityKey>()
-              const roleKeys: string[] = []
-
-              if (draftCommittees.includes("board_of_directors")) roleKeys.push("board_of_directors")
-              if (draftCommittees.includes("acc")) roleKeys.push("committee.acc.member")
-              if (draftCommitteeChairs.includes("acc")) roleKeys.push("committee.acc.chair")
-              if (draftCommittees.includes("access_control")) roleKeys.push("committee.access_control.member")
-              if (draftCommitteeChairs.includes("access_control")) roleKeys.push("committee.access_control.chair")
-
-              for (const roleKey of roleKeys) {
-                for (const capability of DEFAULT_ROLE_GRANTS[roleKey] || []) {
-                  grants.add(capability)
-                }
-              }
-
-              return CAPABILITY_OPTIONS.map((capability) => {
-                const override = draftCapabilityOverrides[capability.key]
-                const isAllowed = row.portalAdmin || override === "allow" || (override !== "deny" && grants.has(capability.key))
-                const source = row.portalAdmin
-                  ? "Admin"
-                  : override === "allow"
-                    ? "Override: Allow"
-                    : override === "deny"
-                      ? "Override: Deny"
-                      : grants.has(capability.key)
-                        ? "Role/Committee"
-                        : "None"
-
-                return (
-                  <div
-                    key={`${capability.key}-effective`}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      gap: "0.5rem",
-                      border: "1px solid var(--pp-slate-200)",
-                      borderRadius: "0.45rem",
-                      padding: "0.38rem 0.5rem",
-                      background: "var(--pp-white)",
-                    }}
-                  >
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ color: "var(--pp-slate-800)", fontSize: "0.8rem", fontWeight: 700 }}>
-                        {capability.label}
-                      </div>
-                      <div style={{ color: "var(--pp-slate-500)", fontSize: "0.72rem" }}>{source}</div>
-                    </div>
+                  <div style={{ textAlign: "right" }}>
                     <span
                       style={{
                         display: "inline-flex",
@@ -730,10 +811,10 @@ export function ResidentDirectoryTable() {
                       {isAllowed ? "Granted" : "Denied"}
                     </span>
                   </div>
-                )
-              })
-            })()}
-          </div>
+                </>
+              )}
+            </div>
+          ))}
         </div>
         <div style={{ color: capabilityDirty ? "#92400e" : "var(--pp-slate-500)", fontSize: "0.76rem", fontWeight: 600, marginTop: "0.6rem" }}>
           {capabilityDirty ? "Unsaved changes" : "No pending changes"}
@@ -854,7 +935,7 @@ export function ResidentDirectoryTable() {
         style={{
           display: "grid",
           gridTemplateColumns: isWideDetailsLayout
-            ? "minmax(240px, 320px) minmax(260px, 360px) minmax(0, 1fr)"
+            ? "minmax(220px, 300px) minmax(420px, 1.2fr) minmax(240px, 0.9fr)"
             : "minmax(260px, 320px) minmax(0, 1fr)",
           gap: "0.7rem",
           alignItems: "start",

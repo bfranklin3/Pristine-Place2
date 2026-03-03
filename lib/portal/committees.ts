@@ -1,11 +1,11 @@
 export const COMMITTEE_OPTIONS = [
   { slug: "access_control", label: "Access Control" },
-  { slug: "acc", label: "Architectural Control Committee (ACC)" },
+  { slug: "acc", label: "ACC" },
   { slug: "clubhouse_rental", label: "Clubhouse Rental" },
   { slug: "board_of_directors", label: "Board of Directors" },
-  { slug: "communication_committee", label: "Communication Committee" },
+  { slug: "communication_committee", label: "Communication" },
   { slug: "social_committee", label: "Social Committee" },
-  { slug: "clubhouse_maintenance", label: "Clubhouse Maintenance" },
+  { slug: "clubhouse_maintenance", label: "Clubhouse" },
 ] as const
 
 export type CommitteeSlug = (typeof COMMITTEE_OPTIONS)[number]["slug"]
