@@ -6,6 +6,7 @@ import { sendEmail } from "@/lib/email/service"
 import { getPasswordResetEmailFromSanity } from "@/lib/email/templates/password-reset-sanity"
 import {
   type PortalRegistrationMetadata,
+  type PortalUserRow,
   type PortalUserStatus,
   sortPortalRows,
   toPortalUserRow,
@@ -23,9 +24,68 @@ type DirectoryAction =
   | "send_password_reset"
   | "delete_user"
   | "reset_by_email"
+  | "cleanup_inactive_preview"
+  | "cleanup_inactive_execute"
+
+type InactiveRow = PortalUserRow & { inactiveDays: number | null }
 
 function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
+}
+
+function parseStatusFilter(raw: string | null): Set<PortalUserStatus> {
+  return new Set(
+    (raw || "all")
+      .toLowerCase()
+      .split(",")
+      .map((value) => value.trim())
+      .filter(
+        (value): value is PortalUserStatus =>
+          value === "not_submitted" || value === "pending" || value === "approved" || value === "rejected",
+      ),
+  )
+}
+
+function buildInactiveRows(
+  allRows: PortalUserRow[],
+  {
+    inactiveDays,
+    includeAdmins,
+    includeNever,
+    statusFilter,
+    excludeUserId,
+  }: {
+    inactiveDays: number
+    includeAdmins: boolean
+    includeNever: boolean
+    statusFilter: Set<PortalUserStatus>
+    excludeUserId?: string
+  },
+): InactiveRow[] {
+  const now = Date.now()
+  const msPerDay = 1000 * 60 * 60 * 24
+  return allRows
+    .filter((row) => (excludeUserId ? row.userId !== excludeUserId : true))
+    .filter((row) => (includeAdmins ? true : !row.portalAdmin))
+    .filter((row) => (statusFilter.size === 0 ? true : statusFilter.has(row.status)))
+    .filter((row) => {
+      if (!row.lastActiveAt) return includeNever
+      const lastActiveMs = Date.parse(row.lastActiveAt)
+      if (Number.isNaN(lastActiveMs)) return includeNever
+      const daysInactive = (now - lastActiveMs) / msPerDay
+      return daysInactive >= inactiveDays
+    })
+    .map((row) => {
+      if (!row.lastActiveAt) return { ...row, inactiveDays: null as number | null }
+      const lastActiveMs = Date.parse(row.lastActiveAt)
+      if (Number.isNaN(lastActiveMs)) return { ...row, inactiveDays: null as number | null }
+      return { ...row, inactiveDays: Math.max(0, Math.floor((now - lastActiveMs) / msPerDay)) }
+    })
+    .sort((a, b) => {
+      const aValue = a.inactiveDays ?? Number.MAX_SAFE_INTEGER
+      const bValue = b.inactiveDays ?? Number.MAX_SAFE_INTEGER
+      return bValue - aValue
+    })
 }
 
 async function safelyDeleteClerkUser(userId: string, actingAdminUserId: string) {
@@ -94,20 +154,54 @@ export async function GET(req: Request) {
   const url = new URL(req.url)
   const status = (url.searchParams.get("status") || "all").toLowerCase() as PortalUserStatus | "all"
   const query = (url.searchParams.get("q") || "").trim().toLowerCase()
+  const report = (url.searchParams.get("report") || "").toLowerCase()
 
-  const rows = sortPortalRows((await fetchAllUsers()).map(toPortalUserRow))
-    .filter((row) => (status === "all" ? true : row.status === status))
-    .filter((row) => {
-      if (!query) return true
-      return (
-        row.fullName.toLowerCase().includes(query) ||
-        row.emailAddress.toLowerCase().includes(query) ||
-        row.username.toLowerCase().includes(query) ||
-        row.homeAddress.toLowerCase().includes(query)
-      )
+  const allRows = sortPortalRows((await fetchAllUsers()).map(toPortalUserRow))
+
+  if (report === "inactive") {
+    const inactiveDays = Math.max(1, Math.min(3650, Number(url.searchParams.get("inactive_days") || "180") || 180))
+    const includeAdmins = url.searchParams.get("include_admins") === "true"
+    const includeNever = url.searchParams.get("include_never") !== "false"
+    const statusFilter = parseStatusFilter(url.searchParams.get("status_filter"))
+    const rows = buildInactiveRows(allRows, {
+      inactiveDays,
+      includeAdmins,
+      includeNever,
+      statusFilter,
     })
 
-  return NextResponse.json({ success: true, rows })
+    return NextResponse.json({
+      success: true,
+      report: "inactive",
+      inactiveDays,
+      includeAdmins,
+      includeNever,
+      total: rows.length,
+      rows,
+    })
+  }
+
+  const queryMatchedRows = allRows.filter((row) => {
+    if (!query) return true
+    return (
+      row.fullName.toLowerCase().includes(query) ||
+      row.emailAddress.toLowerCase().includes(query) ||
+      row.username.toLowerCase().includes(query) ||
+      row.homeAddress.toLowerCase().includes(query)
+    )
+  })
+
+  const counts = {
+    all: queryMatchedRows.length,
+    not_submitted: queryMatchedRows.filter((row) => row.status === "not_submitted").length,
+    pending: queryMatchedRows.filter((row) => row.status === "pending").length,
+    approved: queryMatchedRows.filter((row) => row.status === "approved").length,
+    rejected: queryMatchedRows.filter((row) => row.status === "rejected").length,
+  }
+
+  const rows = queryMatchedRows.filter((row) => (status === "all" ? true : row.status === status))
+
+  return NextResponse.json({ success: true, rows, counts })
 }
 
 export async function PATCH(req: Request) {
@@ -124,6 +218,11 @@ export async function PATCH(req: Request) {
       committeeChairs?: unknown
       capabilityOverrides?: unknown
       emailAddress?: string
+      inactiveDays?: number
+      includeAdmins?: boolean
+      includeNever?: boolean
+      statusFilter?: string
+      confirmText?: string
     }
     const userId = (payload.userId || "").trim()
     const action = payload.action
@@ -133,7 +232,12 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ success: false, error: "action is required." }, { status: 400 })
     }
 
-    if (action !== "reset_by_email" && !userId) {
+    if (
+      action !== "reset_by_email" &&
+      action !== "cleanup_inactive_preview" &&
+      action !== "cleanup_inactive_execute" &&
+      !userId
+    ) {
       return NextResponse.json({ success: false, error: "userId is required." }, { status: 400 })
     }
 
@@ -147,12 +251,100 @@ export async function PATCH(req: Request) {
       "send_password_reset",
       "delete_user",
       "reset_by_email",
+      "cleanup_inactive_preview",
+      "cleanup_inactive_execute",
     ]
     if (!validActions.includes(action)) {
       return NextResponse.json({ success: false, error: "Invalid action." }, { status: 400 })
     }
 
     const client = await clerkClient()
+
+    if (action === "cleanup_inactive_preview" || action === "cleanup_inactive_execute") {
+      const inactiveDays = Math.max(1, Math.min(3650, Number(payload.inactiveDays) || 180))
+      const includeAdmins = payload.includeAdmins === true
+      const includeNever = payload.includeNever !== false
+      const statusFilter = parseStatusFilter(payload.statusFilter ?? null)
+      const allRows = sortPortalRows((await fetchAllUsers()).map(toPortalUserRow))
+      const candidates = buildInactiveRows(allRows, {
+        inactiveDays,
+        includeAdmins,
+        includeNever,
+        statusFilter,
+        excludeUserId: admin.userId,
+      })
+
+      if (action === "cleanup_inactive_preview") {
+        return NextResponse.json({
+          success: true,
+          mode: "preview",
+          inactiveDays,
+          includeAdmins,
+          includeNever,
+          total: candidates.length,
+          rows: candidates,
+          confirmationPhrase: `DELETE ${candidates.length}`,
+        })
+      }
+
+      const expectedPhrase = `DELETE ${candidates.length}`
+      if ((payload.confirmText || "").trim() !== expectedPhrase) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Type exactly "${expectedPhrase}" to execute cleanup.`,
+          },
+          { status: 400 },
+        )
+      }
+
+      const deletedUserIds: string[] = []
+      const skippedSelfUserIds: string[] = []
+      const failed: Array<{ userId: string; reason: string }> = []
+
+      for (const candidate of candidates) {
+        try {
+          const result = await safelyDeleteClerkUser(candidate.userId, admin.userId)
+          if (result.deleted) deletedUserIds.push(candidate.userId)
+          if (result.skippedSelf) skippedSelfUserIds.push(candidate.userId)
+        } catch (error) {
+          const reason = error instanceof Error ? error.message : "Failed to delete user."
+          failed.push({ userId: candidate.userId, reason })
+        }
+      }
+
+      const audit = {
+        actorUserId: admin.userId,
+        actorEmail: admin.email || "",
+        at: new Date().toISOString(),
+        policy: {
+          inactiveDays,
+          includeAdmins,
+          includeNever,
+          statusFilter: Array.from(statusFilter.values()),
+        },
+        candidateCount: candidates.length,
+        deletedCount: deletedUserIds.length,
+        failedCount: failed.length,
+        skippedSelfCount: skippedSelfUserIds.length,
+      }
+
+      console.info("Portal inactive cleanup executed", {
+        ...audit,
+        deletedUserIds,
+        skippedSelfUserIds,
+        failed,
+      })
+
+      return NextResponse.json({
+        success: true,
+        mode: "execute",
+        audit,
+        deletedUserIds,
+        skippedSelfUserIds,
+        failed,
+      })
+    }
 
     if (action === "reset_by_email") {
       if (!emailAddress || !isValidEmail(emailAddress)) {

@@ -41,7 +41,7 @@ export default async function PortalUserManagementPage() {
           <div className="stack" style={{ gap: "var(--space-l)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
               <Users style={{ width: "1.2rem", height: "1.2rem", color: "var(--pp-navy)" }} />
-              <h2 style={{ color: "var(--pp-navy-dark)" }}>All Registered Accounts</h2>
+              <h2 style={{ color: "var(--pp-navy-dark)" }}>Portal Accounts & Registration Status</h2>
             </div>
             <ResidentDirectoryTable />
           </div>
