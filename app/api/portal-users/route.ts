@@ -20,6 +20,7 @@ type DirectoryAction =
   | "set_admin"
   | "unset_admin"
   | "set_committees"
+  | "set_profile_name"
   | "set_capability_overrides"
   | "send_password_reset"
   | "delete_user"
@@ -214,6 +215,8 @@ export async function PATCH(req: Request) {
     const payload = (await req.json()) as {
       userId?: string
       action?: DirectoryAction
+      firstName?: string
+      lastName?: string
       committees?: unknown
       committeeChairs?: unknown
       capabilityOverrides?: unknown
@@ -247,6 +250,7 @@ export async function PATCH(req: Request) {
       "set_admin",
       "unset_admin",
       "set_committees",
+      "set_profile_name",
       "set_capability_overrides",
       "send_password_reset",
       "delete_user",
@@ -410,6 +414,46 @@ export async function PATCH(req: Request) {
     const unsafeMetadata = (user.unsafeMetadata || {}) as Record<string, unknown>
     const registration = (unsafeMetadata.portalRegistration || {}) as PortalRegistrationMetadata
 
+    if (action === "set_profile_name") {
+      const firstName = (payload.firstName || "").trim()
+      const lastName = (payload.lastName || "").trim()
+      if (!firstName || !lastName) {
+        return NextResponse.json(
+          { success: false, error: "First and last name are required." },
+          { status: 400 },
+        )
+      }
+      if (firstName.length > 100 || lastName.length > 100) {
+        return NextResponse.json(
+          { success: false, error: "Name is too long." },
+          { status: 400 },
+        )
+      }
+
+      await client.users.updateUser(userId, {
+        firstName,
+        lastName,
+      })
+
+      await client.users.updateUserMetadata(userId, {
+        publicMetadata: {
+          ...publicMetadata,
+          profileNameUpdatedAt: nowIso,
+          profileNameUpdatedBy: actor,
+        },
+        unsafeMetadata: {
+          ...unsafeMetadata,
+          portalRegistration: {
+            ...registration,
+            firstName,
+            lastName,
+          },
+        },
+      })
+
+      return NextResponse.json({ success: true })
+    }
+
     if (action === "set_admin" || action === "unset_admin") {
       await client.users.updateUserMetadata(userId, {
         publicMetadata: {
@@ -471,7 +515,7 @@ export async function PATCH(req: Request) {
       }
 
       const appBaseUrl = (process.env.NEXT_PUBLIC_SITE_URL || new URL(req.url).origin).replace(/\/$/, "")
-      const resetUrl = `${appBaseUrl}/forgot-password?email=${encodeURIComponent(primaryEmail)}`
+      const resetUrl = `${appBaseUrl}/welcome-set-password?email=${encodeURIComponent(primaryEmail)}`
       const signInUrl = `${appBaseUrl}/sign-in`
 
       const template = await getPasswordResetEmailFromSanity({

@@ -38,6 +38,8 @@ export interface PortalUserRow {
   capabilityOverridesUpdatedBy: string
   committeesUpdatedAt: string
   committeesUpdatedBy: string
+  profileNameUpdatedAt: string
+  profileNameUpdatedBy: string
   passwordResetSentAt: string
   passwordResetSentBy: string
 }
@@ -104,6 +106,8 @@ export function toPortalUserRow(user: any): PortalUserRow {
     capabilityOverridesUpdatedBy: (publicMetadata.capabilityOverridesUpdatedBy as string) || "",
     committeesUpdatedAt: (publicMetadata.committeesUpdatedAt as string) || "",
     committeesUpdatedBy: (publicMetadata.committeesUpdatedBy as string) || "",
+    profileNameUpdatedAt: (publicMetadata.profileNameUpdatedAt as string) || "",
+    profileNameUpdatedBy: (publicMetadata.profileNameUpdatedBy as string) || "",
     passwordResetSentAt: (publicMetadata.passwordResetSentAt as string) || "",
     passwordResetSentBy: (publicMetadata.passwordResetSentBy as string) || "",
   }

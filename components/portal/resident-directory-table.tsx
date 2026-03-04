@@ -20,6 +20,7 @@ type DirectoryAction =
   | "set_admin"
   | "unset_admin"
   | "set_committees"
+  | "set_profile_name"
   | "set_capability_overrides"
   | "send_password_reset"
   | "delete_user"
@@ -45,6 +46,8 @@ interface PortalUserRow {
   capabilityOverridesUpdatedBy: string
   committeesUpdatedAt: string
   committeesUpdatedBy: string
+  profileNameUpdatedAt: string
+  profileNameUpdatedBy: string
   passwordResetSentAt: string
   passwordResetSentBy: string
 }
@@ -157,10 +160,12 @@ export function ResidentDirectoryTable() {
   const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({})
   const [committeeDrafts, setCommitteeDrafts] = useState<Record<string, CommitteeSlug[]>>({})
   const [committeeChairDrafts, setCommitteeChairDrafts] = useState<Record<string, CommitteeChairSlug[]>>({})
+  const [nameDrafts, setNameDrafts] = useState<Record<string, { firstName: string; lastName: string }>>({})
   const [capabilityOverrideDrafts, setCapabilityOverrideDrafts] = useState<
     Record<string, Partial<Record<CapabilityKey, CapabilityOverrideValue>>>
   >({})
   const [committeeMessages, setCommitteeMessages] = useState<Record<string, string>>({})
+  const [profileMessages, setProfileMessages] = useState<Record<string, string>>({})
   const [capabilityMessages, setCapabilityMessages] = useState<Record<string, string>>({})
   const [toastMessage, setToastMessage] = useState<string | null>(null)
   const [isCompactLayout, setIsCompactLayout] = useState(false)
@@ -200,8 +205,10 @@ export function ResidentDirectoryTable() {
       })
       setCommitteeDrafts({})
       setCommitteeChairDrafts({})
+      setNameDrafts({})
       setCapabilityOverrideDrafts({})
       setCommitteeMessages({})
+      setProfileMessages({})
       setCapabilityMessages({})
     } catch {
       setError("Failed to load directory users.")
@@ -342,6 +349,38 @@ export function ResidentDirectoryTable() {
       }
     }
     return normalized
+  }
+
+  function getDraftName(row: PortalUserRow) {
+    const draft = nameDrafts[row.userId]
+    return {
+      firstName: draft?.firstName ?? row.firstName,
+      lastName: draft?.lastName ?? row.lastName,
+    }
+  }
+
+  function hasNameChanges(row: PortalUserRow): boolean {
+    const draft = getDraftName(row)
+    return draft.firstName.trim() !== row.firstName.trim() || draft.lastName.trim() !== row.lastName.trim()
+  }
+
+  function setNameField(row: PortalUserRow, field: "firstName" | "lastName", value: string) {
+    const userId = row.userId
+    setProfileMessages((current) => {
+      const next = { ...current }
+      delete next[userId]
+      return next
+    })
+    setNameDrafts((current) => {
+      const existing = current[userId] ?? { firstName: row.firstName, lastName: row.lastName }
+      return {
+        ...current,
+        [userId]: {
+          ...existing,
+          [field]: value,
+        },
+      }
+    })
   }
 
   function getCurrentCapabilityOverrides(
@@ -541,6 +580,44 @@ export function ResidentDirectoryTable() {
       await loadRows()
     } catch {
       setError("Failed to save capability overrides.")
+    } finally {
+      setSavingUserId(null)
+    }
+  }
+
+  async function saveProfileName(row: PortalUserRow) {
+    const draft = getDraftName(row)
+    const firstName = draft.firstName.trim()
+    const lastName = draft.lastName.trim()
+
+    if (!firstName || !lastName) {
+      setError("First and last name are required.")
+      return
+    }
+
+    setSavingUserId(row.userId)
+    setError(null)
+    setProfileMessages((current) => ({ ...current, [row.userId]: "" }))
+    try {
+      const response = await fetch("/api/portal-users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: row.userId,
+          action: "set_profile_name",
+          firstName,
+          lastName,
+        }),
+      })
+      const data = (await response.json()) as { success: boolean; error?: string }
+      if (!response.ok || !data.success) {
+        setError(data.error || "Failed to save profile name.")
+        return
+      }
+      setProfileMessages((current) => ({ ...current, [row.userId]: "Name updated." }))
+      await loadRows()
+    } catch {
+      setError("Failed to save profile name.")
     } finally {
       setSavingUserId(null)
     }
@@ -846,6 +923,9 @@ export function ResidentDirectoryTable() {
     capabilityMessage: string | undefined,
     singleColumn = false,
   ) {
+    const draftName = getDraftName(row)
+    const nameDirty = hasNameChanges(row)
+    const profileMessage = profileMessages[row.userId]
     const badgeLabel = row.committeesUpdatedAt
       ? `Last saved ${new Date(row.committeesUpdatedAt).toLocaleDateString()} by ${row.committeesUpdatedBy || "Unknown"}`
       : "No committee saves yet"
@@ -882,6 +962,14 @@ export function ResidentDirectoryTable() {
             date: new Date(row.capabilityOverridesUpdatedAt).toLocaleString(),
             user: row.capabilityOverridesUpdatedBy || "Unknown",
             action: "Saved capability overrides",
+          }
+        : null,
+      row.profileNameUpdatedAt
+        ? {
+            at: new Date(row.profileNameUpdatedAt).getTime(),
+            date: new Date(row.profileNameUpdatedAt).toLocaleString(),
+            user: row.profileNameUpdatedBy || "Unknown",
+            action: "Updated resident name",
           }
         : null,
     ]
@@ -1272,6 +1360,107 @@ export function ResidentDirectoryTable() {
       </div>
     )
 
+    const profileBadgeLabel = row.profileNameUpdatedAt
+      ? `Last saved ${new Date(row.profileNameUpdatedAt).toLocaleDateString()} by ${row.profileNameUpdatedBy || "Unknown"}`
+      : "No profile name saves yet"
+
+    const profileNameCard = (
+      <div
+        style={{
+          background: "var(--pp-white)",
+          border: "1px solid var(--pp-slate-200)",
+          borderRadius: "0.65rem",
+          padding: "0.7rem 0.8rem",
+          minWidth: 0,
+          gridColumn: singleColumn ? "auto" : "1 / -1",
+        }}
+      >
+        <div style={{ fontSize: "0.74rem", color: "var(--pp-slate-600)", fontWeight: 700, marginBottom: "0.35rem" }}>
+          Resident Name
+        </div>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: singleColumn ? "1fr" : "repeat(2, minmax(0, 1fr))",
+            gap: "0.5rem",
+          }}
+        >
+          <label style={{ display: "grid", gap: "0.25rem", fontSize: "0.74rem", color: "var(--pp-slate-600)", fontWeight: 700 }}>
+            First Name
+            <input
+              type="text"
+              value={draftName.firstName}
+              onChange={(event) => setNameField(row, "firstName", event.target.value)}
+              disabled={busy}
+              style={{
+                border: nameDirty ? "1px solid #f59e0b" : "1px solid var(--pp-slate-200)",
+                borderRadius: "0.45rem",
+                padding: "0.45rem 0.55rem",
+                background: nameDirty ? "#fff7ed" : "var(--pp-white)",
+                color: "var(--pp-slate-800)",
+              }}
+            />
+          </label>
+          <label style={{ display: "grid", gap: "0.25rem", fontSize: "0.74rem", color: "var(--pp-slate-600)", fontWeight: 700 }}>
+            Last Name
+            <input
+              type="text"
+              value={draftName.lastName}
+              onChange={(event) => setNameField(row, "lastName", event.target.value)}
+              disabled={busy}
+              style={{
+                border: nameDirty ? "1px solid #f59e0b" : "1px solid var(--pp-slate-200)",
+                borderRadius: "0.45rem",
+                padding: "0.45rem 0.55rem",
+                background: nameDirty ? "#fff7ed" : "var(--pp-white)",
+                color: "var(--pp-slate-800)",
+              }}
+            />
+          </label>
+        </div>
+        <div style={{ color: nameDirty ? "#92400e" : "var(--pp-slate-500)", fontSize: "0.76rem", fontWeight: 600, marginTop: "0.6rem" }}>
+          {nameDirty ? "Unsaved changes" : "No pending changes"}
+        </div>
+        <div style={{ display: "flex", gap: "0.4rem", alignItems: "center", flexWrap: "wrap", marginTop: "0.45rem" }}>
+          <button
+            type="button"
+            className="btn btn-primary btn-sm"
+            onClick={() => saveProfileName(row)}
+            disabled={busy || !nameDirty}
+          >
+            Save Name
+          </button>
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              padding: "0.3rem 0.5rem",
+              borderRadius: "999px",
+              border: "1px solid var(--pp-slate-200)",
+              background: "var(--pp-slate-50)",
+              color: "var(--pp-slate-700)",
+              fontSize: "0.7rem",
+              fontWeight: 600,
+              lineHeight: 1.2,
+              overflowWrap: "anywhere",
+            }}
+            title={
+              row.profileNameUpdatedAt
+                ? `Last saved by ${row.profileNameUpdatedBy || "Unknown"} on ${new Date(row.profileNameUpdatedAt).toLocaleString()}`
+                : "No profile name saves yet"
+            }
+          >
+            {profileBadgeLabel}
+          </span>
+        </div>
+        {profileMessage ? (
+          <div style={{ color: "#166534", fontSize: "0.76rem", fontWeight: 600, marginTop: "0.5rem" }}>
+            {profileMessage}
+          </div>
+        ) : null}
+      </div>
+    )
+
     const profileGrid = (
       <div
         style={{
@@ -1280,6 +1469,7 @@ export function ResidentDirectoryTable() {
           gap: "0.7rem",
         }}
       >
+        {profileNameCard}
         {profileCards.map((card) => (
           <div key={card.label} style={{ background: "var(--pp-white)", border: "1px solid var(--pp-slate-200)", borderRadius: "0.65rem", padding: "0.7rem 0.8rem", minWidth: 0 }}>
             <div style={{ fontSize: "0.74rem", color: "var(--pp-slate-600)", fontWeight: 700, marginBottom: "0.2rem" }}>{card.label}</div>

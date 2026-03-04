@@ -17,6 +17,7 @@
     "prisma:migrate:deploy": "prisma migrate deploy",
     "import:access:xlsx": "tsx scripts/import-access-from-xlsx.ts",
     "import:acc:gf": "tsx scripts/import-acc-from-gf.ts",
+    "migrate:wp:users:clerk": "tsx scripts/migrate-wp-users-to-clerk.ts",
     "match:acc:residents": "tsx scripts/match-acc-to-residents.ts",
     "report:acc:match-quality": "tsx scripts/report-acc-match-quality.ts",
     "report:acc:address-exact-unconfirmed": "tsx scripts/report-acc-address-exact-unconfirmed.ts",
