@@ -169,14 +169,14 @@ export default async function DocumentsPage() {
                       </div>
                     </div>
                     <span className="text-fluid-sm" style={{ color: "var(--pp-slate-500)", whiteSpace: "nowrap" }}>
-                      {section.docs.length} source{section.docs.length === 1 ? "" : "s"}
+                      {section.docs.length} document{section.docs.length === 1 ? "" : "s"}
                     </span>
                   </summary>
 
                   <div style={{ marginTop: "var(--space-s)", paddingTop: "var(--space-s)", borderTop: "1px solid var(--pp-slate-200)", display: "grid", gap: "var(--space-s)" }}>
                     {section.docs.length === 0 ? (
                       <div className="text-fluid-sm" style={{ color: "var(--pp-slate-500)" }}>
-                        No source documents are currently available in this section.
+                        No public documents are currently available in this section. Some records may be resident-only in the Resident Portal.
                       </div>
                     ) : (
                       section.docs.map((doc) => {
@@ -214,6 +214,31 @@ export default async function DocumentsPage() {
                   </div>
                 </details>
               ))}
+            </div>
+
+            <div
+              className="card stack"
+              style={{
+                padding: "var(--space-m)",
+                gap: "var(--space-s)",
+                borderLeft: "4px solid var(--pp-navy)",
+                background: "var(--pp-white)",
+              }}
+            >
+              <h3 className="text-step-1 font-bold" style={{ color: "var(--pp-navy-dark)" }}>
+                Looking for Additional HOA Documents?
+              </h3>
+              <p className="text-fluid-base" style={{ color: "var(--pp-slate-600)" }}>
+                The Resident Portal includes additional policies, meeting records, financial reports, and archival documents not shown on this public page.
+              </p>
+              <div className="cluster" style={{ gap: "var(--space-s)" }}>
+                <Link href="/sign-in?redirect_url=/resident-portal/documents" className="btn btn-primary btn-sm">
+                  Sign In to Resident Portal
+                </Link>
+                <Link href="/portal-registration" className="btn btn-secondary btn-sm">
+                  Request Portal Access
+                </Link>
+              </div>
             </div>
           </div>
 
