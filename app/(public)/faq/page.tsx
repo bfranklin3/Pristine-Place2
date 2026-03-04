@@ -24,12 +24,12 @@ const content = {
     {
       question: "What are the HOA dues and when are they due?",
       answer:
-        "Annual assessments are billed quarterly. Payment is due on the first of January, April, July, and October. Exact amounts are communicated each year after the Board approves the budget. You can find current rates on the Documents page.",
+        "Annual assessments are billed quarterly. Payment is due on the first of January, April, July, and October. Exact amounts are communicated each year after the Board approves the budget, or at the monthly Board of Directors meetings when a change is made.",
     },
     {
       question: "How do I submit an architectural review request?",
       answer:
-        "Download the Architectural Review Application from the Documents page, complete it with project details and photos, and submit it to the HOA office. The Architectural Review Committee meets monthly and typically responds within 30 days.",
+        "Paper Architectural Review Application forms are available in the Clubhouse lobby and are reviewed monthly by the Architectural Control Committee (ACC). Complete the form with project details and photos, and submit it to the HOA office. The Architectural Review Committee meets monthly and typically responds within 30 days. For faster processing, log into the Resident Portal to submit your application online — online submissions are typically reviewed within one week.",
     },
     {
       question: "What are the community pool hours?",
@@ -44,7 +44,7 @@ const content = {
     {
       question: "Can I rent out my home?",
       answer:
-        "Leasing policies are governed by the community's Declaration of Covenants. Generally, a minimum lease term of 12 months is required. All tenants must be registered with the HOA office. Review the full policy on the Documents page.",
+        "Leasing policies are governed by the community's Declaration of Covenants. Pristine Place has rules regarding property rentals and leases that are established by the Board of Directors. Property owners cannot rent out their property or allow anyone other than immediate family to live there without first getting approval from the Association’s Board of Directors. All leases must be in writing, follow the Association’s rules, and last between 3 and 12 months, with a limit of two rentals per year. Owners must notify the Board at least 15 days before signing a lease, pay a fee, and get the lease approved before the renter can move in. Owners must also provide renters with the Association’s governing documents. Finally, owners must have lived in the property as their main home for 12 months before renting it out, unless they inherited the property or transferred it to a trust for their benefit. Please refer to Section 21 of the Amendment to the Declaration of Covenants (2024) - found on the Documents page - or contact the HOA directly for guidelines concerning property rentals.",
     },
     {
       question: "How do I get a gate remote or replacement?",

@@ -223,7 +223,7 @@ export default function GateAccessPage() {
       {/* Emergency Access */}
       <section className="section" style={{ background: "linear-gradient(135deg, var(--pp-navy-dark), var(--pp-navy))", color: "var(--pp-white)" }}>
         <div className="container stack" style={{ alignItems: "center", textAlign: "center", gap: "var(--space-m)" }}>
-          <content.emergency.icon style={{ width: "3rem", height: "3rem", color: "var(--pp-gold-dark)", opacity: 0.9 }} />
+          <content.emergency.icon style={{ width: "3rem", height: "3rem", color: "var(--pp-gold-light)", opacity: 1 }} />
           <h2 className="text-step-3 font-bold">{content.emergency.heading}</h2>
           <p className="text-fluid-lg" style={{ maxWidth: "var(--measure)", opacity: 0.9 }}>
             {content.emergency.body}
