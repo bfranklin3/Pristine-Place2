@@ -3,6 +3,7 @@ import { deskTool } from "sanity/desk"
 import { visionTool } from "@sanity/vision"
 import { recurringDates } from "sanity-plugin-recurring-dates"
 import { schemaTypes } from "./sanity/schemas"
+import { deskStructure } from "./sanity/deskStructure"
 
 const projectId = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID!
 const dataset = process.env.NEXT_PUBLIC_SANITY_DATASET!
@@ -13,7 +14,7 @@ export default defineConfig({
   projectId,
   dataset,
   basePath: "/studio",
-  plugins: [deskTool(), visionTool(), recurringDates()],
+  plugins: [deskTool({ structure: deskStructure }), visionTool(), recurringDates()],
   schema: {
     types: schemaTypes,
     templates: (prev) => {
