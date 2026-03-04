@@ -8,6 +8,7 @@ import { getEvents } from "@/lib/sanity/queries"
 import { EventsGrid } from "@/components/events-grid"
 import { Button } from "@/components/ui/button"
 import type { EventCategorySlug } from "@/lib/events"
+import { formatTimeInHoaTimeZone } from "@/lib/timezone"
 
 // ============================================================================
 // METADATA
@@ -90,7 +91,7 @@ export default async function EventsPage() {
     title: event.title,
     slug: event.slug.current,
     date: event.eventDate,
-    time: new Date(event.eventDate).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }),
+    time: formatTimeInHoaTimeZone(new Date(event.eventDate)),
     location: event.location || "",
     description: event.description ? event.description.map((block: any) =>
       block.children?.map((child: any) => child.text).join("") || ""

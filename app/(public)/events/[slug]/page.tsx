@@ -10,6 +10,7 @@ import { PortableText } from "@portabletext/react"
 import { siteConfig } from "@/lib/site-config"
 import { formatRecurrence } from "@/lib/sanity/recurring-events"
 import { getOptimizedImageUrl, getImageDimensions, getImageSizes, type ImageLayout } from "@/lib/sanity/image-builder"
+import { HOA_TIME_ZONE, formatTimeInHoaTimeZone } from "@/lib/timezone"
 
 interface EventPageProps {
   params: Promise<{ slug: string }>
@@ -162,7 +163,7 @@ export default async function EventPage({ params }: EventPageProps) {
                   </div>
                   <h1 className="text-step-3 font-bold" style={{ color: "var(--pp-navy-dark)" }}>{event.title}</h1>
                   <p className="text-fluid-sm" style={{ color: "var(--pp-slate-600)" }}>
-                    {eventDate.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
+                    {eventDate.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric", timeZone: HOA_TIME_ZONE })}
                   </p>
                 </div>
               </div>
@@ -274,18 +275,13 @@ export default async function EventPage({ params }: EventPageProps) {
                         month: "long",
                         day: "numeric",
                         year: "numeric",
+                        timeZone: HOA_TIME_ZONE,
                       })}
                     </p>
                     <p className="text-fluid-sm text-pp-slate-600">
-                      {eventDate.toLocaleTimeString("en-US", {
-                        hour: "numeric",
-                        minute: "2-digit",
-                      })}
+                      {formatTimeInHoaTimeZone(eventDate)}
                       {endDate &&
-                        ` - ${endDate.toLocaleTimeString("en-US", {
-                          hour: "numeric",
-                          minute: "2-digit",
-                        })}`}
+                        ` - ${formatTimeInHoaTimeZone(endDate)}`}
                     </p>
                   </div>
                 </div>

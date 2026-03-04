@@ -1,6 +1,7 @@
 // lib/events.ts
 // Event types, category definitions, and helpers for Pristine Place HOA.
 // Phase 1: Stub data. Phase 2: Google Calendar integration.
+import { HOA_TIME_ZONE } from "@/lib/timezone"
 
 // ============================================================================
 // CATEGORY CONFIGURATION
@@ -63,11 +64,11 @@ export interface CommunityEvent {
 // HELPERS
 // ============================================================================
 export function getShortMonth(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString("en-US", { month: "short" }).toUpperCase()
+  return new Date(dateStr).toLocaleDateString("en-US", { month: "short", timeZone: HOA_TIME_ZONE }).toUpperCase()
 }
 
 export function getDayNumber(dateStr: string): string {
-  return new Date(dateStr).getDate().toString()
+  return new Intl.DateTimeFormat("en-US", { day: "numeric", timeZone: HOA_TIME_ZONE }).format(new Date(dateStr))
 }
 
 export function formatEventDate(dateStr: string): string {
@@ -76,6 +77,7 @@ export function formatEventDate(dateStr: string): string {
     month: "long",
     day: "numeric",
     year: "numeric",
+    timeZone: HOA_TIME_ZONE,
   })
 }
 

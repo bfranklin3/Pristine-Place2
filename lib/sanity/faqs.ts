@@ -16,6 +16,23 @@ export interface SanityFaqForAbout {
   order?: number
 }
 
+export interface SanityFaqForPublic {
+  _id: string
+  question: string
+  slug: { current: string }
+  answer: Array<{
+    _type: "block"
+    _key: string
+    style?: string
+    listItem?: "bullet" | "number"
+    level?: number
+    markDefs?: Array<{ _key: string; _type: "link"; href: string }>
+    children?: Array<{ _key: string; _type: "span"; text: string; marks?: string[] }>
+  }>
+  answerText: string
+  order?: number
+}
+
 export interface SanityFaqDetail {
   _id: string
   question: string
@@ -110,5 +127,42 @@ export async function getFaqBySlug(slug: string): Promise<SanityFaqDetail | null
   } catch (error) {
     console.error("Failed to fetch FAQ detail from Sanity:", error)
     return null
+  }
+}
+
+export async function getPublicFaqs(): Promise<SanityFaqForPublic[]> {
+  const projectId = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID
+  const dataset = process.env.NEXT_PUBLIC_SANITY_DATASET
+
+  if (!projectId || !dataset) {
+    console.error("Public FAQs fetch skipped: missing Sanity environment variables.")
+    return []
+  }
+
+  const client = createClient({
+    projectId,
+    dataset,
+    apiVersion: "2024-01-01",
+    useCdn: false,
+  })
+
+  const query = `*[
+    _type == "faq"
+    && published == true
+    && (visibility == "both" || visibility == "public")
+  ] | order(coalesce(order, 9999) asc, question asc) {
+    _id,
+    question,
+    slug,
+    answer,
+    "answerText": pt::text(answer),
+    order
+  }`
+
+  try {
+    return await client.fetch(query)
+  } catch (error) {
+    console.error("Failed to fetch public FAQs from Sanity:", error)
+    return []
   }
 }

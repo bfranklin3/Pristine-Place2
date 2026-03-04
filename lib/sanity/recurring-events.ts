@@ -2,6 +2,7 @@
 // Utilities for handling recurring events from Sanity CMS
 
 import { RRule, RRuleSet, rrulestr } from "rrule"
+import { HOA_TIME_ZONE, getTimePartsInZone, zonedLocalDateTimeToUtc } from "@/lib/timezone"
 
 /**
  * Sanity event with recurrence support
@@ -106,24 +107,43 @@ export function generateOccurrences(
       ? occurrences.slice(0, options.limit)
       : occurrences
 
+    // Capture the intended local wall-time from the original event in HOA timezone.
+    // This prevents recurring meetings from drifting by 1 hour/day around DST boundaries.
+    const sourceEventDate = new Date(event.eventDate)
+    const sourceLocalTime = getTimePartsInZone(sourceEventDate, HOA_TIME_ZONE)
+
     // Calculate event duration for end dates
     const duration = event.endDate
       ? new Date(event.endDate).getTime() - new Date(event.eventDate).getTime()
       : null
 
     // Convert to EventOccurrence objects
-    return limitedOccurrences.map((date, index) => ({
+    return limitedOccurrences.map((date, index) => {
+      const adjustedDate = zonedLocalDateTimeToUtc(
+        {
+          year: date.getUTCFullYear(),
+          month: date.getUTCMonth() + 1,
+          day: date.getUTCDate(),
+          hour: sourceLocalTime.hour,
+          minute: sourceLocalTime.minute,
+          second: sourceLocalTime.second,
+        },
+        HOA_TIME_ZONE
+      )
+
+      return {
       _id: `${event._id}-occurrence-${index}`,
       title: event.title,
       slug: event.slug,
-      date,
-      endDate: duration ? new Date(date.getTime() + duration) : undefined,
+      date: adjustedDate,
+      endDate: duration ? new Date(adjustedDate.getTime() + duration) : undefined,
       location: event.location,
       description: event.description,
       category: event.category,
       isRecurring: true,
       originalEventId: event._id,
-    }))
+      }
+    })
   } catch (error) {
     console.error("Error generating recurring event occurrences:", error)
     // Fallback to single occurrence on error

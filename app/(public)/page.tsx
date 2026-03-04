@@ -6,6 +6,7 @@ import Image from "next/image"
 import { Calendar, Bell, FileText, ShieldCheck, CreditCard, Receipt, ClipboardList, MessageSquare, BookOpen, BellRing, MapPin } from "lucide-react"
 import { siteConfig } from "@/lib/site-config"
 import { getUpcomingEvents as getSanityEvents, getAnnouncements } from "@/lib/sanity/queries"
+import { formatTimeInHoaTimeZone } from "@/lib/timezone"
 
 export const metadata: Metadata = {
   title: `${siteConfig.name} | ${siteConfig.tagline}`,
@@ -132,7 +133,7 @@ export default async function HomePage() {
     title: event.title,
     category: event.category,
     date: event.eventDate,
-    time: new Date(event.eventDate).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }),
+    time: formatTimeInHoaTimeZone(new Date(event.eventDate)),
     description: event.description ? event.description.map(block =>
       block.children?.map((child: any) => child.text).join("") || ""
     ).join(" ") : "",

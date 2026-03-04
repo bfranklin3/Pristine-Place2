@@ -2,6 +2,8 @@
 
 import type { Metadata } from "next"
 import Link from "next/link"
+import { PortableText } from "@portabletext/react"
+import { getPublicFaqs } from "@/lib/sanity/faqs"
 import { siteConfig } from "@/lib/site-config"
 
 export const metadata: Metadata = {
@@ -20,60 +22,20 @@ const content = {
     title: "Frequently Asked Questions",
     subtitle: "Quick answers to the most common questions about community living at Pristine Place.",
   },
-  faqs: [
-    {
-      question: "What are the HOA dues and when are they due?",
-      answer:
-        "Annual assessments are billed quarterly. Payment is due on the first of January, April, July, and October. Exact amounts are communicated each year after the Board approves the budget, or at the monthly Board of Directors meetings when a change is made.",
-    },
-    {
-      question: "How do I submit an architectural review request?",
-      answer:
-        "Paper Architectural Review Application forms are available in the Clubhouse lobby and are reviewed monthly by the Architectural Control Committee (ACC). Complete the form with project details and photos, and submit it to the HOA office. The Architectural Review Committee meets monthly and typically responds within 30 days. For faster processing, log into the Resident Portal to submit your application online — online submissions are typically reviewed within one week.",
-    },
-    {
-      question: "What are the community pool hours?",
-      answer:
-        "The pool is open seasonally from late April through early October. Hours are dawn to dusk daily. A valid resident wristband is required for entry. Guest policies are outlined in the pool rules posted at the gate.",
-    },
-    {
-      question: "How do I report a maintenance issue in a common area?",
-      answer:
-        "Contact the HOA office by phone or email. For after-hours emergencies (irrigation leaks, downed trees, etc.), leave a voicemail and the property manager will be notified. You can find contact information on the Contact page.",
-    },
-    {
-      question: "Can I rent out my home?",
-      answer:
-        "Leasing policies are governed by the community's Declaration of Covenants. Pristine Place has rules regarding property rentals and leases that are established by the Board of Directors. Property owners cannot rent out their property or allow anyone other than immediate family to live there without first getting approval from the Association’s Board of Directors. All leases must be in writing, follow the Association’s rules, and last between 3 and 12 months, with a limit of two rentals per year. Owners must notify the Board at least 15 days before signing a lease, pay a fee, and get the lease approved before the renter can move in. Owners must also provide renters with the Association’s governing documents. Finally, owners must have lived in the property as their main home for 12 months before renting it out, unless they inherited the property or transferred it to a trust for their benefit. Please refer to Section 21 of the Amendment to the Declaration of Covenants (2024) - found on the Documents page - or contact the HOA directly for guidelines concerning property rentals.",
-    },
-    {
-      question: "How do I get a gate remote or replacement?",
-      answer:
-        "Gate remotes are available at the HOA office during business hours. Bring a valid photo ID and proof of residency. A replacement fee may apply. See the Gate Access page for full details.",
-    },
-    {
-      question: "When and where are Board meetings held?",
-      answer:
-        "The Board of Directors meets on the second Wednesday of each month at 6:30 PM in the Clubhouse Main Room. Meetings are open to all residents. Agendas are posted 48 hours in advance on the Documents page.",
-    },
-    {
-      question: "How do I sign up for community event notifications?",
-      answer:
-        "Check the Events page regularly for upcoming activities. We also post announcements on the Announcements page. A resident email notification system is planned for a future update.",
-    },
-  ],
 }
 
-export default function FAQPage() {
+export default async function FAQPage() {
+  const faqs = await getPublicFaqs()
+
   const faqSchema = {
     "@context": "https://schema.org",
     "@type": "FAQPage",
-    mainEntity: content.faqs.map((faq) => ({
+    mainEntity: faqs.map((faq) => ({
       "@type": "Question",
       name: faq.question,
       acceptedAnswer: {
         "@type": "Answer",
-        text: faq.answer,
+        text: faq.answerText,
       },
     })),
   }
@@ -100,8 +62,8 @@ export default function FAQPage() {
       {/* FAQ List */}
       <section className="section">
         <div className="wrapper" style={{ display: "flex", flexDirection: "column", gap: "var(--space-m)" }}>
-          {content.faqs.map((faq, i) => (
-            <details key={i} className="card group">
+          {faqs.map((faq) => (
+            <details key={faq._id} className="card group">
               <summary className="cursor-pointer list-none" style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "var(--space-m)", flexWrap: "nowrap" }}>
                 <h2 className="text-step-1 font-semibold text-pp-navy-dark" style={{ lineHeight: 1.4, flex: 1, minWidth: 0 }}>
                   {faq.question}
@@ -111,7 +73,89 @@ export default function FAQPage() {
                 </span>
               </summary>
               <div className="flow" style={{ marginTop: "var(--space-s)" }}>
-                <p className="text-fluid-base text-pp-slate-600">{faq.answer}</p>
+                <div className="text-fluid-base text-pp-slate-600">
+                  <PortableText
+                    value={faq.answer || []}
+                    components={{
+                      block: {
+                        normal: ({ children }) => (
+                          <p
+                            style={{
+                              whiteSpace: "pre-line",
+                              marginTop: "0.75rem",
+                              marginBottom: "0.75rem",
+                              lineHeight: 1.65,
+                            }}
+                          >
+                            {children}
+                          </p>
+                        ),
+                        h3: ({ children }) => (
+                          <h3
+                            className="text-step-1 font-semibold"
+                            style={{ color: "var(--pp-navy-dark)", marginTop: "1rem", marginBottom: "0.5rem" }}
+                          >
+                            {children}
+                          </h3>
+                        ),
+                        h4: ({ children }) => (
+                          <h4
+                            className="text-fluid-lg font-semibold"
+                            style={{ color: "var(--pp-navy-dark)", marginTop: "0.875rem", marginBottom: "0.5rem" }}
+                          >
+                            {children}
+                          </h4>
+                        ),
+                      },
+                      list: {
+                        bullet: ({ children }) => (
+                          <ul
+                            style={{
+                              listStyle: "disc",
+                              paddingLeft: "1.25rem",
+                              display: "grid",
+                              gap: "0.4rem",
+                              marginTop: "0.6rem",
+                              marginBottom: "0.6rem",
+                            }}
+                          >
+                            {children}
+                          </ul>
+                        ),
+                        number: ({ children }) => (
+                          <ol
+                            style={{
+                              listStyle: "decimal",
+                              paddingLeft: "1.25rem",
+                              display: "grid",
+                              gap: "0.4rem",
+                              marginTop: "0.6rem",
+                              marginBottom: "0.6rem",
+                            }}
+                          >
+                            {children}
+                          </ol>
+                        ),
+                      },
+                      marks: {
+                        link: ({ children, value }) => {
+                          const href = String(value?.href || "")
+                          const isExternal = href.startsWith("http")
+                          return (
+                            <a
+                              href={href}
+                              target={isExternal ? "_blank" : undefined}
+                              rel={isExternal ? "noopener noreferrer" : undefined}
+                              style={{ color: "var(--pp-navy-dark)", textDecoration: "underline" }}
+                            >
+                              {children}
+                            </a>
+                          )
+                        },
+                      },
+                    }}
+                  />
+                </div>
               </div>
             </details>
           ))}

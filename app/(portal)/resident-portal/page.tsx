@@ -24,6 +24,7 @@ import {
 import { currentUser } from "@clerk/nextjs/server"
 import { siteConfig } from "@/lib/site-config"
 import { getAnnouncements, getUpcomingEvents } from "@/lib/sanity/queries"
+import { HOA_TIME_ZONE, formatTimeInHoaTimeZone } from "@/lib/timezone"
 import type {
   PortableTextBlock,
   PortableTextSpan,
@@ -101,10 +102,10 @@ function transformAnnouncement(announcement: SanityAnnouncement) {
 // Transform Sanity event to display format
 function transformEvent(event: SanityEvent) {
   const eventDate = new Date(event.eventDate)
-  const month = eventDate.toLocaleDateString("en-US", { month: "short" }).toUpperCase()
-  const day = eventDate.getDate().toString()
-  const dateStr = eventDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
-  const timeStr = eventDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
+  const month = eventDate.toLocaleDateString("en-US", { month: "short", timeZone: HOA_TIME_ZONE }).toUpperCase()
+  const day = new Intl.DateTimeFormat("en-US", { day: "numeric", timeZone: HOA_TIME_ZONE }).format(eventDate)
+  const dateStr = eventDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: HOA_TIME_ZONE })
+  const timeStr = formatTimeInHoaTimeZone(eventDate)
 
   return {
     id: event._id,
