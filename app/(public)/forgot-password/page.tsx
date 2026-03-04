@@ -1,11 +1,11 @@
 "use client"
 
-import { FormEvent, useMemo, useState } from "react"
+import { FormEvent, Suspense, useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useSignIn } from "@clerk/nextjs"
 
-export default function ForgotPasswordPage() {
+function ForgotPasswordContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const initialEmail = useMemo(() => searchParams.get("email") || "", [searchParams])
@@ -172,3 +172,32 @@ export default function ForgotPasswordPage() {
   )
 }
 
+export default function ForgotPasswordPage() {
+  return (
+    <Suspense
+      fallback={
+        <section className="section" style={{ background: "var(--pp-slate-50)", minHeight: "70vh" }}>
+          <div className="container" style={{ display: "flex", justifyContent: "center" }}>
+            <div
+              style={{
+                width: "min(540px, 100%)",
+                background: "var(--pp-white)",
+                border: "1px solid var(--pp-slate-200)",
+                borderRadius: "var(--radius-lg)",
+                padding: "1.25rem",
+                boxShadow: "var(--shadow-sm)",
+              }}
+            >
+              <h1 style={{ color: "var(--pp-navy-dark)", margin: 0 }}>Reset Password</h1>
+              <p className="text-fluid-sm" style={{ color: "var(--pp-slate-600)", marginTop: "0.4rem" }}>
+                Loading reset form...
+              </p>
+            </div>
+          </div>
+        </section>
+      }
+    >
+      <ForgotPasswordContent />
+    </Suspense>
+  )
+}
