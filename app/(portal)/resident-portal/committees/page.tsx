@@ -1,7 +1,7 @@
 // app/(portal)/resident-portal/committees/page.tsx
 
 import type { Metadata } from "next"
-import { Mail, Phone, Shield, Clock, Users, CalendarDays } from "lucide-react"
+import { Mail, Phone, Shield, Users, CalendarDays } from "lucide-react"
 import { siteConfig } from "@/lib/site-config"
 
 export const metadata: Metadata = {
@@ -26,7 +26,7 @@ const hoaCommittees = [
     purpose:
       "Issues and manages the barcodes and FOBs required for resident access through the gates, clubhouse, pool, and fitness center.",
     leadership: "Carol Ruland, Chair",
-    schedule: "Monday 10:30 AM – 12:30 PM · Wednesday & Friday 6:30 – 8:00 PM",
+    schedule: "Monday 10:30 AM – 12:30 PM · Wednesday & Friday 6:30 PM – 8:00 PM",
     email: "cruland@tampabay.rr.com",
     phone: null,
   },

@@ -24,7 +24,13 @@ import {
 import { currentUser } from "@clerk/nextjs/server"
 import { siteConfig } from "@/lib/site-config"
 import { getAnnouncements, getUpcomingEvents } from "@/lib/sanity/queries"
-import type { SanityAnnouncement, SanityEvent } from "@/lib/sanity/queries"
+import type {
+  PortableTextBlock,
+  PortableTextSpan,
+  PortableTextValue,
+  SanityAnnouncement,
+  SanityEvent,
+} from "@/lib/sanity/queries"
 
 export const metadata: Metadata = {
   title: "Dashboard | Resident Portal",
@@ -70,12 +76,12 @@ function getCategoryColor(category: string): string {
 }
 
 // Helper to extract plain text from Portable Text
-function extractTextFromPortableText(blocks: any[]): string {
+function extractTextFromPortableText(blocks: PortableTextValue): string {
   if (!blocks || blocks.length === 0) return ""
   return blocks
-    .map((block) => {
+    .map((block: PortableTextBlock) => {
       if (block._type !== "block" || !block.children) return ""
-      return block.children.map((child: any) => child.text).join("")
+      return block.children.map((child: PortableTextSpan) => child.text).join("")
     })
     .join(" ")
 }
@@ -279,9 +285,9 @@ export default async function ResidentPortalHomePage() {
               {/* Schedule */}
               <div style={{ display: "flex", flexDirection: "column" }}>
                 {[
-                  { days: "Monday – Friday", hours: "9:00 AM – 5:00 PM", open: true },
-                  { days: "Saturday",        hours: "10:00 AM – 2:00 PM", open: true },
-                  { days: "Sunday",          hours: "Closed",             open: false },
+                  { days: "Monday",              hours: "10:30 AM – 12:30 PM",         open: true },
+                  { days: "Wednesday & Friday",  hours: "6:30 PM – 8:00 PM",           open: true },
+                  { days: "All other times",     hours: "Closed / Unstaffed",          open: false },
                 ].map(({ days, hours, open }) => (
                   <div
                     key={days}
@@ -648,7 +654,7 @@ export default async function ResidentPortalHomePage() {
           <div className="stack" style={{ gap: "var(--space-2xs)" }}>
             <h2 className="text-step-2 font-bold">Need Help?</h2>
             <p className="text-fluid-base" style={{ color: "rgba(255,255,255,0.8)" }}>
-              The HOA office is available Monday – Friday 9 AM – 5 PM and Saturday 10 AM – 2 PM.
+              The HOA office is open Monday 10:30 AM – 12:30 PM and Wednesday & Friday 6:30 PM – 8:00 PM.
             </p>
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-s)" }}>

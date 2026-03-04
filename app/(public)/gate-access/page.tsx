@@ -71,11 +71,11 @@ const content = {
   hours: {
     heading: "HOA Office Hours",
     schedule: [
-      { days: "Monday – Friday", hours: "9:00 AM – 5:00 PM" },
-      { days: "Saturday", hours: "10:00 AM – 2:00 PM" },
-      { days: "Sunday", hours: "Closed" },
+      { days: "Monday", hours: "10:30 AM – 12:30 PM" },
+      { days: "Wednesday & Friday", hours: "6:30 PM – 8:00 PM" },
+      { days: "All other times", hours: "Closed / Unstaffed" },
     ],
-    note: "Office is also closed on major federal holidays.",
+    note: "Office is also closed on major federal holidays and outside posted windows.",
   },
   emergency: {
     heading: "Gate Malfunction & Emergency Access",

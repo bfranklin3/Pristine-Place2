@@ -1,11 +1,25 @@
 import { client } from "./client"
 
+export interface PortableTextSpan {
+  _type: "span"
+  text: string
+  [key: string]: unknown
+}
+
+export interface PortableTextBlock {
+  _type: "block"
+  children?: PortableTextSpan[]
+  [key: string]: unknown
+}
+
+export type PortableTextValue = PortableTextBlock[]
+
 // TypeScript types
 export interface SanityAnnouncement {
   _id: string
   title: string
   slug: { current: string }
-  content: any[] // Portable Text
+  content: PortableTextValue
   excerpt?: string
   category: string
   priority: "normal" | "high" | "urgent"
@@ -32,7 +46,7 @@ export interface SanityEvent {
     tzid?: string
   }
   location?: string
-  description?: any[] // Portable Text
+  description?: PortableTextValue
   featuredImage?: {
     asset: {
       _ref: string
@@ -53,7 +67,7 @@ export interface SanityDocument {
   slug: { current: string }
   category: string
   description?: string
-  content?: any[]
+  content?: PortableTextValue
   file?: {
     asset?: {
       _ref?: string
@@ -73,7 +87,7 @@ export interface SanityBoardMember {
   _id: string
   name: string
   position: string
-  bio?: any[] // Portable Text
+  bio?: PortableTextValue
   email?: string
   phone?: string
   photo?: {
