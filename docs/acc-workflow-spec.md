@@ -32,7 +32,7 @@ Related cross-domain identity/linking spec:
 - `committee_vote`
 - `approved`
 - `rejected`
-- Future state (not yet implemented): `needs_more_info`
+- Future state (not yet implemented): `needs_more_info` and `verified` 
 
 ## Submission Flow
 
@@ -140,3 +140,4 @@ If simultaneous actions cross a decision threshold:
 - Provide More Information loopback to resident and resubmission cycle handling
 - Downloadable decision letters
 - Expanded committee/role controls for workflow routing
+- Add  `verified`  state; used only for `approved` submissions. Used when completion of work has been verified.

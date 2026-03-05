@@ -59,7 +59,7 @@ const managementItems = [
   {
     label: "ACC Workflow Queue",
     href: "/resident-portal/management/acc-queue",
-    description: "Neon-backed ACC workflow queue (target state)",
+    description: "Review ACC applications (ACC committee)",
     allowed: ["admin", "acc"] as Array<CommitteeSlug | "admin">,
   },
   {
@@ -130,6 +130,60 @@ const managementItems = [
   },
 ]
 
+// Quick rollback switch for the new management mega menu.
+const USE_MANAGEMENT_MEGA_MENU = true
+
+type ManagementItem = (typeof managementItems)[number]
+
+function categorizeManagementItems(items: ManagementItem[]) {
+  const admin: ManagementItem[] = []
+  const operations: ManagementItem[] = []
+  const legacy: ManagementItem[] = []
+
+  for (const item of items) {
+    if (item.href.includes("/management/wp-")) {
+      legacy.push(item)
+      continue
+    }
+    if (
+      item.href.includes("/management/acc-") ||
+      item.href.includes("/management/access") ||
+      item.href.includes("/management/resident-360")
+    ) {
+      operations.push(item)
+      continue
+    }
+    admin.push(item)
+  }
+
+  const orderByHref = (input: ManagementItem[], order: string[]) => {
+    const rank = new Map(order.map((href, i) => [href, i]))
+    return [...input].sort((a, b) => (rank.get(a.href) ?? 999) - (rank.get(b.href) ?? 999))
+  }
+
+  const orderedOperations = orderByHref(operations, [
+    "/resident-portal/management/acc-queue",
+    "/resident-portal/management/access",
+    "/resident-portal/management/resident-360",
+    "/resident-portal/management/acc-link-review",
+    "/resident-portal/management/acc-match-review",
+    "/resident-portal/management/acc-unmatched",
+  ])
+
+  const orderedAdmin = orderByHref(admin, [
+    "/resident-portal/management/users",
+    "/resident-portal/management/resident-approvals",
+    "/resident-portal/management/admin-hub",
+    "/resident-portal/management/test-email",
+  ])
+
+  return [
+    { key: "operations", title: "Operations", description: "Daily queues and resident operations", items: orderedOperations },
+    { key: "administration", title: "Administration", description: "Approvals, users, and platform controls", items: orderedAdmin },
+    { key: "legacy", title: "WordPress Legacy", description: "Temporary legacy tools during migration", items: legacy },
+  ].filter((section) => section.items.length > 0)
+}
+
 /* ── Types ───────────────────────────────────────────────────────── */
 
 type DropdownKey = "community" | "resources" | "services" | "management" | "account" | null
@@ -142,6 +196,7 @@ export function PortalHeader({ isAdmin, committees }: { isAdmin: boolean; commit
   const visibleManagementItems = managementItems.filter(
     (item) => item.allowed.includes("admin") && isAdmin || item.allowed.some((role) => role !== "admin" && committees.includes(role)),
   )
+  const managementSections = categorizeManagementItems(visibleManagementItems)
   const hasVisibleManagementItems = visibleManagementItems.length > 0
 
   // Desktop — single open dropdown tracked by key
@@ -243,6 +298,53 @@ export function PortalHeader({ isAdmin, committees }: { isAdmin: boolean; commit
           <div className="text-xs text-pp-slate-500 mt-0.5">{item.description}</div>
         </Link>
       ))}
+    </div>
+  )
+
+  const ManagementMegaPanel = ({ sections }: { sections: ReturnType<typeof categorizeManagementItems> }) => (
+    <div
+      className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-[56rem] max-w-[92vw] bg-white border border-pp-slate-200 rounded-xl shadow-2xl overflow-hidden z-50"
+      role="menu"
+    >
+      <div className="px-5 py-3.5 border-b border-pp-slate-100 bg-pp-slate-50">
+        <div className="text-sm font-semibold text-pp-navy-dark">Management Workspace</div>
+        <div className="text-xs text-pp-slate-500 mt-0.5">
+          Organized by workflow area to reduce scanning time.
+        </div>
+      </div>
+      <div className="grid grid-cols-3 gap-0">
+        {sections.map((section, index) => (
+          <div key={section.key} className={`p-4 ${index < sections.length - 1 ? "border-r border-pp-slate-100" : ""}`}>
+            <div className="text-[11px] uppercase tracking-[0.1em] font-semibold text-pp-slate-500 mb-1">
+              {section.title}
+            </div>
+            <div className="text-xs text-pp-slate-400 mb-2.5">{section.description}</div>
+            <div className="flex flex-col gap-1.5">
+              {section.items.map((item, itemIndex) => (
+                <div key={item.label}>
+                  {section.key === "operations" && itemIndex === 3 && (
+                    <div className="px-2.5 pt-1 pb-2">
+                      <div className="border-t border-pp-slate-200 mb-2" />
+                      <div className="text-[10px] uppercase tracking-[0.1em] font-semibold text-pp-slate-500">
+                        Data Verification
+                      </div>
+                    </div>
+                  )}
+                  <Link
+                    href={item.href}
+                    className="block rounded-md px-2.5 py-2 hover:bg-pp-slate-50 transition-colors"
+                    onClick={closeAll}
+                    role="menuitem"
+                  >
+                    <div className="text-sm font-semibold text-pp-navy-dark leading-tight">{item.label}</div>
+                    <div className="text-xs text-pp-slate-500 mt-0.5 leading-snug">{item.description}</div>
+                  </Link>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   )
 
@@ -400,12 +502,12 @@ export function PortalHeader({ isAdmin, committees }: { isAdmin: boolean; commit
               {openDropdown === "services" && <DropdownPanel items={serviceItems} />}
             </div>
 
-            {hasVisibleManagementItems && (
-              <div
-                className="relative"
-                onMouseEnter={() => handleEnter("management")}
-                onMouseLeave={handleLeave}
-              >
+              {hasVisibleManagementItems && (
+                <div
+                  className="relative"
+                  onMouseEnter={() => handleEnter("management")}
+                  onMouseLeave={handleLeave}
+                >
                 <button
                   className={`${dropdownBtnClass("management")} text-pp-gold-light/80 hover:text-pp-gold-light`}
                   aria-expanded={openDropdown === "management"}
@@ -416,7 +518,12 @@ export function PortalHeader({ isAdmin, committees }: { isAdmin: boolean; commit
                   Management
                   <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${openDropdown === "management" ? "rotate-180" : ""}`} />
                 </button>
-                {openDropdown === "management" && <DropdownPanel items={visibleManagementItems} />}
+                {openDropdown === "management" &&
+                  (USE_MANAGEMENT_MEGA_MENU ? (
+                    <ManagementMegaPanel sections={managementSections} />
+                  ) : (
+                    <DropdownPanel items={visibleManagementItems} />
+                  ))}
               </div>
             )}
 
@@ -595,13 +702,56 @@ export function PortalHeader({ isAdmin, committees }: { isAdmin: boolean; commit
               />
 
               {hasVisibleManagementItems && (
-                <MobileSection
-                  label="Management"
-                  items={visibleManagementItems}
-                  isOpen={mobileManagement}
-                  toggle={() => setMobileManagement(!mobileManagement)}
-                  accent
-                />
+                <div className="flex flex-col">
+                  <button
+                    className="px-3 py-2.5 text-sm font-medium flex items-center justify-between rounded-md transition-colors text-pp-gold-light/90 hover:text-pp-gold-light hover:bg-white/10"
+                    onClick={() => setMobileManagement(!mobileManagement)}
+                  >
+                    <span className="flex items-center gap-2">
+                      <Shield className="w-3.5 h-3.5" />
+                      Management
+                    </span>
+                    <ChevronDown
+                      className={`w-4 h-4 transition-transform duration-200 ${mobileManagement ? "rotate-180" : ""}`}
+                    />
+                  </button>
+                  {mobileManagement && (
+                    <div className="ml-3 mr-1 mt-1 mb-2 rounded-lg overflow-hidden border border-white/10">
+                      {USE_MANAGEMENT_MEGA_MENU ? (
+                        managementSections.map((section) => (
+                          <div key={section.key} className="border-b border-white/10 last:border-0">
+                            <div className="px-4 py-2 text-[11px] uppercase tracking-[0.1em] font-semibold text-white/50 bg-white/5">
+                              {section.title}
+                            </div>
+                            {section.items.map((item) => (
+                              <Link
+                                key={item.label}
+                                href={item.href}
+                                className="block px-4 py-2.5 text-sm text-white/80 hover:text-pp-gold-light hover:bg-white/10 transition-colors"
+                                onClick={() => setMobileOpen(false)}
+                              >
+                                <div className="font-medium">{item.label}</div>
+                                <div className="text-xs text-white/50 mt-0.5">{item.description}</div>
+                              </Link>
+                            ))}
+                          </div>
+                        ))
+                      ) : (
+                        visibleManagementItems.map((item) => (
+                          <Link
+                            key={item.label}
+                            href={item.href}
+                            className="block px-4 py-2.5 text-sm text-white/80 hover:text-pp-gold-light hover:bg-white/10 border-b border-white/10 last:border-0 transition-colors"
+                            onClick={() => setMobileOpen(false)}
+                          >
+                            <div className="font-medium">{item.label}</div>
+                            <div className="text-xs text-white/50 mt-0.5">{item.description}</div>
+                          </Link>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
               )}
 
               {/* Divider */}
