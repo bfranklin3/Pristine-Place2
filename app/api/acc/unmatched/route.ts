@@ -1,41 +1,13 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/db/prisma"
 import { requireManagementApiAccess } from "@/lib/auth/portal-management-api"
+import { canonicalizeAddressParts } from "@/lib/address-normalization"
 
 type PriorityFilter = "all" | "address_exact" | "other"
 type AgeBucket = "all" | "0_7" | "8_30" | "31_90" | "91_plus"
 
-function normalizeSpace(value: string): string {
-  return value.replace(/\s+/g, " ").trim()
-}
-
-function normalizeStreetSuffix(street: string): string {
-  const map: Record<string, string> = {
-    AVENUE: "AVE",
-    STREET: "ST",
-    BOULEVARD: "BLVD",
-    COURT: "CT",
-    LANE: "LN",
-    LOOP: "LOOP",
-    DRIVE: "DR",
-    ROAD: "RD",
-    PLACE: "PL",
-    CIRCLE: "CIR",
-    TERRACE: "TER",
-  }
-  return street
-    .split(" ")
-    .map((part) => map[part] ?? part)
-    .join(" ")
-}
-
 function canonicalizeAddress(raw: string | null | undefined): string {
-  const cleaned = normalizeSpace((raw || "").toUpperCase().replace(/[.,]/g, ""))
-  const m = cleaned.match(/^(\d+)\s+(.+)$/)
-  if (!m) return cleaned
-  const number = m[1]
-  const street = normalizeStreetSuffix(normalizeSpace(m[2]))
-  return `${number} ${street}`.trim()
+  return canonicalizeAddressParts(raw).canonical
 }
 
 function asPriorityFilter(value: string | null): PriorityFilter {

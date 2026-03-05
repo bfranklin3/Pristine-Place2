@@ -2,6 +2,9 @@
 
 Use this checklist when moving the site to a new server/account set and migrating data from the current stack.
 
+Canonical identity/linking reference for Resident 360 and reports:
+- [`docs/resident-360-identity-linking-spec.md`](docs/resident-360-identity-linking-spec.md)
+
 ## Scope
 
 - App: Next.js portal/public site
@@ -39,6 +42,14 @@ node -e 'const {PrismaClient}=require("@prisma/client"); const p=new PrismaClien
 ---
 
 ## 2) Import Neon Data
+
+Import order requirement (for reliable cross-domain linkage):
+1. Households/address canonicalization foundation
+2. Users
+3. Residencies (current/past)
+4. ACC requests
+5. Access-control records
+6. Linking + unresolved review
 
 ### Access management (resident access)
 
@@ -143,6 +154,8 @@ npm run report:acc:match-quality
 - [ ] ACC queue loads/filter/edit/attachments work
 - [ ] Match review + unmatched queue are functional
 - [ ] Resident 360 search and exports work
+- [ ] ACC queue and Access views show resident state (`Current`, `Past`, `Unknown`)
+- [ ] Historical records are visible and correctly attributed in Resident 360
 - [ ] Documents/newsletters load correctly
 - [ ] Email test page can send and show diagnostics
 

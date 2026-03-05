@@ -2,6 +2,9 @@
 
 Use this checklist to migrate ACC Permit Requests from WordPress/Gravity Forms (Form 44) into Neon, validate data quality, and cut over safely.
 
+Canonical cross-domain linking spec (Resident 360, addresses, current/past residents):
+- [`docs/resident-360-identity-linking-spec.md`](docs/resident-360-identity-linking-spec.md)
+
 ## Current Status Snapshot (February 26, 2026)
 
 ### Completed
@@ -75,6 +78,13 @@ Use this checklist to migrate ACC Permit Requests from WordPress/Gravity Forms (
   - [ ] `npx prisma migrate deploy`
 - [ ] Verify tables/constraints/indexes exist
 
+## Phase 1b: Cross-Domain Linking Prerequisites
+- [ ] Implement canonical address normalization (same logic used for Users, ACC, Access)
+- [ ] Create/validate `households` anchor model with `address_key`
+- [ ] Create/validate `residencies` model (`user_id`, `household_id`, `start_date`, `end_date`, `is_current`)
+- [ ] Add linkage audit fields (confidence/method/matched_by/matched_at)
+- [ ] Confirm resident-state derivation rules (`Current`, `Past`, `Unknown`) are implemented for downstream reporting
+
 ## Phase 2: Importer Build and Dry Runs
 - [ ] Implement importer command
   - [ ] Example: `npm run import:acc:gf -- --form=44 --mode=full --dry-run`
@@ -137,6 +147,8 @@ Use this checklist to migrate ACC Permit Requests from WordPress/Gravity Forms (
   - [ ] matched ACC requests
   - [ ] match metadata
   - [ ] auth summary linkage
+- [ ] Ensure Resident 360 joins through `households` + `residencies` (not user name string only)
+- [ ] Ensure history renders both current and past residency contexts
 - [ ] Validate redaction behavior for redacted mode
 - [ ] Validate query performance and indexing
 

@@ -80,86 +80,204 @@ enum CapabilityEffect {
   deny
 }
 
-model ResidentProfile {
+enum ResidencyType {
+  owner
+  tenant
+  authorized_occupant
+  unknown
+}
+
+enum ResidentState {
+  current
+  past
+  unknown
+}
+
+enum AccessHolderCategory {
+  owner_occupant
+  owner_non_occupant
+  tenant
+  household_member
+  trustee_or_owner_rep
+  guardian
+  vendor
+  property_manager
+  unspecified
+}
+
+enum LinkMatchConfidence {
+  high
+  medium
+  low
+  unresolved
+}
+
+enum LinkAuditEntityType {
+  acc_request
+  access_record
+  residency
+}
+
+model Household {
   id               String            @id @default(cuid())
-  primaryUserId    String?
-  residentCategory String?
-  includeInDirectory Boolean         @default(true)
-  confidentialPhone  Boolean         @default(false)
+  addressRaw       String?
+  addressCanonical String
+  addressKey       String            @unique
+  lotNumber        String?
   phase            String?
-  addressNumber    String?
-  streetName       String?
-  addressFull      String?
-  entryCode        String?
-  comments         String?
-  householdMembers HouseholdMember[]
-  credentials      GateCredential[]
-  auditLogs        AccessAuditLog[]
-  accMatches       ResidentAccMatch[]
+  residentProfiles ResidentProfile[]
+  residencies      Residency[]
+  accRequests      AccRequest[]
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
+
+  @@index([addressCanonical])
+  @@index([lotNumber])
+}
+
+model Residency {
+  id               String            @id @default(cuid())
+  householdId      String
+  household        Household         @relation(fields: [householdId], references: [id], onDelete: Restrict)
+  clerkUserId      String?
+  residentType     ResidencyType     @default(unknown)
+  startDate        DateTime?
+  endDate          DateTime?
+  isCurrent        Boolean           @default(true)
+  sourceSystem     String?
+  sourceRecordId   String?
+  residentProfiles ResidentProfile[]
+  accRequests      AccRequest[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  @@index([householdId, isCurrent])
+  @@index([clerkUserId, isCurrent])
+  @@index([startDate, endDate])
+}
+
+model LinkAudit {
+  id                  String              @id @default(cuid())
+  entityType          LinkAuditEntityType
+  entityId            String
+  previousHouseholdId String?
+  newHouseholdId      String?
+  previousResidencyId String?
+  newResidencyId      String?
+  reason              String?
+  actorUserId         String?
+  createdAt           DateTime            @default(now())
+
+  @@index([entityType, entityId, createdAt])
+  @@index([actorUserId, createdAt])
+}
+
+model ResidentProfile {
+  id                 String              @id @default(cuid())
+  primaryUserId      String?
+  residentCategory   String?
+  includeInDirectory Boolean             @default(true)
+  confidentialPhone  Boolean             @default(false)
+  phase              String?
+  addressNumber      String?
+  streetName         String?
+  addressFull        String?
+  addressKey         String?
+  householdId        String?
+  household          Household?          @relation(fields: [householdId], references: [id], onDelete: SetNull)
+  residencyId        String?
+  residency          Residency?          @relation(fields: [residencyId], references: [id], onDelete: SetNull)
+  residentState      ResidentState       @default(unknown)
+  matchConfidence    LinkMatchConfidence @default(unresolved)
+  matchMethod        String?
+  matchedAt          DateTime?
+  matchedBy          String?
+  entryCode          String?
+  comments           String?
+  householdMembers   HouseholdMember[]
+  credentials        GateCredential[]
+  auditLogs          AccessAuditLog[]
+  accMatches         ResidentAccMatch[]
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+
+  @@index([addressKey])
+  @@index([householdId])
+  @@index([residencyId])
+  @@index([residentState])
 }
 
 model HouseholdMember {
-  id               String          @id @default(cuid())
+  id                String               @id @default(cuid())
   residentProfileId String
-  residentProfile  ResidentProfile @relation(fields: [residentProfileId], references: [id], onDelete: Cascade)
-  role             HouseholdRole
-  firstName        String?
-  lastName         String?
-  phone            String?
-  email            String?
-  isPrimaryContact Boolean         @default(false)
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
+  residentProfile   ResidentProfile      @relation(fields: [residentProfileId], references: [id], onDelete: Cascade)
+  role              HouseholdRole
+  firstName         String?
+  lastName          String?
+  phone             String?
+  email             String?
+  isPrimaryContact  Boolean              @default(false)
+  holderCategory    AccessHolderCategory @default(unspecified)
+  holderState       ResidentState        @default(unknown)
+  organizationName  String?
+  startDate         DateTime?
+  endDate           DateTime?
+  notes             String?
+  credentials       GateCredential[]
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
 
   @@index([residentProfileId])
+  @@index([holderCategory, holderState])
 }
 
 model GateCredential {
-  id               String           @id @default(cuid())
+  id                String           @id @default(cuid())
   residentProfileId String
-  residentProfile  ResidentProfile  @relation(fields: [residentProfileId], references: [id], onDelete: Cascade)
-  credentialType   CredentialType
-  credentialLabel  String?
-  credentialValue  String
-  status           CredentialStatus @default(active)
-  notes            String?
-  issuedAt         DateTime?
-  revokedAt        DateTime?
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
+  residentProfile   ResidentProfile  @relation(fields: [residentProfileId], references: [id], onDelete: Cascade)
+  householdMemberId String?
+  householdMember   HouseholdMember? @relation(fields: [householdMemberId], references: [id], onDelete: SetNull)
+  credentialType    CredentialType
+  credentialLabel   String?
+  credentialValue   String
+  status            CredentialStatus @default(active)
+  notes             String?
+  issuedAt          DateTime?
+  revokedAt         DateTime?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
 
   @@index([residentProfileId])
+  @@index([householdMemberId, status])
   @@index([status])
 }
 
 model AccessAuditLog {
-  id               String          @id @default(cuid())
+  id                String           @id @default(cuid())
   residentProfileId String?
-  residentProfile  ResidentProfile? @relation(fields: [residentProfileId], references: [id], onDelete: SetNull)
-  actorUserId      String?
-  entityType       AuditEntityType
-  entityId         String
-  action           AuditAction
-  beforeJson       Json?
-  afterJson        Json?
-  reason           String?
-  createdAt        DateTime        @default(now())
+  residentProfile   ResidentProfile? @relation(fields: [residentProfileId], references: [id], onDelete: SetNull)
+  actorUserId       String?
+  entityType        AuditEntityType
+  entityId          String
+  action            AuditAction
+  beforeJson        Json?
+  afterJson         Json?
+  reason            String?
+  createdAt         DateTime         @default(now())
 
   @@index([residentProfileId])
   @@index([entityType, entityId])
 }
 
 model AccRequest {
-  id                String            @id @default(cuid())
+  id                String                 @id @default(cuid())
   sourceSystem      AccSourceSystem
   sourceFormId      String
   sourceEntryId     String
   submittedAt       DateTime?
   updatedAtSource   DateTime?
   statusRaw         String?
-  disposition       AccDisposition    @default(unknown)
+  disposition       AccDisposition         @default(unknown)
   permitNumber      String?
   processDate       DateTime?
   workType          String?
@@ -171,20 +289,35 @@ model AccRequest {
   addressNumber     String?
   streetName        String?
   addressCanonical  String?
+  addressKey        String?
+  householdId       String?
+  household         Household?             @relation(fields: [householdId], references: [id], onDelete: SetNull)
+  residencyId       String?
+  residency         Residency?             @relation(fields: [residencyId], references: [id], onDelete: SetNull)
+  clerkUserId       String?
+  residentState     ResidentState          @default(unknown)
+  matchConfidence   LinkMatchConfidence    @default(unresolved)
+  matchMethod       String?
+  matchedAt         DateTime?
+  matchedBy         String?
   phase             String?
   lot               String?
   description       String?
   notes             String?
   rawEntryJson      Json?
   importBatchId     String?
-  lastSeenAt        DateTime          @default(now())
+  lastSeenAt        DateTime               @default(now())
   attachments       AccRequestAttachment[]
   matches           ResidentAccMatch[]
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
 
   @@unique([sourceSystem, sourceFormId, sourceEntryId])
   @@index([addressCanonical])
+  @@index([addressKey])
+  @@index([householdId, submittedAt])
+  @@index([residentState, submittedAt])
+  @@index([matchConfidence, submittedAt])
   @@index([submittedAt])
   @@index([disposition])
   @@index([permitNumber])
@@ -222,19 +355,19 @@ model AccImportRun {
 }
 
 model ResidentAccMatch {
-  id                String         @id @default(cuid())
+  id                String          @id @default(cuid())
   residentProfileId String
   residentProfile   ResidentProfile @relation(fields: [residentProfileId], references: [id], onDelete: Cascade)
   accRequestId      String
-  accRequest        AccRequest     @relation(fields: [accRequestId], references: [id], onDelete: Cascade)
+  accRequest        AccRequest      @relation(fields: [accRequestId], references: [id], onDelete: Cascade)
   matchScore        Int
   matchMethod       AccMatchMethod
   status            AccMatchStatus
   signalsJson       Json?
   reviewedBy        String?
   reviewedAt        DateTime?
-  createdAt         DateTime       @default(now())
-  updatedAt         DateTime       @updatedAt
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
 
   @@unique([residentProfileId, accRequestId])
   @@index([status, matchScore])

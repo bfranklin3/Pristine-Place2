@@ -33,6 +33,12 @@ export async function PATCH(
         notes: typeof body.notes === "string" ? body.notes : undefined,
         credentialLabel: typeof body.credentialLabel === "string" ? body.credentialLabel : undefined,
         credentialValue,
+        householdMemberId:
+          typeof body.householdMemberId === "string"
+            ? body.householdMemberId
+            : body.householdMemberId === null
+              ? null
+              : undefined,
       },
       access.identity.userId,
       typeof body.reason === "string" ? body.reason : null,

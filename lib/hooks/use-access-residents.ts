@@ -21,6 +21,7 @@ export function useAccessResidents(initial: UseAccessResidentsParams = {}) {
   const [data, setData] = useState<AccessResidentsListResponse>({
     items: [],
     total: 0,
+    needsReviewCount: 0,
     page: params.page || 1,
     pageSize: params.pageSize || 25,
   })
@@ -64,4 +65,3 @@ export function useAccessResidents(initial: UseAccessResidentsParams = {}) {
     refresh: () => fetchData(params),
   }
 }
-

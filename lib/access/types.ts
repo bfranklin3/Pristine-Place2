@@ -1,6 +1,17 @@
 export type AccessCredentialType = "directory_code" | "barcode" | "fob" | "temp_code"
 export type AccessCredentialStatus = "active" | "disabled" | "lost" | "revoked"
 export type HouseholdRole = "primary" | "secondary" | "tertiary" | "company_contact"
+export type AccessHolderCategory =
+  | "owner_occupant"
+  | "owner_non_occupant"
+  | "tenant"
+  | "household_member"
+  | "trustee_or_owner_rep"
+  | "guardian"
+  | "vendor"
+  | "property_manager"
+  | "unspecified"
+export type AccessHolderState = "current" | "past" | "unknown"
 export type AccessAuditEntityType = "resident_profile" | "household_member" | "gate_credential"
 export type AccessAuditAction = "create" | "update" | "revoke" | "approve" | "import"
 
@@ -24,6 +35,10 @@ export interface AccessResidentListItem {
   addressFull: string | null
   phase: string | null
   residentCategory: string | null
+  effectiveCategory: AccessHolderCategory
+  effectiveCategoryLabel: string
+  categoryNeedsReview: boolean
+  categoryReviewReason: string | null
   includeInDirectory: boolean
   confidentialPhone: boolean
   entryCode: string | null
@@ -37,6 +52,7 @@ export interface AccessResidentListItem {
 export interface AccessResidentsListResponse {
   items: AccessResidentListItem[]
   total: number
+  needsReviewCount: number
   page: number
   pageSize: number
 }
@@ -49,6 +65,12 @@ export interface AccessHouseholdMember {
   phone: string | null
   email: string | null
   isPrimaryContact: boolean
+  holderCategory: AccessHolderCategory
+  holderState: AccessHolderState
+  organizationName: string | null
+  startDate: string | null
+  endDate: string | null
+  notes: string | null
   createdAt: string
   updatedAt: string
 }
@@ -58,6 +80,7 @@ export interface AccessCredential {
   credentialType: AccessCredentialType
   credentialLabel: string | null
   credentialValue: string
+  householdMemberId: string | null
   status: AccessCredentialStatus
   notes: string | null
   issuedAt: string | null

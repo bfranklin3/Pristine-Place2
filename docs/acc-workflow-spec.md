@@ -16,6 +16,9 @@ Define the finalized, simple workflow for ACC change requests in the new Next.js
 - Role-based visibility
 - Auditability and retention expectations
 
+Related cross-domain identity/linking spec:
+- [`docs/resident-360-identity-linking-spec.md`](docs/resident-360-identity-linking-spec.md)
+
 ## Roles
 
 - Resident submitter

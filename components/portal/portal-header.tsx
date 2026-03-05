@@ -75,6 +75,12 @@ const managementItems = [
     allowed: ["admin"] as Array<CommitteeSlug | "admin">,
   },
   {
+    label: "ACC Link Review",
+    href: "/resident-portal/management/acc-link-review",
+    description: "Resolve unresolved/low-confidence ACC residency links",
+    allowed: ["admin", "acc", "access_control", "board_of_directors"] as Array<CommitteeSlug | "admin">,
+  },
+  {
     label: "ACC Workflow Queue Wordpress",
     href: "/resident-portal/management/wp-acc-queue",
     description: "Review ACC applications (ACC committee)",

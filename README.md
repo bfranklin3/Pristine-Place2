@@ -5,6 +5,8 @@ Pristine-Place-HOA using next.js
 
 - WordPress-backed management page pattern: [`docs/wordpress-access-page-pattern.md`](docs/wordpress-access-page-pattern.md)
 - ACC to Neon migration rollout checklist: [`docs/acc-neon-migration-rollout-checklist.md`](docs/acc-neon-migration-rollout-checklist.md)
+- Resident 360 identity/data linking canonical spec: [`docs/resident-360-identity-linking-spec.md`](docs/resident-360-identity-linking-spec.md)
+- Resident 360 DB migration checklist (tables/indexes/constraints): [`docs/resident-360-db-migration-checklist.md`](docs/resident-360-db-migration-checklist.md)
 - Full stack cutover runbook (Neon + Sanity + Clerk): [`docs/full-stack-cutover-runbook.md`](docs/full-stack-cutover-runbook.md)
 - WordPress-to-Clerk migration plan (first-login password reset): [`docs/wp-clerk-password-reset-migration-plan.md`](docs/wp-clerk-password-reset-migration-plan.md)
 - ACC submit page pending wiring notes: [`docs/acc-submit-followups.md`](docs/acc-submit-followups.md)

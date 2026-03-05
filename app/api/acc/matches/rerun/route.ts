@@ -1,13 +1,10 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/db/prisma"
 import { requireManagementApiAccess } from "@/lib/auth/portal-management-api"
+import { canonicalizeAddressParts, normalizeSpace } from "@/lib/address-normalization"
 
 type MatchStatus = "auto" | "needs_review" | "confirmed" | "rejected"
 type MatchMethod = "auto_exact" | "auto_scored" | "manual_confirmed" | "manual_rejected"
-
-function normalizeSpace(value: string): string {
-  return value.replace(/\s+/g, " ").trim()
-}
 
 function normalizeName(value: string | null | undefined): string {
   if (!value) return ""
@@ -33,37 +30,12 @@ function extractPrimaryLastName(ownerName: string | null | undefined): string {
   return parts.length ? parts[parts.length - 1] : ""
 }
 
-function normalizeStreetSuffix(street: string): string {
-  const map: Record<string, string> = {
-    AVENUE: "AVE",
-    STREET: "ST",
-    BOULEVARD: "BLVD",
-    COURT: "CT",
-    LANE: "LN",
-    LOOP: "LOOP",
-    DRIVE: "DR",
-    ROAD: "RD",
-    PLACE: "PL",
-    CIRCLE: "CIR",
-    TERRACE: "TER",
-  }
-  return street
-    .split(" ")
-    .map((part) => map[part] ?? part)
-    .join(" ")
-}
-
 function canonicalizeAddress(raw: string | null | undefined): {
   number: string
   street: string
   canonical: string
 } {
-  const cleaned = normalizeSpace((raw || "").toUpperCase().replace(/[.,]/g, ""))
-  const m = cleaned.match(/^(\d+)\s+(.+)$/)
-  if (!m) return { number: "", street: "", canonical: cleaned }
-  const number = m[1]
-  const street = normalizeStreetSuffix(normalizeSpace(m[2]))
-  return { number, street, canonical: `${number} ${street}`.trim() }
+  return canonicalizeAddressParts(raw)
 }
 
 function bigramSimilarity(a: string, b: string): number {

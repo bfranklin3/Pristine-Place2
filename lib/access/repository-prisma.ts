@@ -5,6 +5,8 @@ import type {
   AccessCredential,
   AccessCredentialStatus,
   AccessCredentialType,
+  AccessHolderCategory,
+  AccessHolderState,
   AccessHouseholdMember,
   AccessAuditEntityType,
   AccessResidentDetail,
@@ -23,6 +25,55 @@ function normalizePagination(page?: number, pageSize?: number) {
   return { page: nextPage, pageSize: nextPageSize }
 }
 
+function categoryLabel(category: AccessHolderCategory): string {
+  const map: Record<AccessHolderCategory, string> = {
+    owner_occupant: "Owner (Occupant)",
+    owner_non_occupant: "Owner (Non-Occupant)",
+    tenant: "Tenant",
+    household_member: "Household Member",
+    trustee_or_owner_rep: "Trustee / Owner Rep",
+    guardian: "Guardian",
+    vendor: "Vendor",
+    property_manager: "Property Manager",
+    unspecified: "Unspecified",
+  }
+  return map[category]
+}
+
+function deriveEffectiveCategory(input: {
+  primary: { holderCategory: AccessHolderCategory } | null
+  secondary: { holderCategory: AccessHolderCategory } | null
+  legacyResidentCategory: string | null
+}): {
+  effectiveCategory: AccessHolderCategory
+  categoryNeedsReview: boolean
+  categoryReviewReason: string | null
+} {
+  const p = input.primary?.holderCategory || "unspecified"
+  const s = input.secondary?.holderCategory || "unspecified"
+
+  let effective: AccessHolderCategory = "unspecified"
+  if (p !== "unspecified") effective = p
+  else if (s !== "unspecified") effective = s
+
+  const reasons: string[] = []
+  if (effective === "unspecified") {
+    reasons.push("No primary/secondary holder category set.")
+  }
+  if (p !== "unspecified" && s !== "unspecified" && p !== s) {
+    reasons.push("Primary and secondary categories differ.")
+  }
+  if (input.legacyResidentCategory && effective === "unspecified") {
+    reasons.push(`Legacy category exists (${input.legacyResidentCategory}) but holder category is unspecified.`)
+  }
+
+  return {
+    effectiveCategory: effective,
+    categoryNeedsReview: reasons.length > 0,
+    categoryReviewReason: reasons.length ? reasons.join(" ") : null,
+  }
+}
+
 export async function listResidentsPrisma(params: {
   q?: string
   phase?: string
@@ -34,11 +85,55 @@ export async function listResidentsPrisma(params: {
   const q = (params.q || "").trim()
   const phase = (params.phase || "").trim()
   const category = (params.category || "").trim()
+  const categoryLower = category.toLowerCase()
   const { page, pageSize } = normalizePagination(params.page, params.pageSize)
+
+  const categoryWhere: Prisma.ResidentProfileWhereInput =
+    !category
+      ? {}
+      : categoryLower === "owner"
+        ? {
+            householdMembers: {
+              some: {
+                role: { in: ["primary", "secondary"] },
+                holderCategory: { in: ["owner_occupant", "owner_non_occupant"] },
+              },
+            },
+          }
+        : categoryLower === "renter"
+          ? {
+              householdMembers: {
+                some: {
+                  role: { in: ["primary", "secondary"] },
+                  holderCategory: "tenant",
+                },
+              },
+            }
+          : categoryLower === "vendor"
+            ? {
+                householdMembers: {
+                  some: {
+                    role: { in: ["primary", "secondary"] },
+                    holderCategory: { in: ["vendor", "property_manager"] },
+                  },
+                },
+              }
+            : categoryLower === "unspecified"
+              ? {
+                  NOT: {
+                    householdMembers: {
+                      some: {
+                        role: { in: ["primary", "secondary"] },
+                        holderCategory: { not: "unspecified" },
+                      },
+                    },
+                  },
+                }
+              : {}
 
   const where: Prisma.ResidentProfileWhereInput = {
     ...(phase ? { phase: { equals: phase, mode: "insensitive" } } : {}),
-    ...(category ? { residentCategory: { equals: category, mode: "insensitive" } } : {}),
+    ...categoryWhere,
     ...(q
       ? {
           OR: [
@@ -63,7 +158,7 @@ export async function listResidentsPrisma(params: {
       : {}),
   }
 
-  const [rows, total] = await Promise.all([
+  const [rows, total, reviewRows] = await Promise.all([
     prisma.residentProfile.findMany({
       where,
       include: {
@@ -75,17 +170,36 @@ export async function listResidentsPrisma(params: {
       take: pageSize,
     }),
     prisma.residentProfile.count({ where }),
+    prisma.residentProfile.findMany({
+      where,
+      select: {
+        residentCategory: true,
+        householdMembers: {
+          where: { role: { in: ["primary", "secondary"] } },
+          select: { role: true, holderCategory: true },
+        },
+      },
+    }),
   ])
 
   const items: AccessResidentListItem[] = rows.map((row) => {
     const primary = row.householdMembers.find((m) => m.role === "primary") || null
     const secondary = row.householdMembers.find((m) => m.role === "secondary") || null
+    const effective = deriveEffectiveCategory({
+      primary: primary ? { holderCategory: primary.holderCategory as AccessHolderCategory } : null,
+      secondary: secondary ? { holderCategory: secondary.holderCategory as AccessHolderCategory } : null,
+      legacyResidentCategory: row.residentCategory,
+    })
 
     return {
       residentProfileId: row.id,
       addressFull: row.addressFull,
       phase: row.phase,
       residentCategory: row.residentCategory,
+      effectiveCategory: effective.effectiveCategory,
+      effectiveCategoryLabel: categoryLabel(effective.effectiveCategory),
+      categoryNeedsReview: effective.categoryNeedsReview,
+      categoryReviewReason: effective.categoryReviewReason,
       includeInDirectory: row.includeInDirectory,
       confidentialPhone: row.confidentialPhone,
       entryCode: row.entryCode,
@@ -117,7 +231,18 @@ export async function listResidentsPrisma(params: {
     }
   })
 
-  return { items, total, page, pageSize }
+  const needsReviewCount = reviewRows.reduce((count, row) => {
+    const primary = row.householdMembers.find((m) => m.role === "primary") || null
+    const secondary = row.householdMembers.find((m) => m.role === "secondary") || null
+    const effective = deriveEffectiveCategory({
+      primary: primary ? { holderCategory: primary.holderCategory as AccessHolderCategory } : null,
+      secondary: secondary ? { holderCategory: secondary.holderCategory as AccessHolderCategory } : null,
+      legacyResidentCategory: row.residentCategory,
+    })
+    return count + (effective.categoryNeedsReview ? 1 : 0)
+  }, 0)
+
+  return { items, total, needsReviewCount, page, pageSize }
 }
 
 function toIso(date: Date | null) {
@@ -132,6 +257,21 @@ function toHouseholdMember(member: {
   phone: string | null
   email: string | null
   isPrimaryContact: boolean
+  holderCategory:
+    | "owner_occupant"
+    | "owner_non_occupant"
+    | "tenant"
+    | "household_member"
+    | "trustee_or_owner_rep"
+    | "guardian"
+    | "vendor"
+    | "property_manager"
+    | "unspecified"
+  holderState: "current" | "past" | "unknown"
+  organizationName: string | null
+  startDate: Date | null
+  endDate: Date | null
+  notes: string | null
   createdAt: Date
   updatedAt: Date
 }): AccessHouseholdMember {
@@ -143,6 +283,12 @@ function toHouseholdMember(member: {
     phone: member.phone,
     email: member.email,
     isPrimaryContact: member.isPrimaryContact,
+    holderCategory: member.holderCategory,
+    holderState: member.holderState,
+    organizationName: member.organizationName,
+    startDate: toIso(member.startDate),
+    endDate: toIso(member.endDate),
+    notes: member.notes,
     createdAt: member.createdAt.toISOString(),
     updatedAt: member.updatedAt.toISOString(),
   }
@@ -153,6 +299,7 @@ function toCredential(credential: {
   credentialType: "directory_code" | "barcode" | "fob" | "temp_code"
   credentialLabel: string | null
   credentialValue: string
+  householdMemberId: string | null
   status: "active" | "disabled" | "lost" | "revoked"
   notes: string | null
   issuedAt: Date | null
@@ -165,6 +312,7 @@ function toCredential(credential: {
     credentialType: credential.credentialType,
     credentialLabel: credential.credentialLabel,
     credentialValue: credential.credentialValue,
+    householdMemberId: credential.householdMemberId,
     status: credential.status,
     notes: credential.notes,
     issuedAt: toIso(credential.issuedAt),
@@ -231,6 +379,70 @@ export async function getResidentDetailPrisma(residentProfileId: string): Promis
     createdAt: resident.createdAt.toISOString(),
     updatedAt: resident.updatedAt.toISOString(),
   }
+}
+
+export async function createResidentPrisma(
+  payload: Partial<{
+    primaryUserId: string | null
+    residentCategory: string | null
+    includeInDirectory: boolean
+    confidentialPhone: boolean
+    phase: string | null
+    addressNumber: string | null
+    streetName: string | null
+    addressFull: string | null
+    entryCode: string | null
+    comments: string | null
+  }>,
+  actorUserId?: string | null,
+  reason?: string | null,
+): Promise<AccessResidentDetail> {
+  const resident = await prisma.$transaction(async (tx) => {
+    const created = await tx.residentProfile.create({
+      data: {
+        primaryUserId: payload.primaryUserId ?? null,
+        residentCategory: payload.residentCategory ?? null,
+        includeInDirectory: payload.includeInDirectory ?? true,
+        confidentialPhone: payload.confidentialPhone ?? false,
+        phase: payload.phase ?? null,
+        addressNumber: payload.addressNumber ?? null,
+        streetName: payload.streetName ?? null,
+        addressFull: payload.addressFull ?? null,
+        entryCode: payload.entryCode ?? null,
+        comments: payload.comments ?? null,
+      },
+    })
+
+    await tx.accessAuditLog.create({
+      data: {
+        residentProfileId: created.id,
+        actorUserId: actorUserId ?? null,
+        entityType: "resident_profile",
+        entityId: created.id,
+        action: "create",
+        afterJson: {
+          residentCategory: created.residentCategory,
+          includeInDirectory: created.includeInDirectory,
+          confidentialPhone: created.confidentialPhone,
+          phase: created.phase,
+          addressNumber: created.addressNumber,
+          streetName: created.streetName,
+          addressFull: created.addressFull,
+          entryCode: created.entryCode,
+          comments: created.comments,
+        },
+        reason: reason ?? null,
+      },
+    })
+
+    return created
+  })
+
+  const detail = await getResidentDetailPrisma(resident.id)
+  if (!detail) {
+    throw new Error("Created resident could not be loaded.")
+  }
+  return detail
 }
 
 export async function patchResidentPrisma(
@@ -317,7 +529,10 @@ export async function patchResidentPrisma(
 
 export async function addHouseholdMemberPrisma(
   residentProfileId: string,
-  payload: Omit<AccessHouseholdMember, "id" | "createdAt" | "updatedAt">,
+  payload: Omit<AccessHouseholdMember, "id" | "createdAt" | "updatedAt" | "startDate" | "endDate"> & {
+    startDate?: string | null
+    endDate?: string | null
+  },
   actorUserId?: string | null,
   reason?: string | null,
 ): Promise<AccessHouseholdMember | null> {
@@ -334,6 +549,12 @@ export async function addHouseholdMemberPrisma(
         phone: payload.phone ?? null,
         email: payload.email ?? null,
         isPrimaryContact: payload.isPrimaryContact,
+        holderCategory: payload.holderCategory,
+        holderState: payload.holderState,
+        organizationName: payload.organizationName ?? null,
+        startDate: payload.startDate ? new Date(payload.startDate) : null,
+        endDate: payload.endDate ? new Date(payload.endDate) : null,
+        notes: payload.notes ?? null,
       },
     })
 
@@ -351,6 +572,12 @@ export async function addHouseholdMemberPrisma(
           phone: created.phone,
           email: created.email,
           isPrimaryContact: created.isPrimaryContact,
+          holderCategory: created.holderCategory,
+          holderState: created.holderState,
+          organizationName: created.organizationName,
+          startDate: created.startDate,
+          endDate: created.endDate,
+          notes: created.notes,
         },
         reason: reason ?? null,
       },
@@ -364,7 +591,10 @@ export async function addHouseholdMemberPrisma(
 
 export async function patchHouseholdMemberPrisma(
   id: string,
-  payload: Partial<Omit<AccessHouseholdMember, "id" | "createdAt" | "updatedAt">>,
+  payload: Partial<Omit<AccessHouseholdMember, "id" | "createdAt" | "updatedAt" | "startDate" | "endDate">> & {
+    startDate?: string | null
+    endDate?: string | null
+  },
   actorUserId?: string | null,
   reason?: string | null,
 ): Promise<AccessHouseholdMember | null> {
@@ -381,6 +611,22 @@ export async function patchHouseholdMemberPrisma(
         phone: payload.phone ?? existing.phone,
         email: payload.email ?? existing.email,
         isPrimaryContact: payload.isPrimaryContact ?? existing.isPrimaryContact,
+        holderCategory: (payload.holderCategory as AccessHolderCategory | undefined) ?? existing.holderCategory,
+        holderState: (payload.holderState as AccessHolderState | undefined) ?? existing.holderState,
+        organizationName: payload.organizationName ?? existing.organizationName,
+        startDate:
+          payload.startDate !== undefined
+            ? payload.startDate
+              ? new Date(payload.startDate)
+              : null
+            : existing.startDate,
+        endDate:
+          payload.endDate !== undefined
+            ? payload.endDate
+              ? new Date(payload.endDate)
+              : null
+            : existing.endDate,
+        notes: payload.notes ?? existing.notes,
       },
     })
 
@@ -398,6 +644,12 @@ export async function patchHouseholdMemberPrisma(
           phone: existing.phone,
           email: existing.email,
           isPrimaryContact: existing.isPrimaryContact,
+          holderCategory: existing.holderCategory,
+          holderState: existing.holderState,
+          organizationName: existing.organizationName,
+          startDate: existing.startDate,
+          endDate: existing.endDate,
+          notes: existing.notes,
         },
         afterJson: {
           role: member.role,
@@ -406,6 +658,12 @@ export async function patchHouseholdMemberPrisma(
           phone: member.phone,
           email: member.email,
           isPrimaryContact: member.isPrimaryContact,
+          holderCategory: member.holderCategory,
+          holderState: member.holderState,
+          organizationName: member.organizationName,
+          startDate: member.startDate,
+          endDate: member.endDate,
+          notes: member.notes,
         },
         reason: reason ?? null,
       },
@@ -457,6 +715,7 @@ export async function addCredentialPrisma(
     credentialType: AccessCredentialType
     credentialLabel?: string | null
     credentialValue: string
+    householdMemberId?: string | null
     notes?: string | null
   },
   actorUserId?: string | null,
@@ -472,6 +731,7 @@ export async function addCredentialPrisma(
         credentialType: payload.credentialType,
         credentialLabel: payload.credentialLabel ?? null,
         credentialValue: payload.credentialValue,
+        householdMemberId: payload.householdMemberId ?? null,
         status: "active",
         notes: payload.notes ?? null,
         issuedAt: new Date(),
@@ -489,6 +749,7 @@ export async function addCredentialPrisma(
           credentialType: credential.credentialType,
           credentialLabel: credential.credentialLabel,
           credentialValue: maskValue(credential.credentialValue),
+          householdMemberId: credential.householdMemberId,
           status: credential.status,
           notes: credential.notes,
         },
@@ -509,6 +770,7 @@ export async function patchCredentialPrisma(
     notes: string | null
     credentialLabel: string | null
     credentialValue: string
+    householdMemberId: string | null
   }>,
   actorUserId?: string | null,
   reason?: string | null,
@@ -524,6 +786,8 @@ export async function patchCredentialPrisma(
         notes: payload.notes ?? existing.notes,
         credentialLabel: payload.credentialLabel ?? existing.credentialLabel,
         credentialValue: payload.credentialValue ?? existing.credentialValue,
+        householdMemberId:
+          payload.householdMemberId !== undefined ? payload.householdMemberId : existing.householdMemberId,
         revokedAt:
           payload.status === "revoked" && !existing.revokedAt
             ? new Date()
@@ -544,6 +808,7 @@ export async function patchCredentialPrisma(
           credentialType: existing.credentialType,
           credentialLabel: existing.credentialLabel,
           credentialValue: maskValue(existing.credentialValue),
+          householdMemberId: existing.householdMemberId,
           status: existing.status,
           notes: existing.notes,
         },
@@ -551,6 +816,7 @@ export async function patchCredentialPrisma(
           credentialType: credential.credentialType,
           credentialLabel: credential.credentialLabel,
           credentialValue: maskValue(credential.credentialValue),
+          householdMemberId: credential.householdMemberId,
           status: credential.status,
           notes: credential.notes,
         },

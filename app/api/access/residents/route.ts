@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { listResidentsPrisma } from "@/lib/access/repository-prisma"
+import { createResidentPrisma, listResidentsPrisma } from "@/lib/access/repository-prisma"
 import { requireManagementCapabilityAccess } from "@/lib/auth/portal-management-api"
 import type { AccessCredentialStatus } from "@/lib/access/types"
 
@@ -26,5 +26,44 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     console.error("Prisma residents list failed:", error)
     return NextResponse.json({ error: "Failed to load resident access report" }, { status: 500 })
+  }
+}
+
+export async function POST(req: NextRequest) {
+  const access = await requireManagementCapabilityAccess(["access.edit"])
+  if (!access.ok) return access.response
+
+  const body = await req.json().catch(() => ({}))
+  const has = (key: string) => Object.prototype.hasOwnProperty.call(body, key)
+  const reason = typeof body.reason === "string" ? body.reason : null
+
+  try {
+    const created = await createResidentPrisma(
+      {
+        primaryUserId: has("primaryUserId") ? body.primaryUserId : undefined,
+        residentCategory: has("residentCategory") ? body.residentCategory : undefined,
+        includeInDirectory: has("includeInDirectory") && typeof body.includeInDirectory === "boolean"
+          ? body.includeInDirectory
+          : undefined,
+        confidentialPhone: has("confidentialPhone") && typeof body.confidentialPhone === "boolean"
+          ? body.confidentialPhone
+          : undefined,
+        phase: has("phase") ? body.phase : undefined,
+        addressNumber: has("addressNumber") ? body.addressNumber : undefined,
+        streetName: has("streetName") ? body.streetName : undefined,
+        addressFull: has("addressFull") ? body.addressFull : undefined,
+        entryCode: has("entryCode") ? body.entryCode : undefined,
+        comments: has("comments") ? body.comments : undefined,
+      },
+      access.identity.userId,
+      reason || "Created resident profile from Access Management",
+    )
+    return NextResponse.json(created, { status: 201 })
+  } catch (error) {
+    console.error("Prisma resident create failed:", error)
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Create failed" },
+      { status: 500 },
+    )
   }
 }

@@ -30,6 +30,7 @@ export async function POST(
         credentialType,
         credentialLabel: typeof body.credentialLabel === "string" ? body.credentialLabel : null,
         credentialValue: body.credentialValue.trim(),
+        householdMemberId: typeof body.householdMemberId === "string" ? body.householdMemberId : null,
         notes: typeof body.notes === "string" ? body.notes : null,
       },
       access.identity.userId,

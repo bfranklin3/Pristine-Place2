@@ -1,6 +1,7 @@
 import "dotenv/config"
 import path from "node:path"
 import { PrismaClient } from "@prisma/client"
+import { canonicalizeAddressParts, normalizeSpace } from "../lib/address-normalization"
 
 type GfEntry = Record<string, unknown> & {
   id?: string
@@ -64,30 +65,6 @@ function parseMdyDate(value: unknown): Date | null {
   return Number.isNaN(d.getTime()) ? null : d
 }
 
-function normalizeSpace(value: string): string {
-  return value.replace(/\s+/g, " ").trim()
-}
-
-function normalizeStreetSuffix(street: string): string {
-  const map: Record<string, string> = {
-    AVENUE: "AVE",
-    STREET: "ST",
-    BOULEVARD: "BLVD",
-    COURT: "CT",
-    LANE: "LN",
-    LOOP: "LOOP",
-    DRIVE: "DR",
-    ROAD: "RD",
-    PLACE: "PL",
-    CIRCLE: "CIR",
-    TERRACE: "TER",
-  }
-  return street
-    .split(" ")
-    .map((part) => map[part] ?? part)
-    .join(" ")
-}
-
 function normalizeAddress(raw: string | null): {
   addressRaw: string | null
   addressNumber: string | null
@@ -99,20 +76,19 @@ function normalizeAddress(raw: string | null): {
   }
 
   const cleaned = normalizeSpace(raw).replace(/[.,]/g, "")
-  const upper = cleaned.toUpperCase()
-  const m = upper.match(/^(\d+)\s+(.+)$/)
-  if (!m) {
+  const parsed = canonicalizeAddressParts(cleaned)
+  if (!parsed.number) {
     return {
       addressRaw: cleaned,
       addressNumber: null,
       streetName: null,
-      addressCanonical: upper,
+      addressCanonical: parsed.canonical,
     }
   }
 
-  const addressNumber = m[1]
-  const streetName = normalizeStreetSuffix(normalizeSpace(m[2]))
-  const addressCanonical = `${addressNumber} ${streetName}`.trim()
+  const addressNumber = parsed.number
+  const streetName = parsed.street
+  const addressCanonical = parsed.canonical
 
   return {
     addressRaw: cleaned,
@@ -559,4 +535,3 @@ main()
   .finally(async () => {
     await prisma.$disconnect()
   })
-

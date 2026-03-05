@@ -1,12 +1,11 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { AlertCircle, Check, KeyRound, Pencil, RefreshCw, Search, X } from "lucide-react"
+import { AlertCircle, Check, KeyRound, Pencil, Plus, RefreshCw, Search, ShieldAlert, X } from "lucide-react"
 import { useAccessResidents } from "@/lib/hooks/use-access-residents"
-import type { AccessHouseholdMember, AccessResidentDetail } from "@/lib/access/types"
+import type { AccessHolderCategory, AccessHolderState, AccessHouseholdMember, AccessResidentDetail } from "@/lib/access/types"
 
 interface EditFormState {
-  residentCategory: string
   includeInDirectory: boolean
   confidentialPhone: boolean
   addressNumber: string
@@ -23,13 +22,19 @@ interface EditFormState {
   secondaryPhone: string
   secondaryEmail: string
   tertiaryPhone: string
+  primaryHolderCategory: AccessHolderCategory
+  primaryHolderState: AccessHolderState
+  secondaryHolderCategory: AccessHolderCategory
+  secondaryHolderState: AccessHolderState
+  tertiaryHolderCategory: AccessHolderCategory
+  tertiaryHolderState: AccessHolderState
   dirA: string
   dirB: string
   dirC: string
+  dirCAssignedTo: "primary" | "secondary" | "tertiary"
 }
 
 const emptyForm: EditFormState = {
-  residentCategory: "",
   includeInDirectory: true,
   confidentialPhone: false,
   addressNumber: "",
@@ -46,9 +51,38 @@ const emptyForm: EditFormState = {
   secondaryPhone: "",
   secondaryEmail: "",
   tertiaryPhone: "",
+  primaryHolderCategory: "unspecified",
+  primaryHolderState: "current",
+  secondaryHolderCategory: "unspecified",
+  secondaryHolderState: "current",
+  tertiaryHolderCategory: "household_member",
+  tertiaryHolderState: "current",
   dirA: "",
   dirB: "",
   dirC: "",
+  dirCAssignedTo: "tertiary",
+}
+
+const holderCategoryOptions: Array<{ value: AccessHolderCategory; label: string }> = [
+  { value: "owner_occupant", label: "Owner (Occupant)" },
+  { value: "tenant", label: "Tenant" },
+  { value: "vendor", label: "Vendor" },
+  { value: "household_member", label: "Household Member" },
+  { value: "owner_non_occupant", label: "Owner (Non-Occupant)" },
+  { value: "trustee_or_owner_rep", label: "Trustee / Owner Rep" },
+  { value: "guardian", label: "Guardian" },
+  { value: "property_manager", label: "Property Manager" },
+  { value: "unspecified", label: "Unspecified" },
+]
+
+const holderStateOptions: Array<{ value: AccessHolderState; label: string }> = [
+  { value: "current", label: "Current" },
+  { value: "past", label: "Past" },
+  { value: "unknown", label: "Unknown" },
+]
+
+function normalizeCompare(value: string): string {
+  return value.trim().toLowerCase().replace(/\s+/g, " ")
 }
 
 export function AccessManagementTable() {
@@ -56,11 +90,32 @@ export function AccessManagementTable() {
   const [categoryFilter, setCategoryFilter] = useState<string>("")
   const [viewportWidth, setViewportWidth] = useState<number>(1400)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [isCreateMode, setIsCreateMode] = useState(false)
   const [editingDetail, setEditingDetail] = useState<AccessResidentDetail | null>(null)
   const [form, setForm] = useState<EditFormState>(emptyForm)
   const [loadingDetail, setLoadingDetail] = useState(false)
   const [savingId, setSavingId] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
+  const [cleanupSummary, setCleanupSummary] = useState<{ total: number; safe: number; review: number; unassigned: number } | null>(null)
+  const [cleanupItems, setCleanupItems] = useState<
+    Array<{
+      credentialId: string
+      addressFull: string
+      credentialType: string
+      credentialLabel: string | null
+      credentialValueMasked: string
+      holderName: string
+      holderCategory: string | null
+      holderState: string | null
+      safeToRevoke: boolean
+      blocked: boolean
+      flags: string[]
+    }>
+  >([])
+  const [cleanupDryRun, setCleanupDryRun] = useState<Array<{ credentialId: string; action: string; reason: string }>>([])
+  const [cleanupLoading, setCleanupLoading] = useState(false)
+  const [cleanupError, setCleanupError] = useState<string | null>(null)
+  const [cleanupAdminVisible, setCleanupAdminVisible] = useState(true)
   const { data, loading, error, params, setParams, refresh } = useAccessResidents()
 
   useEffect(() => {
@@ -102,6 +157,7 @@ export function AccessManagementTable() {
 
   const beginEdit = async (residentProfileId: string) => {
     setActionError(null)
+    setIsCreateMode(false)
     setEditingId(residentProfileId)
     setLoadingDetail(true)
     const res = await fetch(`/api/access/residents/${residentProfileId}`, { cache: "no-store" })
@@ -116,12 +172,21 @@ export function AccessManagementTable() {
     const primary = detail.householdMembers.find((m) => m.role === "primary") || null
     const secondary = detail.householdMembers.find((m) => m.role === "secondary") || null
     const tertiary = detail.householdMembers.find((m) => m.role === "tertiary") || null
-    const dirA = detail.credentials.find((c) => c.credentialType === "directory_code" && c.credentialLabel === "A")
-    const dirB = detail.credentials.find((c) => c.credentialType === "directory_code" && c.credentialLabel === "B")
-    const dirC = detail.credentials.find((c) => c.credentialType === "directory_code" && c.credentialLabel === "C")
+    const dirA = detail.credentials.find(
+      (c) => c.credentialType === "directory_code" && c.credentialLabel === "A" && c.status !== "revoked",
+    )
+    const dirB = detail.credentials.find(
+      (c) => c.credentialType === "directory_code" && c.credentialLabel === "B" && c.status !== "revoked",
+    )
+    const dirC = detail.credentials.find(
+      (c) => c.credentialType === "directory_code" && c.credentialLabel === "C" && c.status !== "revoked",
+    )
+    let dirCAssignedTo: "primary" | "secondary" | "tertiary" = "tertiary"
+    if (dirC?.householdMemberId && primary?.id === dirC.householdMemberId) dirCAssignedTo = "primary"
+    else if (dirC?.householdMemberId && secondary?.id === dirC.householdMemberId) dirCAssignedTo = "secondary"
+    else if (dirC?.householdMemberId && tertiary?.id === dirC.householdMemberId) dirCAssignedTo = "tertiary"
     setEditingDetail(detail)
     setForm({
-      residentCategory: detail.residentCategory || "",
       includeInDirectory: detail.includeInDirectory ?? true,
       confidentialPhone: detail.confidentialPhone ?? false,
       addressNumber: detail.addressNumber || "",
@@ -138,15 +203,33 @@ export function AccessManagementTable() {
       secondaryPhone: secondary?.phone || "",
       secondaryEmail: secondary?.email || "",
       tertiaryPhone: tertiary?.phone || "",
+      primaryHolderCategory: primary?.holderCategory || "unspecified",
+      primaryHolderState: primary?.holderState || "current",
+      secondaryHolderCategory: secondary?.holderCategory || "unspecified",
+      secondaryHolderState: secondary?.holderState || "current",
+      tertiaryHolderCategory: tertiary?.holderCategory || "household_member",
+      tertiaryHolderState: tertiary?.holderState || "current",
       dirA: dirA?.credentialValue || "",
       dirB: dirB?.credentialValue || "",
       dirC: dirC?.credentialValue || "",
+      dirCAssignedTo,
     })
     setLoadingDetail(false)
   }
 
+  const beginCreate = () => {
+    setActionError(null)
+    setIsCreateMode(true)
+    setEditingId("__new__")
+    setEditingDetail(null)
+    setLoadingDetail(false)
+    setSavingId(null)
+    setForm(emptyForm)
+  }
+
   const cancelEdit = () => {
     setEditingId(null)
+    setIsCreateMode(false)
     setEditingDetail(null)
     setForm(emptyForm)
     setLoadingDetail(false)
@@ -158,32 +241,73 @@ export function AccessManagementTable() {
     setActionError(null)
     setSavingId(residentProfileId)
 
-    const patchResidentRes = await fetch(`/api/access/residents/${residentProfileId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        residentCategory: form.residentCategory || null,
-        includeInDirectory: form.includeInDirectory,
-        confidentialPhone: form.confidentialPhone,
-        addressNumber: form.addressNumber || null,
-        streetName: form.streetName || null,
-        addressFull: form.addressFull || null,
-        entryCode: form.entryCode || null,
-        comments: form.comments || null,
-        reason: "Resident profile update from Access Management form",
-      }),
-    })
+    let targetResidentProfileId = residentProfileId
 
-    if (!patchResidentRes.ok) {
-      const body = await patchResidentRes.json().catch(() => ({}))
-      setActionError(body?.error || "Failed to save resident profile")
-      setSavingId(null)
-      return
+    if (isCreateMode) {
+      const hasPrimaryName = Boolean(form.primaryFirstName.trim() || form.primaryLastName.trim())
+      if (!form.addressFull.trim() || !hasPrimaryName) {
+        setActionError("Address (Full) and a primary contact name are required to add a resident record.")
+        setSavingId(null)
+        return
+      }
+
+      const createRes = await fetch("/api/access/residents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          includeInDirectory: form.includeInDirectory,
+          confidentialPhone: form.confidentialPhone,
+          addressNumber: form.addressNumber || null,
+          streetName: form.streetName || null,
+          addressFull: form.addressFull || null,
+          entryCode: form.entryCode || null,
+          comments: form.comments || null,
+          reason: "Created resident profile from Access Management form",
+        }),
+      })
+
+      if (!createRes.ok) {
+        const body = await createRes.json().catch(() => ({}))
+        setActionError(body?.error || "Failed to create resident profile")
+        setSavingId(null)
+        return
+      }
+      const created = (await createRes.json()) as AccessResidentDetail
+      targetResidentProfileId = created.residentProfileId
+    } else {
+      const patchResidentRes = await fetch(`/api/access/residents/${residentProfileId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          includeInDirectory: form.includeInDirectory,
+          confidentialPhone: form.confidentialPhone,
+          addressNumber: form.addressNumber || null,
+          streetName: form.streetName || null,
+          addressFull: form.addressFull || null,
+          entryCode: form.entryCode || null,
+          comments: form.comments || null,
+          reason: "Resident profile update from Access Management form",
+        }),
+      })
+
+      if (!patchResidentRes.ok) {
+        const body = await patchResidentRes.json().catch(() => ({}))
+        setActionError(body?.error || "Failed to save resident profile")
+        setSavingId(null)
+        return
+      }
     }
 
     const upsertHouseholdMember = async (
       role: "primary" | "secondary" | "tertiary",
-      fields: { firstName: string; lastName: string; phone: string; email: string },
+      fields: {
+        firstName: string
+        lastName: string
+        phone: string
+        email: string
+        holderCategory: AccessHolderCategory
+        holderState: AccessHolderState
+      },
       existing: AccessHouseholdMember | undefined,
     ) => {
       const hasAnyValue = Boolean(
@@ -209,13 +333,15 @@ export function AccessManagementTable() {
             phone: fields.phone || null,
             email: fields.email || null,
             isPrimaryContact: role === "primary",
+            holderCategory: fields.holderCategory,
+            holderState: fields.holderState,
             reason: `Updated ${role} contact from access form`,
           }),
         })
       }
 
       if (!hasAnyValue) return null
-      return fetch(`/api/access/residents/${residentProfileId}/household-members`, {
+      return fetch(`/api/access/residents/${targetResidentProfileId}/household-members`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -225,6 +351,8 @@ export function AccessManagementTable() {
           phone: fields.phone || null,
           email: fields.email || null,
           isPrimaryContact: role === "primary",
+          holderCategory: fields.holderCategory,
+          holderState: fields.holderState,
           reason: `Created ${role} contact from access form`,
         }),
       })
@@ -234,9 +362,14 @@ export function AccessManagementTable() {
     const secondaryExisting = editingDetail?.householdMembers.find((m) => m.role === "secondary")
     const tertiaryExisting = editingDetail?.householdMembers.find((m) => m.role === "tertiary")
 
-    const upsertDirectoryCode = async (label: "A" | "B" | "C", value: string) => {
+    const upsertDirectoryCode = async (
+      label: "A" | "B" | "C",
+      value: string,
+      householdMemberId: string | null,
+      currentDetail: AccessResidentDetail,
+    ) => {
       const trimmed = value.trim()
-      const existing = editingDetail?.credentials.find(
+      const existing = currentDetail.credentials.find(
         (c) => c.credentialType === "directory_code" && c.credentialLabel === label && c.status !== "revoked",
       )
 
@@ -259,25 +392,51 @@ export function AccessManagementTable() {
             status: "active",
             credentialLabel: label,
             credentialValue: trimmed,
+            householdMemberId,
             reason: `Updated DIR_${label} from access form`,
           }),
         })
       }
 
       if (!trimmed) return null
-      return fetch(`/api/access/residents/${residentProfileId}/credentials`, {
+      return fetch(`/api/access/residents/${targetResidentProfileId}/credentials`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           credentialType: "directory_code",
           credentialLabel: label,
           credentialValue: trimmed,
+          householdMemberId,
           reason: `Created DIR_${label} from access form`,
         }),
       })
     }
 
-    const [primaryRes, secondaryRes, tertiaryRes, dirARes, dirBRes, dirCRes] = await Promise.all([
+    const secondaryIsDuplicateOfPrimary =
+      normalizeCompare(form.secondaryFirstName) === normalizeCompare(form.primaryFirstName) &&
+      normalizeCompare(form.secondaryLastName) === normalizeCompare(form.primaryLastName) &&
+      normalizeCompare(form.secondaryPhone) === normalizeCompare(form.primaryPhone) &&
+      normalizeCompare(form.secondaryEmail) === normalizeCompare(form.primaryEmail)
+
+    const normalizedSecondary = secondaryIsDuplicateOfPrimary
+      ? {
+          firstName: "",
+          lastName: "",
+          phone: "",
+          email: "",
+          holderCategory: "unspecified" as AccessHolderCategory,
+          holderState: "unknown" as AccessHolderState,
+        }
+      : {
+          firstName: form.secondaryFirstName,
+          lastName: form.secondaryLastName,
+          phone: form.secondaryPhone,
+          email: form.secondaryEmail,
+          holderCategory: form.secondaryHolderCategory,
+          holderState: form.secondaryHolderState,
+        }
+
+    const [primaryRes, secondaryRes, tertiaryRes] = await Promise.all([
       upsertHouseholdMember(
         "primary",
         {
@@ -285,17 +444,14 @@ export function AccessManagementTable() {
           lastName: form.primaryLastName,
           phone: form.primaryPhone,
           email: form.primaryEmail,
+          holderCategory: form.primaryHolderCategory,
+          holderState: form.primaryHolderState,
         },
         primaryExisting,
       ),
       upsertHouseholdMember(
         "secondary",
-        {
-          firstName: form.secondaryFirstName,
-          lastName: form.secondaryLastName,
-          phone: form.secondaryPhone,
-          email: form.secondaryEmail,
-        },
+        normalizedSecondary,
         secondaryExisting,
       ),
       upsertHouseholdMember(
@@ -305,23 +461,49 @@ export function AccessManagementTable() {
           lastName: "",
           phone: form.tertiaryPhone,
           email: "",
+          holderCategory: form.tertiaryHolderCategory,
+          holderState: form.tertiaryHolderState,
         },
         tertiaryExisting,
       ),
-      upsertDirectoryCode("A", form.dirA),
-      upsertDirectoryCode("B", form.dirB),
-      upsertDirectoryCode("C", form.dirC),
     ])
 
     if (
       (primaryRes && !primaryRes.ok) ||
       (secondaryRes && !secondaryRes.ok) ||
-      (tertiaryRes && !tertiaryRes.ok) ||
-      (dirARes && !dirARes.ok) ||
-      (dirBRes && !dirBRes.ok) ||
-      (dirCRes && !dirCRes.ok)
+      (tertiaryRes && !tertiaryRes.ok)
     ) {
-      setActionError("Resident saved, but one or more contact/code updates failed.")
+      setActionError("Resident saved, but one or more contact updates failed.")
+      setSavingId(null)
+      return
+    }
+
+    const detailRes = await fetch(`/api/access/residents/${targetResidentProfileId}`, { cache: "no-store" })
+    if (!detailRes.ok) {
+      setActionError("Resident saved, but failed to refresh contact mappings for code assignment.")
+      setSavingId(null)
+      return
+    }
+    const detailForCodes = (await detailRes.json()) as AccessResidentDetail
+    const primaryNow = detailForCodes.householdMembers.find((m) => m.role === "primary")
+    const secondaryNow = detailForCodes.householdMembers.find((m) => m.role === "secondary")
+    const tertiaryNow = detailForCodes.householdMembers.find((m) => m.role === "tertiary")
+    const dirAMemberId = primaryNow?.id || null
+    const dirBMemberId = secondaryNow?.id || primaryNow?.id || null
+    const dirCMemberId =
+      form.dirCAssignedTo === "primary"
+        ? primaryNow?.id || null
+        : form.dirCAssignedTo === "secondary"
+          ? secondaryNow?.id || primaryNow?.id || null
+          : tertiaryNow?.id || primaryNow?.id || null
+
+    const [dirARes, dirBRes, dirCRes] = await Promise.all([
+      upsertDirectoryCode("A", form.dirA, dirAMemberId, detailForCodes),
+      upsertDirectoryCode("B", form.dirB, dirBMemberId, detailForCodes),
+      upsertDirectoryCode("C", form.dirC, dirCMemberId, detailForCodes),
+    ])
+    if ((dirARes && !dirARes.ok) || (dirBRes && !dirBRes.ok) || (dirCRes && !dirCRes.ok)) {
+      setActionError("Resident saved, but one or more code updates failed.")
       setSavingId(null)
       return
     }
@@ -329,6 +511,7 @@ export function AccessManagementTable() {
     await refresh()
     setSavingId(null)
     setEditingId(null)
+    setIsCreateMode(false)
     setEditingDetail(null)
     setForm(emptyForm)
   }
@@ -339,6 +522,28 @@ export function AccessManagementTable() {
 
   const updateBoolField = (field: "includeInDirectory" | "confidentialPhone", value: boolean) => {
     setForm((prev) => ({ ...prev, [field]: value }))
+  }
+
+  const loadCleanup = async (mode: "report" | "dry-run") => {
+    setCleanupLoading(true)
+    setCleanupError(null)
+    try {
+      const res = await fetch(`/api/access/code-cleanup-candidates?mode=${mode}`, { cache: "no-store" })
+      if (res.status === 403 || res.status === 401) {
+        setCleanupAdminVisible(false)
+        setCleanupLoading(false)
+        return
+      }
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(body?.error || "Failed to load cleanup report.")
+      setCleanupSummary(body.summary || null)
+      setCleanupItems(body.items || [])
+      setCleanupDryRun(body.dryRun || [])
+    } catch (err) {
+      setCleanupError(err instanceof Error ? err.message : "Failed to load cleanup report.")
+    } finally {
+      setCleanupLoading(false)
+    }
   }
 
   return (
@@ -357,6 +562,43 @@ export function AccessManagementTable() {
           <span className="text-fluid-sm" style={{ color: "var(--pp-slate-500)" }}>
             {loading ? "Loading…" : `${data.total} record${data.total !== 1 ? "s" : ""}`}
           </span>
+          {!loading ? (
+            <span
+              className="text-fluid-xs"
+              style={{
+                border: "1px solid #f59e0b",
+                background: "#fffbeb",
+                color: "#92400e",
+                borderRadius: "999px",
+                padding: "0.2rem 0.55rem",
+                fontWeight: 700,
+              }}
+              title="Records where holder categories need review"
+            >
+              Needs review: {data.needsReviewCount}
+            </span>
+          ) : null}
+          <button
+            type="button"
+            onClick={beginCreate}
+            style={{
+              padding: "0.5rem 0.8rem",
+              borderRadius: "var(--radius-sm)",
+              border: "none",
+              background: "var(--pp-navy-dark)",
+              color: "var(--pp-white)",
+              fontSize: "0.85rem",
+              fontWeight: 700,
+              cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "0.35rem",
+              marginLeft: "0.25rem",
+            }}
+          >
+            <Plus style={{ width: "0.85rem", height: "0.85rem" }} />
+            Add Resident Record
+          </button>
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap", marginLeft: "auto" }}>
@@ -400,6 +642,7 @@ export function AccessManagementTable() {
               }}
             >
               <option value="">All Categories</option>
+              <option value="Unspecified">Unspecified</option>
               <option value="Owner">Owner</option>
               <option value="Renter">Renter</option>
               <option value="Vendor">Vendor</option>
@@ -568,9 +811,20 @@ export function AccessManagementTable() {
                     )}
                     {showCategory && (
                       <td style={{ padding: "0.65rem 0.9rem", verticalAlign: "top" }}>
-                        <span className="text-fluid-sm" style={{ color: "var(--pp-slate-700)" }}>
-                          {row.residentCategory || "—"}
-                        </span>
+                        <div style={{ display: "grid", gap: "0.2rem" }}>
+                          <span className="text-fluid-sm" style={{ color: "var(--pp-slate-700)" }}>
+                            {row.effectiveCategoryLabel}
+                          </span>
+                          {row.categoryNeedsReview ? (
+                            <span
+                              className="text-fluid-xs"
+                              style={{ color: "#92400e", fontWeight: 700 }}
+                              title={row.categoryReviewReason || "Category needs review"}
+                            >
+                              Needs review
+                            </span>
+                          ) : null}
+                        </div>
                       </td>
                     )}
                     {showGateCode && (
@@ -646,9 +900,11 @@ export function AccessManagementTable() {
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.75rem" }}>
               <div>
-                <h3 style={{ margin: 0, color: "var(--pp-navy-dark)" }}>Edit Access Profile</h3>
+                <h3 style={{ margin: 0, color: "var(--pp-navy-dark)" }}>
+                  {isCreateMode ? "Add Resident Record" : "Edit Access Profile"}
+                </h3>
                 <p className="text-fluid-sm" style={{ margin: "0.2rem 0 0", color: "var(--pp-slate-500)" }}>
-                  {form.addressFull || "Resident / Company record"}
+                  {isCreateMode ? "Create a new resident/company access record" : form.addressFull || "Resident / Company record"}
                 </p>
               </div>
               <button
@@ -689,6 +945,22 @@ export function AccessManagementTable() {
                     <label className="text-fluid-xs" style={{ color: "var(--pp-slate-600)" }}>Last Name / Company<input value={form.primaryLastName} onChange={(e) => updateField("primaryLastName", e.target.value)} style={{ width: "100%", marginTop: "0.2rem", padding: "0.45rem", border: "1px solid var(--pp-slate-300)", borderRadius: "var(--radius-sm)" }} /></label>
                     <label className="text-fluid-xs" style={{ color: "var(--pp-slate-600)" }}>Phone<input value={form.primaryPhone} onChange={(e) => updateField("primaryPhone", e.target.value)} style={{ width: "100%", marginTop: "0.2rem", padding: "0.45rem", border: "1px solid var(--pp-slate-300)", borderRadius: "var(--radius-sm)" }} /></label>
                     <label className="text-fluid-xs" style={{ color: "var(--pp-slate-600)" }}>Email<input value={form.primaryEmail} onChange={(e) => updateField("primaryEmail", e.target.value)} style={{ width: "100%", marginTop: "0.2rem", padding: "0.45rem", border: "1px solid var(--pp-slate-300)", borderRadius: "var(--radius-sm)" }} /></label>
+                    <label className="text-fluid-xs" style={{ color: "var(--pp-slate-600)" }}>
+                      Holder Category
+                      <select value={form.primaryHolderCategory} onChange={(e) => updateField("primaryHolderCategory", e.target.value)} style={{ width: "100%", marginTop: "0.2rem", padding: "0.45rem", border: "1px solid var(--pp-slate-300)", borderRadius: "var(--radius-sm)" }}>
+                        {holderCategoryOptions.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                      </select>
+                    </label>
+                    <label className="text-fluid-xs" style={{ color: "var(--pp-slate-600)" }}>
+                      Holder State
+                      <select value={form.primaryHolderState} onChange={(e) => updateField("primaryHolderState", e.target.value)} style={{ width: "100%", marginTop: "0.2rem", padding: "0.45rem", border: "1px solid var(--pp-slate-300)", borderRadius: "var(--radius-sm)" }}>
+                        {holderStateOptions.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                      </select>
+                    </label>
+                    <label className="text-fluid-xs" style={{ color: "var(--pp-slate-600)" }}>
+                      Primary Code (DIR_A)
+                      <input value={form.dirA} onChange={(e) => updateField("dirA", e.target.value)} style={{ width: "100%", marginTop: "0.2rem", padding: "0.45rem", border: "1px solid var(--pp-slate-300)", borderRadius: "var(--radius-sm)" }} />
+                    </label>
                   </div>
                 </div>
 
@@ -711,19 +983,6 @@ export function AccessManagementTable() {
                       marginTop: "0.65rem",
                     }}
                   >
-                    <label className="text-fluid-xs" style={{ color: "var(--pp-slate-600)" }}>
-                      Category
-                      <select
-                        value={form.residentCategory}
-                        onChange={(e) => updateField("residentCategory", e.target.value)}
-                        style={{ width: "100%", marginTop: "0.2rem", padding: "0.45rem", border: "1px solid var(--pp-slate-300)", borderRadius: "var(--radius-sm)" }}
-                      >
-                        <option value="">Unspecified</option>
-                        <option value="Owner">Owner</option>
-                        <option value="Renter">Renter</option>
-                        <option value="Vendor">Vendor</option>
-                      </select>
-                    </label>
                     <label
                       className="text-fluid-xs"
                       style={{
@@ -798,6 +1057,22 @@ export function AccessManagementTable() {
                     <label className="text-fluid-xs" style={{ color: "var(--pp-slate-600)" }}>Last Name / Company<input value={form.secondaryLastName} onChange={(e) => updateField("secondaryLastName", e.target.value)} style={{ width: "100%", marginTop: "0.2rem", padding: "0.45rem", border: "1px solid var(--pp-slate-300)", borderRadius: "var(--radius-sm)" }} /></label>
                     <label className="text-fluid-xs" style={{ color: "var(--pp-slate-600)" }}>Phone<input value={form.secondaryPhone} onChange={(e) => updateField("secondaryPhone", e.target.value)} style={{ width: "100%", marginTop: "0.2rem", padding: "0.45rem", border: "1px solid var(--pp-slate-300)", borderRadius: "var(--radius-sm)" }} /></label>
                     <label className="text-fluid-xs" style={{ color: "var(--pp-slate-600)" }}>Email<input value={form.secondaryEmail} onChange={(e) => updateField("secondaryEmail", e.target.value)} style={{ width: "100%", marginTop: "0.2rem", padding: "0.45rem", border: "1px solid var(--pp-slate-300)", borderRadius: "var(--radius-sm)" }} /></label>
+                    <label className="text-fluid-xs" style={{ color: "var(--pp-slate-600)" }}>
+                      Holder Category
+                      <select value={form.secondaryHolderCategory} onChange={(e) => updateField("secondaryHolderCategory", e.target.value)} style={{ width: "100%", marginTop: "0.2rem", padding: "0.45rem", border: "1px solid var(--pp-slate-300)", borderRadius: "var(--radius-sm)" }}>
+                        {holderCategoryOptions.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                      </select>
+                    </label>
+                    <label className="text-fluid-xs" style={{ color: "var(--pp-slate-600)" }}>
+                      Holder State
+                      <select value={form.secondaryHolderState} onChange={(e) => updateField("secondaryHolderState", e.target.value)} style={{ width: "100%", marginTop: "0.2rem", padding: "0.45rem", border: "1px solid var(--pp-slate-300)", borderRadius: "var(--radius-sm)" }}>
+                        {holderStateOptions.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                      </select>
+                    </label>
+                    <label className="text-fluid-xs" style={{ color: "var(--pp-slate-600)" }}>
+                      Secondary Code (DIR_B)
+                      <input value={form.dirB} onChange={(e) => updateField("dirB", e.target.value)} style={{ width: "100%", marginTop: "0.2rem", padding: "0.45rem", border: "1px solid var(--pp-slate-300)", borderRadius: "var(--radius-sm)" }} />
+                    </label>
                   </div>
                 </div>
 
@@ -809,24 +1084,36 @@ export function AccessManagementTable() {
                   }}
                 >
                   <p className="text-fluid-sm font-semibold" style={{ margin: 0, color: "var(--pp-navy-dark)" }}>
-                    Gate Codes
+                    Additional Gate Codes
                   </p>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "0.6rem", marginTop: "0.65rem" }}>
                     <label className="text-fluid-xs" style={{ color: "var(--pp-slate-600)" }}>
-                      DIR_A (Resident A)
-                      <input value={form.dirA} onChange={(e) => updateField("dirA", e.target.value)} style={{ width: "100%", marginTop: "0.2rem", padding: "0.45rem", border: "1px solid var(--pp-slate-300)", borderRadius: "var(--radius-sm)" }} />
-                    </label>
-                    <label className="text-fluid-xs" style={{ color: "var(--pp-slate-600)" }}>
-                      DIR_B (Resident B)
-                      <input value={form.dirB} onChange={(e) => updateField("dirB", e.target.value)} style={{ width: "100%", marginTop: "0.2rem", padding: "0.45rem", border: "1px solid var(--pp-slate-300)", borderRadius: "var(--radius-sm)" }} />
-                    </label>
-                    <label className="text-fluid-xs" style={{ color: "var(--pp-slate-600)" }}>
-                      DIR_C (Resident C)
+                      Additional Code (DIR_C)
                       <input value={form.dirC} onChange={(e) => updateField("dirC", e.target.value)} style={{ width: "100%", marginTop: "0.2rem", padding: "0.45rem", border: "1px solid var(--pp-slate-300)", borderRadius: "var(--radius-sm)" }} />
+                    </label>
+                    <label className="text-fluid-xs" style={{ color: "var(--pp-slate-600)" }}>
+                      DIR_C Assigned To
+                      <select value={form.dirCAssignedTo} onChange={(e) => updateField("dirCAssignedTo", e.target.value)} style={{ width: "100%", marginTop: "0.2rem", padding: "0.45rem", border: "1px solid var(--pp-slate-300)", borderRadius: "var(--radius-sm)" }}>
+                        <option value="primary">Primary Contact</option>
+                        <option value="secondary">Secondary Contact</option>
+                        <option value="tertiary">Phone_C Holder</option>
+                      </select>
                     </label>
                     <label className="text-fluid-xs" style={{ color: "var(--pp-slate-600)" }}>
                       Phone_C
                       <input value={form.tertiaryPhone} onChange={(e) => updateField("tertiaryPhone", e.target.value)} style={{ width: "100%", marginTop: "0.2rem", padding: "0.45rem", border: "1px solid var(--pp-slate-300)", borderRadius: "var(--radius-sm)" }} />
+                    </label>
+                    <label className="text-fluid-xs" style={{ color: "var(--pp-slate-600)" }}>
+                      Phone_C Category
+                      <select value={form.tertiaryHolderCategory} onChange={(e) => updateField("tertiaryHolderCategory", e.target.value)} style={{ width: "100%", marginTop: "0.2rem", padding: "0.45rem", border: "1px solid var(--pp-slate-300)", borderRadius: "var(--radius-sm)" }}>
+                        {holderCategoryOptions.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                      </select>
+                    </label>
+                    <label className="text-fluid-xs" style={{ color: "var(--pp-slate-600)" }}>
+                      Phone_C State
+                      <select value={form.tertiaryHolderState} onChange={(e) => updateField("tertiaryHolderState", e.target.value)} style={{ width: "100%", marginTop: "0.2rem", padding: "0.45rem", border: "1px solid var(--pp-slate-300)", borderRadius: "var(--radius-sm)" }}>
+                        {holderStateOptions.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                      </select>
                     </label>
                   </div>
                 </div>
@@ -865,7 +1152,7 @@ export function AccessManagementTable() {
                     }}
                   >
                     <Check style={{ width: "0.85rem", height: "0.85rem" }} />
-                    {savingId === editingId ? "Saving..." : "Save Changes"}
+                    {savingId === editingId ? "Saving..." : isCreateMode ? "Create Record" : "Save Changes"}
                   </button>
                 </div>
               </div>
@@ -911,6 +1198,101 @@ export function AccessManagementTable() {
           </button>
         </div>
       )}
+
+      {cleanupAdminVisible ? (
+        <div
+          style={{
+            border: "1px solid var(--pp-slate-200)",
+            borderRadius: "var(--radius-md)",
+            padding: "0.85rem",
+            background: "var(--pp-slate-50)",
+            display: "grid",
+            gap: "0.65rem",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.6rem", flexWrap: "wrap" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.45rem" }}>
+              <ShieldAlert style={{ width: "1rem", height: "1rem", color: "var(--pp-navy-dark)" }} />
+              <span className="text-fluid-sm" style={{ color: "var(--pp-navy-dark)", fontWeight: 700 }}>
+                Code Cleanup Candidates (Admin Only)
+              </span>
+            </div>
+            <div style={{ display: "flex", gap: "0.45rem", flexWrap: "wrap" }}>
+              <button type="button" className="btn btn-outline btn-sm" onClick={() => void loadCleanup("report")} disabled={cleanupLoading}>
+                {cleanupLoading ? "Loading..." : "Generate Report"}
+              </button>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => void loadCleanup("dry-run")} disabled={cleanupLoading}>
+                {cleanupLoading ? "Running..." : "Dry Run Revoke Preview"}
+              </button>
+            </div>
+          </div>
+          {cleanupSummary ? (
+            <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
+              <span className="pill-chip">Total: {cleanupSummary.total}</span>
+              <span className="pill-chip">Safe: {cleanupSummary.safe}</span>
+              <span className="pill-chip">Needs review: {cleanupSummary.review}</span>
+              <span className="pill-chip">Unassigned: {cleanupSummary.unassigned}</span>
+            </div>
+          ) : null}
+          {cleanupError ? (
+            <div style={{ color: "#991b1b", fontWeight: 600 }}>{cleanupError}</div>
+          ) : null}
+          {cleanupItems.length ? (
+            <div style={{ overflowX: "auto", border: "1px solid var(--pp-slate-200)", borderRadius: "0.5rem", background: "var(--pp-white)" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "52rem" }}>
+                <thead>
+                  <tr style={{ background: "var(--pp-slate-100)" }}>
+                    {["Address", "Code", "Assigned Holder", "Holder Status", "Disposition"].map((label) => (
+                      <th key={label} style={{ textAlign: "left", padding: "0.5rem 0.6rem", fontSize: "0.75rem", color: "var(--pp-slate-700)" }}>{label}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {cleanupItems.map((item) => (
+                    <tr key={item.credentialId} style={{ borderTop: "1px solid var(--pp-slate-100)" }}>
+                      <td style={{ padding: "0.5rem 0.6rem", fontSize: "0.82rem" }}>{item.addressFull}</td>
+                      <td style={{ padding: "0.5rem 0.6rem", fontSize: "0.82rem" }}>
+                        {item.credentialType}{item.credentialLabel ? ` (${item.credentialLabel})` : ""} {item.credentialValueMasked}
+                      </td>
+                      <td style={{ padding: "0.5rem 0.6rem", fontSize: "0.82rem" }}>{item.holderName}</td>
+                      <td style={{ padding: "0.5rem 0.6rem", fontSize: "0.82rem" }}>
+                        {item.holderCategory || "—"} / {item.holderState || "—"}
+                      </td>
+                      <td style={{ padding: "0.5rem 0.6rem", fontSize: "0.82rem", color: item.blocked ? "#92400e" : "#166534", fontWeight: 700 }}>
+                        {item.blocked ? `Review: ${item.flags.join(" ") || "Policy blocked"}` : "Safe candidate"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
+          {cleanupDryRun.length ? (
+            <div style={{ overflowX: "auto", border: "1px solid var(--pp-slate-200)", borderRadius: "0.5rem", background: "var(--pp-white)" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "40rem" }}>
+                <thead>
+                  <tr style={{ background: "var(--pp-slate-100)" }}>
+                    {["Credential ID", "Dry Run Action", "Reason"].map((label) => (
+                      <th key={label} style={{ textAlign: "left", padding: "0.5rem 0.6rem", fontSize: "0.75rem", color: "var(--pp-slate-700)" }}>{label}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {cleanupDryRun.map((row) => (
+                    <tr key={row.credentialId} style={{ borderTop: "1px solid var(--pp-slate-100)" }}>
+                      <td style={{ padding: "0.5rem 0.6rem", fontSize: "0.8rem" }}>{row.credentialId}</td>
+                      <td style={{ padding: "0.5rem 0.6rem", fontSize: "0.8rem", fontWeight: 700, color: row.action === "would_revoke" ? "#166534" : "#92400e" }}>
+                        {row.action}
+                      </td>
+                      <td style={{ padding: "0.5rem 0.6rem", fontSize: "0.8rem" }}>{row.reason}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   )
 }

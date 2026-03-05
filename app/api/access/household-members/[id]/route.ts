@@ -4,7 +4,7 @@ import {
   patchHouseholdMemberPrisma,
 } from "@/lib/access/repository-prisma"
 import { requireManagementCapabilityAccess } from "@/lib/auth/portal-management-api"
-import type { HouseholdRole } from "@/lib/access/types"
+import type { AccessHolderCategory, AccessHolderState, HouseholdRole } from "@/lib/access/types"
 
 export async function PATCH(
   req: NextRequest,
@@ -16,12 +16,32 @@ export async function PATCH(
   const { id } = await context.params
   const body = await req.json().catch(() => ({}))
   const role = body.role as HouseholdRole | undefined
+  const holderCategory = body.holderCategory as AccessHolderCategory | undefined
+  const holderState = body.holderState as AccessHolderState | undefined
 
   if (role) {
     const allowedRoles: HouseholdRole[] = ["primary", "secondary", "tertiary", "company_contact"]
     if (!allowedRoles.includes(role)) {
       return NextResponse.json({ error: "Invalid household role" }, { status: 400 })
     }
+  }
+  const allowedHolderCategories: AccessHolderCategory[] = [
+    "owner_occupant",
+    "owner_non_occupant",
+    "tenant",
+    "household_member",
+    "trustee_or_owner_rep",
+    "guardian",
+    "vendor",
+    "property_manager",
+    "unspecified",
+  ]
+  const allowedHolderStates: AccessHolderState[] = ["current", "past", "unknown"]
+  if (holderCategory && !allowedHolderCategories.includes(holderCategory)) {
+    return NextResponse.json({ error: "Invalid holder category" }, { status: 400 })
+  }
+  if (holderState && !allowedHolderStates.includes(holderState)) {
+    return NextResponse.json({ error: "Invalid holder state" }, { status: 400 })
   }
 
   try {
@@ -34,6 +54,12 @@ export async function PATCH(
         phone: body.phone ?? undefined,
         email: body.email ?? undefined,
         isPrimaryContact: typeof body.isPrimaryContact === "boolean" ? body.isPrimaryContact : undefined,
+        holderCategory,
+        holderState,
+        organizationName: body.organizationName ?? undefined,
+        startDate: typeof body.startDate === "string" ? body.startDate : body.startDate === null ? null : undefined,
+        endDate: typeof body.endDate === "string" ? body.endDate : body.endDate === null ? null : undefined,
+        notes: body.notes ?? undefined,
       },
       access.identity.userId,
       typeof body.reason === "string" ? body.reason : null,
