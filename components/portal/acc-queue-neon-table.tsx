@@ -354,7 +354,7 @@ export function AccQueueNeonTable() {
       </div>
 
       <div style={{ overflowX: "auto", borderRadius: "var(--radius-md)", border: "1px solid var(--pp-slate-200)" }}>
-        <table className="acc-table" style={{ width: "100%", borderCollapse: "collapse", minWidth: "72rem" }}>
+        <table className="acc-table" style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
             <tr style={{ background: "var(--pp-navy-dark)" }}>
               {[
@@ -381,10 +381,12 @@ export function AccQueueNeonTable() {
                         ? "acc-col-description"
                         : label === "Work Type"
                           ? "acc-col-worktype"
-                          : label === "Disposition"
+                      : label === "Disposition"
                             ? "acc-col-status"
                             : label === "Process Date"
                               ? "acc-col-process"
+                              : label === "Actions"
+                                ? "acc-col-actions"
                               : undefined
                   }
                   data-acc-cell="true"
@@ -437,7 +439,7 @@ export function AccQueueNeonTable() {
                   <td className="acc-col-worktype" data-acc-cell="true" style={{ padding: "0.55rem 0.7rem", color: "var(--pp-slate-700)", fontSize: "0.8rem", whiteSpace: "nowrap" }}>{entry.workType || "—"}</td>
                   <td className="acc-col-status" data-acc-cell="true" style={{ padding: "0.55rem 0.7rem" }}><StatusBadge disposition={entry.disposition} /></td>
                   <td className="acc-col-process" data-acc-cell="true" style={{ padding: "0.55rem 0.7rem", color: "var(--pp-slate-700)", fontSize: "0.8rem", whiteSpace: "nowrap" }}>{formatDateOnly(entry.processDate)}</td>
-                  <td data-acc-cell="true" style={{ padding: "0.55rem 0.7rem" }}>
+                  <td className="acc-col-actions" data-acc-cell="true" style={{ padding: "0.55rem 0.7rem" }}>
                     <div className="acc-actions-stack" style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap" }}>
                       <button
                         type="button"
@@ -571,6 +573,10 @@ export function AccQueueNeonTable() {
       </Dialog.Root>
 
       <style jsx>{`
+        .acc-table {
+          min-width: 72rem;
+        }
+
         .acc-description-text {
           -webkit-line-clamp: 2;
         }
@@ -735,11 +741,6 @@ export function AccQueueNeonTable() {
         }
 
         @media (max-width: 509px) {
-          .acc-table {
-            table-layout: fixed;
-            width: 100%;
-          }
-
           .acc-table [data-acc-cell="true"] {
             padding-left: 0.35rem !important;
             padding-right: 0.35rem !important;
@@ -754,21 +755,26 @@ export function AccQueueNeonTable() {
           }
 
           .acc-col-permitid {
-            max-width: 4.8rem;
-            width: 4.8rem;
+            width: 22%;
+            max-width: none;
           }
 
           .acc-col-applicant {
-            max-width: 6.3rem;
-            width: 6.3rem;
+            width: 30%;
+            max-width: none;
           }
 
           .acc-col-address {
-            max-width: 8.2rem;
-            width: 8.2rem;
+            width: 30%;
+            max-width: none;
             white-space: normal;
             overflow-wrap: anywhere;
             word-break: break-word;
+          }
+
+          .acc-col-actions {
+            width: 18%;
+            max-width: none;
           }
 
           .acc-col-applicant div {
