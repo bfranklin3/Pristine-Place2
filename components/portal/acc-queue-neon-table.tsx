@@ -390,7 +390,14 @@ export function AccQueueNeonTable() {
                   data-acc-cell="true"
                   style={{ textAlign: "left", padding: "0.62rem 0.8rem", color: "var(--pp-gold-light)", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.07em" }}
                 >
-                  {label}
+                  {label === "Permit / ID" ? (
+                    <>
+                      <span className="acc-col-permit-full">Permit / ID</span>
+                      <span className="acc-col-permit-short">Permit ID</span>
+                    </>
+                  ) : (
+                    label
+                  )}
                 </th>
               ))}
             </tr>
@@ -568,6 +575,10 @@ export function AccQueueNeonTable() {
           -webkit-line-clamp: 2;
         }
 
+        .acc-col-permit-short {
+          display: none;
+        }
+
         .acc-applicant-text {
           display: block;
         }
@@ -717,6 +728,34 @@ export function AccQueueNeonTable() {
 
           .acc-col-permitid,
           .acc-col-permitid div {
+            white-space: normal;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+          }
+        }
+
+        @media (max-width: 509px) {
+          .acc-col-permit-full {
+            display: none;
+          }
+
+          .acc-col-permit-short {
+            display: inline;
+          }
+
+          .acc-col-permitid {
+            max-width: 5.2rem;
+            width: 5.2rem;
+          }
+
+          .acc-col-applicant {
+            max-width: 7.1rem;
+            width: 7.1rem;
+          }
+
+          .acc-col-address {
+            max-width: 8.6rem;
+            width: 8.6rem;
             white-space: normal;
             overflow-wrap: anywhere;
             word-break: break-word;
