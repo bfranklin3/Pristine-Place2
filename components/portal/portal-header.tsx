@@ -87,6 +87,12 @@ const managementItems = [
     allowed: ["admin", "acc"] as Array<CommitteeSlug | "admin">,
   },
   {
+    label: "ACC Workflow Queue Wordpress (Redacted)",
+    href: "/resident-portal/management/wp-acc-queue-redacted",
+    description: "Review ACC applications with identity fields redacted",
+    allowed: ["admin", "acc"] as Array<CommitteeSlug | "admin">,
+  },
+  {
     label: "Resident Access Management",
     href: "/resident-portal/management/access",
     description: "Manage gate access (Access Control committee)",

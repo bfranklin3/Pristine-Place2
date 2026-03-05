@@ -1,16 +1,16 @@
 import type { Metadata } from "next"
-import { FileText, Shield } from "lucide-react"
+import { Shield, FileText } from "lucide-react"
 import { siteConfig } from "@/lib/site-config"
+import { AccQueueTable } from "@/components/portal/acc-queue-table"
 import { requirePortalCapabilityPageAccess } from "@/lib/auth/portal-admin"
-import { AccQueueNeonTable } from "@/components/portal/acc-queue-neon-table"
 
 export const metadata: Metadata = {
-  title: `ACC Workflow Queue | ${siteConfig.name} Resident Portal`,
-  description: "Neon-backed ACC workflow queue.",
+  title: `ACC Workflow Queue (Redacted) | ${siteConfig.name} Resident Portal`,
+  description: "View ACC permit requests with sensitive identity fields redacted.",
 }
 
-export default async function AccQueuePage() {
-  await requirePortalCapabilityPageAccess(["acc.view"], "/resident-portal/management/acc-queue")
+export default async function WpAccQueueRedactedPage() {
+  await requirePortalCapabilityPageAccess(["acc.view"], "/resident-portal/management/wp-acc-queue-redacted")
 
   return (
     <>
@@ -29,9 +29,9 @@ export default async function AccQueuePage() {
               Management
             </span>
           </div>
-          <h1 className="hero-title">ACC Workflow Queue</h1>
+          <h1 className="hero-title">ACC Workflow Queue (Redacted)</h1>
           <p className="hero-subtitle" style={{ maxWidth: "56ch" }}>
-            Neon-backed queue for ACC requests with workflow filtering and status updates.
+            Identity fields are redacted in this view while addresses and permit workflow details remain visible.
           </p>
         </div>
       </section>
@@ -41,10 +41,24 @@ export default async function AccQueuePage() {
           <div className="stack" style={{ gap: "var(--space-l)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
               <FileText style={{ width: "1.25rem", height: "1.25rem", color: "var(--pp-navy)" }} />
-              <h2 style={{ color: "var(--pp-navy-dark)" }}>ACC Permit Requests (Neon)</h2>
+              <h2 style={{ color: "var(--pp-navy-dark)" }}>ACC Permit Requests (Redacted)</h2>
             </div>
 
-            <AccQueueNeonTable />
+            <div
+              style={{
+                border: "1px solid #fcd34d",
+                background: "#fffbeb",
+                color: "#92400e",
+                borderRadius: "var(--radius-md)",
+                padding: "0.65rem 0.8rem",
+              }}
+            >
+              <p className="text-fluid-sm" style={{ margin: 0 }}>
+                Temporary mode: this page reads and writes directly to the legacy WordPress Gravity Forms source.
+              </p>
+            </div>
+
+            <AccQueueTable viewMode="redacted" />
           </div>
         </div>
       </section>
