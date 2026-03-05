@@ -735,6 +735,16 @@ export function AccQueueNeonTable() {
         }
 
         @media (max-width: 509px) {
+          .acc-table {
+            table-layout: fixed;
+            width: 100%;
+          }
+
+          .acc-table [data-acc-cell="true"] {
+            padding-left: 0.35rem !important;
+            padding-right: 0.35rem !important;
+          }
+
           .acc-col-permit-full {
             display: none;
           }
@@ -744,19 +754,24 @@ export function AccQueueNeonTable() {
           }
 
           .acc-col-permitid {
-            max-width: 5.2rem;
-            width: 5.2rem;
+            max-width: 4.8rem;
+            width: 4.8rem;
           }
 
           .acc-col-applicant {
-            max-width: 7.1rem;
-            width: 7.1rem;
+            max-width: 6.3rem;
+            width: 6.3rem;
           }
 
           .acc-col-address {
-            max-width: 8.6rem;
-            width: 8.6rem;
+            max-width: 8.2rem;
+            width: 8.2rem;
             white-space: normal;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+          }
+
+          .acc-col-applicant div {
             overflow-wrap: anywhere;
             word-break: break-word;
           }
