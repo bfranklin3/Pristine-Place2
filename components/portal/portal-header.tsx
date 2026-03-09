@@ -78,7 +78,7 @@ const managementItems = [
     label: "ACC Link Review",
     href: "/resident-portal/management/acc-link-review",
     description: "Resolve unresolved/low-confidence ACC residency links",
-    allowed: ["admin", "acc", "access_control", "board_of_directors"] as Array<CommitteeSlug | "admin">,
+    allowed: ["admin", "acc"] as Array<CommitteeSlug | "admin">,
   },
   {
     label: "ACC Workflow Queue Wordpress",
@@ -349,6 +349,34 @@ export function PortalHeader({ isAdmin, committees }: { isAdmin: boolean; commit
     </div>
   )
 
+  const ManagementCompactGroupedPanel = ({ sections }: { sections: ReturnType<typeof categorizeManagementItems> }) => (
+    <div
+      className="absolute left-0 top-full mt-1 w-80 bg-white border border-pp-slate-200 rounded-lg shadow-xl overflow-hidden z-50"
+      role="menu"
+    >
+      <div className="py-1.5">
+        {sections.map((section) => (
+          <div key={section.key} className="border-b border-pp-slate-100 last:border-0">
+            <div className="px-4 py-2 text-[11px] uppercase tracking-[0.1em] font-semibold text-pp-slate-500 bg-pp-slate-50">
+              {section.title}
+            </div>
+            {section.items.map((item) => (
+              <Link
+                key={item.label}
+                href={item.href}
+                className="block px-4 py-2.5 hover:bg-pp-slate-50 transition-colors"
+                onClick={closeAll}
+                role="menuitem"
+              >
+                <div className="text-sm font-semibold text-pp-navy-dark">{item.label}</div>
+              </Link>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+
   /* ── Reusable mobile accordion section ── */
   const MobileSection = ({
     label,
@@ -523,7 +551,7 @@ export function PortalHeader({ isAdmin, committees }: { isAdmin: boolean; commit
                   (useManagementMegaMenu ? (
                     <ManagementMegaPanel sections={managementSections} />
                   ) : (
-                    <DropdownPanel items={visibleManagementItems} />
+                    <ManagementCompactGroupedPanel sections={managementSections} />
                   ))}
               </div>
             )}
@@ -738,16 +766,22 @@ export function PortalHeader({ isAdmin, committees }: { isAdmin: boolean; commit
                           </div>
                         ))
                       ) : (
-                        visibleManagementItems.map((item) => (
-                          <Link
-                            key={item.label}
-                            href={item.href}
-                            className="block px-4 py-2.5 text-sm text-white/80 hover:text-pp-gold-light hover:bg-white/10 border-b border-white/10 last:border-0 transition-colors"
-                            onClick={() => setMobileOpen(false)}
-                          >
-                            <div className="font-medium">{item.label}</div>
-                            <div className="text-xs text-white/50 mt-0.5">{item.description}</div>
-                          </Link>
+                        managementSections.map((section) => (
+                          <div key={section.key} className="border-b border-white/10 last:border-0">
+                            <div className="px-4 py-2 text-[11px] uppercase tracking-[0.1em] font-semibold text-white/50 bg-white/5">
+                              {section.title}
+                            </div>
+                            {section.items.map((item) => (
+                              <Link
+                                key={item.label}
+                                href={item.href}
+                                className="block px-4 py-2.5 text-sm text-white/80 hover:text-pp-gold-light hover:bg-white/10 transition-colors"
+                                onClick={() => setMobileOpen(false)}
+                              >
+                                <div className="font-medium">{item.label}</div>
+                              </Link>
+                            ))}
+                          </div>
                         ))
                       )}
                     </div>

@@ -82,7 +82,7 @@ function recommendationFor(input: {
 
 export async function GET(req: NextRequest) {
   try {
-    const access = await requireManagementApiAccess(["admin", "acc", "access_control", "board_of_directors"])
+    const access = await requireManagementApiAccess(["admin", "acc"])
     if (!access.ok) return access.response
 
     const resolveResidencyId = (req.nextUrl.searchParams.get("resolveResidencyId") || "").trim()
@@ -280,7 +280,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  const access = await requireManagementApiAccess(["admin", "acc", "access_control", "board_of_directors"])
+  const access = await requireManagementApiAccess(["admin", "acc"])
   if (!access.ok) return access.response
 
   const payload = (await req.json()) as {
