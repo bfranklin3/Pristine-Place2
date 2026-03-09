@@ -1,6 +1,7 @@
 // app/our-community/page.tsx
 
 import type { Metadata } from "next"
+import Image from "next/image"
 import Link from "next/link"
 import { MapPin, School, ShoppingCart, HeartPulse, Users, Waves, Dumbbell, ShieldCheck } from "lucide-react"
 import { siteConfig } from "@/lib/site-config"
@@ -45,6 +46,8 @@ const content = {
   gates: {
     heading: "Three Gated Entrances",
     subtitle: "Pristine Place features three secure entry points to keep the community safe and welcoming.",
+    mapSrc: "/images/PP-All-Gates.png",
+    mapAlt: "Pristine Place gate location map showing Main Gate, Mansfield Gate, and Minnie Dr. Gate",
     items: [
       {
         name: "Main Gate",
@@ -152,6 +155,26 @@ export default function OurCommunityPage() {
               {content.gates.heading}
             </h3>
             <p className="text-fluid-base" style={{ color: "var(--pp-slate-500)" }}>{content.gates.subtitle}</p>
+          </div>
+          <div
+            style={{
+              borderRadius: "var(--radius-xl)",
+              overflow: "hidden",
+              boxShadow: "var(--shadow-lg)",
+              border: "1px solid var(--pp-slate-200)",
+              background: "var(--pp-white)",
+              width: "70%",
+              marginInline: "auto",
+            }}
+          >
+            <Image
+              src={content.gates.mapSrc}
+              alt={content.gates.mapAlt}
+              width={1200}
+              height={900}
+              className="w-full h-auto"
+              style={{ display: "block" }}
+            />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {content.gates.items.map((gate) => (
