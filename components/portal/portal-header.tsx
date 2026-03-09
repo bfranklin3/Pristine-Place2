@@ -196,6 +196,7 @@ export function PortalHeader({ isAdmin, committees }: { isAdmin: boolean; commit
   const visibleManagementItems = managementItems.filter(
     (item) => item.allowed.includes("admin") && isAdmin || item.allowed.some((role) => role !== "admin" && committees.includes(role)),
   )
+  const useManagementMegaMenu = USE_MANAGEMENT_MEGA_MENU && isAdmin
   const managementSections = categorizeManagementItems(visibleManagementItems)
   const hasVisibleManagementItems = visibleManagementItems.length > 0
 
@@ -519,7 +520,7 @@ export function PortalHeader({ isAdmin, committees }: { isAdmin: boolean; commit
                   <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${openDropdown === "management" ? "rotate-180" : ""}`} />
                 </button>
                 {openDropdown === "management" &&
-                  (USE_MANAGEMENT_MEGA_MENU ? (
+                  (useManagementMegaMenu ? (
                     <ManagementMegaPanel sections={managementSections} />
                   ) : (
                     <DropdownPanel items={visibleManagementItems} />
@@ -717,7 +718,7 @@ export function PortalHeader({ isAdmin, committees }: { isAdmin: boolean; commit
                   </button>
                   {mobileManagement && (
                     <div className="ml-3 mr-1 mt-1 mb-2 rounded-lg overflow-hidden border border-white/10">
-                      {USE_MANAGEMENT_MEGA_MENU ? (
+                      {useManagementMegaMenu ? (
                         managementSections.map((section) => (
                           <div key={section.key} className="border-b border-white/10 last:border-0">
                             <div className="px-4 py-2 text-[11px] uppercase tracking-[0.1em] font-semibold text-white/50 bg-white/5">
