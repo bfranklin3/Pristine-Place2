@@ -1,14 +1,13 @@
 // app/our-community/page.tsx
 
 import type { Metadata } from "next"
-import Image from "next/image"
 import Link from "next/link"
 import { MapPin, School, ShoppingCart, HeartPulse, Users, Waves, Dumbbell, ShieldCheck } from "lucide-react"
 import { siteConfig } from "@/lib/site-config"
 
 export const metadata: Metadata = {
   title: "Our Community",
-  description: `Learn about Pristine Place — a premier gated residential community in Spring Hill, Florida. Discover our amenities, gates, and neighborhood map.`,
+  description: `Learn about Pristine Place — a premier gated residential community in Spring Hill, Florida. Discover our amenities and three gated entrances.`,
   openGraph: {
     title: `Our Community | ${siteConfig.name}`,
     description: `Learn about Pristine Place, Spring Hill FL.`,
@@ -49,25 +48,19 @@ const content = {
     items: [
       {
         name: "Main Gate",
-        description: "The primary entrance on Pristine Place Blvd — open to all residents, visitors, and authorized contractors. Equipped with a resident callbox directory.",
+        description: "For resident use only. Vehicles must use a resident barcode at this entrance. Visitors and contractors cannot enter through this gate.",
       },
       {
         name: "Mansfield Gate",
-        description: "A secondary resident entrance for convenient access from Mansfield Blvd. Requires a resident gate remote or personal access code.",
+        description: "For resident use only. Vehicles must use a resident barcode at this entrance. Visitors and contractors cannot enter through this gate.",
       },
       {
         name: "Minnie Dr. Gate",
-        description: "Available to residents, visitors, and contractors. Staffed during designated access control hours for additional security.",
+        description: "Open to residents, visitors, and contractors. Includes the resident callbox directory and vehicle barcode scanner.",
       },
     ],
     accessHours: "Access Control Hours: Monday 10:30 AM – 12:30 PM · Wednesday & Friday 6:30 PM – 8:00 PM",
     accessContact: "Access control: 352-683-9853 · Carol Ruland: 352-684-2628",
-  },
-  map: {
-    heading: "Neighborhood Map",
-    subtitle: "Explore the layout of Pristine Place — gates, amenities, and community landmarks at a glance.",
-    src: "/images/PP-All-Gates.png",
-    alt: "Pristine Place neighborhood map showing all three gates and community amenities",
   },
   nearby: {
     heading: "Convenient to Everything",
@@ -151,34 +144,9 @@ export default function OurCommunityPage() {
         </div>
       </section>
 
-      {/* Neighborhood Map */}
+      {/* Three Gated Entrances */}
       <section className="section" style={{ background: "var(--pp-slate-50)" }}>
         <div className="container stack" style={{ gap: "var(--space-l)" }}>
-          <div style={{ textAlign: "center" }}>
-            <h2>{content.map.heading}</h2>
-            <p className="text-fluid-lg" style={{ color: "var(--pp-slate-500)", maxWidth: "var(--measure)", marginInline: "auto" }}>
-              {content.map.subtitle}
-            </p>
-          </div>
-          <div
-            style={{
-              borderRadius: "var(--radius-xl)",
-              overflow: "hidden",
-              boxShadow: "var(--shadow-xl)",
-              border: "1px solid var(--pp-slate-200)",
-            }}
-          >
-            <Image
-              src={content.map.src}
-              alt={content.map.alt}
-              width={1200}
-              height={800}
-              className="w-full h-auto"
-              style={{ display: "block" }}
-            />
-          </div>
-
-          {/* Gate details below map */}
           <div style={{ textAlign: "center" }}>
             <h3 className="text-step-2 font-bold" style={{ color: "var(--pp-navy-dark)", marginBottom: "var(--space-xs)" }}>
               {content.gates.heading}

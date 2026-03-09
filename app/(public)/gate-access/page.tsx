@@ -19,13 +19,13 @@ export const metadata: Metadata = {
 const content = {
   hero: {
     title: "Gate Access",
-    subtitle: "Keeping our community safe and welcoming — entry instructions for residents, visitors, and contractors.",
+    subtitle: "Keeping our community safe and welcoming — entry instructions for residents, visitors, and contractors. Note that only the Minnie Dr Gate has an entry callbox for visitors.",
   },
   callbox: {
-    heading: "Using the Entry Callbox",
+    heading: "Using the Entry Callbox (Minnie Dr Gate Only)",
     steps: [
-      "Pull up to the callbox at the main gate on Pristine Place Blvd.",
-      "Use the keypad to dial the resident's name (listed alphabetically) or enter their 4-digit directory code.",
+      "Pull up to the callbox at the main gate on St. Ives Blvd. at Minnie Dr.",
+      "Use the keypad to dial the resident's name (listed alphabetically) or enter their 3-digit directory code.",
       "The resident will receive a call and can grant access by pressing 9 on their phone.",
       "The gate will open automatically. Please allow it to fully close before proceeding.",
     ],
@@ -37,7 +37,7 @@ const content = {
       title: "Visiting a Resident",
       color: "var(--pp-navy)",
       steps: [
-        "Ask your host to provide their 4-digit callbox code in advance for a smoother entry.",
+        "Ask your host to provide their 3-digit callbox code in advance for a smoother entry.",
         "Alternatively, use the callbox to call your host directly — they'll open the gate remotely.",
         "Residents may also register expected guests with the HOA office for day-of entry without a callback.",
         "Delivery drivers (UPS, FedEx, Amazon) use a shared access code managed by the HOA — no callbox required.",
@@ -63,7 +63,7 @@ const content = {
         "Each household is issued up to two (2) gate remotes at no charge.",
         "Additional or replacement remotes are available at the HOA office for a $35 replacement fee.",
         "To pick up a remote, bring a valid photo ID and proof of residency (lease, deed, or utility bill).",
-        "Residents may also use the keypad at the gate — enter your personal 4-digit resident code to open.",
+        "Residents may also use the keypad at the gate — enter your personal 3-digit resident code to open.",
         "To update or reset your resident code, visit the HOA office or call during business hours.",
       ],
     },
@@ -163,7 +163,12 @@ export default function GateAccessPage() {
                 <s.icon className="w-6 h-6" />
               </div>
               <div className="stack-sm">
-                <h2 className="text-step-2 font-bold" style={{ color: "var(--pp-navy-dark)" }}>{s.title}</h2>
+                <h2
+                  className="text-step-2 font-bold"
+                  style={{ color: "var(--pp-navy-dark)", paddingBottom: "0.35rem" }}
+                >
+                  {s.title}
+                </h2>
                 <ol style={{ paddingLeft: "1.25rem", listStyle: "decimal", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
                   {s.steps.map((step) => (
                     <li key={step} className="text-fluid-base" style={{ color: "var(--pp-slate-600)", lineHeight: 1.6 }}>
