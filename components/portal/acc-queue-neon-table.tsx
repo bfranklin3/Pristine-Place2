@@ -1,11 +1,13 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 import { Clock3, Loader2, ShieldAlert, Trash2 } from "lucide-react"
 
 type WorkflowStatus = "initial_review" | "needs_more_info" | "committee_vote" | "approved" | "rejected"
 type WorkflowStatusFilter = "all" | WorkflowStatus
+type WorkflowSort = "submitted_desc" | "submitted_asc" | "request_number_asc" | "request_number_desc"
 type VoteValue = "approve" | "reject"
 type DecisionValue = "approve" | "reject"
 type QueueAction =
@@ -20,6 +22,7 @@ type QueueAction =
 
 type QueueEntry = {
   id: string
+  requestNumber: string
   residentName: string
   residentEmail: string
   residentPhone: string | null
@@ -45,6 +48,7 @@ type QueueEntry = {
 
 type WorkflowDetail = {
   id: string
+  requestNumber: string
   residentName: string
   residentEmail: string
   residentPhone: string | null
@@ -76,6 +80,7 @@ type WorkflowDetail = {
   attachments: Array<{
     id: string
     originalFilename: string
+    url: string
     scope: string
     mimeType: string
     fileSizeBytes: number
@@ -113,6 +118,7 @@ type QueueResponse = {
   totalPages: number
   page: number
   perPage: number
+  sort: WorkflowSort
   counts: Record<string, number>
 }
 
@@ -123,6 +129,13 @@ const STATUS_FILTERS: Array<{ key: WorkflowStatusFilter; label: string }> = [
   { key: "committee_vote", label: "Committee Vote" },
   { key: "approved", label: "Approved" },
   { key: "rejected", label: "Rejected" },
+]
+
+const SORT_OPTIONS: Array<{ key: WorkflowSort; label: string }> = [
+  { key: "submitted_desc", label: "Submitted: Newest First" },
+  { key: "submitted_asc", label: "Submitted: Oldest First" },
+  { key: "request_number_asc", label: "Submit ID: A-Z" },
+  { key: "request_number_desc", label: "Submit ID: Z-A" },
 ]
 
 function statusLabel(status: WorkflowStatus) {
@@ -138,6 +151,13 @@ function formatDateTime(value: string | null) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return "—"
   return date.toLocaleString()
+}
+
+function formatDateOnly(value: string | null) {
+  if (!value) return "—"
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return "—"
+  return date.toLocaleDateString()
 }
 
 function toDateTimeLocalValue(value: string | null) {
@@ -193,12 +213,15 @@ type Props = {
 }
 
 export function AccQueueNeonTable(props: Props) {
+  const searchParams = useSearchParams()
+  const requestedSelectedId = searchParams.get("selected")
   const [entries, setEntries] = useState<QueueEntry[]>([])
   const [counts, setCounts] = useState<Record<string, number>>({})
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [perPage] = useState(25)
   const [status, setStatus] = useState<WorkflowStatusFilter>("all")
+  const [sort, setSort] = useState<WorkflowSort>("submitted_desc")
   const [queryInput, setQueryInput] = useState("")
   const [query, setQuery] = useState("")
   const [loading, setLoading] = useState(true)
@@ -213,7 +236,19 @@ export function AccQueueNeonTable(props: Props) {
   const [voteDeadlineAt, setVoteDeadlineAt] = useState("")
   const [purgeConfirm, setPurgeConfirm] = useState("")
   const [saving, setSaving] = useState(false)
+  const [uploadingAttachments, setUploadingAttachments] = useState(false)
+  const [internalAttachmentFiles, setInternalAttachmentFiles] = useState<File[]>([])
+  const [attachmentInputKey, setAttachmentInputKey] = useState(0)
   const [statusMessage, setStatusMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
+  const autoSelectedIdRef = useRef<string | null>(null)
+
+  function resetFilters() {
+    setQueryInput("")
+    setQuery("")
+    setStatus("all")
+    setSort("submitted_desc")
+    setPage(1)
+  }
 
   const fetchEntries = useCallback(async () => {
     setLoading(true)
@@ -221,6 +256,7 @@ export function AccQueueNeonTable(props: Props) {
     try {
       const params = new URLSearchParams()
       params.set("status", status)
+      params.set("sort", sort)
       params.set("page", String(page))
       params.set("per_page", String(perPage))
       if (query.trim()) params.set("q", query.trim())
@@ -232,10 +268,15 @@ export function AccQueueNeonTable(props: Props) {
       setEntries(body.entries || [])
       setCounts(body.counts || {})
       setTotal(body.total || 0)
+      setSort(body.sort || "submitted_desc")
 
       if (!selectedId && body.entries?.[0]?.id) {
         setSelectedId(body.entries[0].id)
-      } else if (selectedId && !body.entries?.some((entry) => entry.id === selectedId)) {
+      } else if (
+        selectedId &&
+        !body.entries?.some((entry) => entry.id === selectedId) &&
+        autoSelectedIdRef.current !== selectedId
+      ) {
         setSelectedId(body.entries?.[0]?.id || null)
       }
     } catch (err) {
@@ -243,7 +284,7 @@ export function AccQueueNeonTable(props: Props) {
     } finally {
       setLoading(false)
     }
-  }, [page, perPage, query, selectedId, status])
+  }, [page, perPage, query, selectedId, sort, status])
 
   const fetchDetail = useCallback(async (requestId: string) => {
     setDetailLoading(true)
@@ -273,6 +314,16 @@ export function AccQueueNeonTable(props: Props) {
   useEffect(() => {
     fetchEntries()
   }, [fetchEntries])
+
+  useEffect(() => {
+    if (!requestedSelectedId) {
+      autoSelectedIdRef.current = null
+      return
+    }
+    if (autoSelectedIdRef.current === requestedSelectedId) return
+    setSelectedId(requestedSelectedId)
+    autoSelectedIdRef.current = requestedSelectedId
+  }, [requestedSelectedId])
 
   useEffect(() => {
     if (!selectedId) {
@@ -331,6 +382,74 @@ export function AccQueueNeonTable(props: Props) {
     }
   }
 
+  async function uploadManagementAttachments() {
+    if (!detail || internalAttachmentFiles.length === 0) return
+
+    setUploadingAttachments(true)
+    setStatusMessage(null)
+
+    try {
+      const formData = new FormData()
+      for (const file of internalAttachmentFiles) {
+        formData.append("files", file, file.name)
+      }
+
+      const res = await fetch(`/api/acc/queue/${detail.id}/attachments`, {
+        method: "POST",
+        body: formData,
+      })
+      const body = (await res.json().catch(() => ({}))) as {
+        request?: WorkflowDetail
+        error?: string
+        detail?: string
+        validationErrors?: string[]
+      }
+
+      if (!res.ok || !body.request) {
+        throw new Error(body.validationErrors?.[0] || body.error || body.detail || "Failed to upload attachments.")
+      }
+
+      setDetail(body.request)
+      setInternalAttachmentFiles([])
+      setAttachmentInputKey((current) => current + 1)
+      setStatusMessage({ type: "success", text: "Attachments uploaded." })
+      await fetchEntries()
+    } catch (err) {
+      setStatusMessage({ type: "error", text: err instanceof Error ? err.message : "Failed to upload attachments." })
+    } finally {
+      setUploadingAttachments(false)
+    }
+  }
+
+  async function deleteManagementAttachment(attachmentId: string) {
+    if (!detail) return
+
+    setUploadingAttachments(true)
+    setStatusMessage(null)
+    try {
+      const res = await fetch(`/api/acc/queue/${detail.id}/attachments/${attachmentId}`, {
+        method: "DELETE",
+      })
+      const body = (await res.json().catch(() => ({}))) as {
+        request?: WorkflowDetail
+        error?: string
+        detail?: string
+      }
+
+      if (!res.ok || !body.request) {
+        throw new Error(body.error || body.detail || "Failed to delete attachment.")
+      }
+
+      setDetail(body.request)
+      setStatusMessage({ type: "success", text: "Attachment deleted." })
+      await fetchEntries()
+    } catch (err) {
+      setStatusMessage({ type: "error", text: err instanceof Error ? err.message : "Failed to delete attachment." })
+    } finally {
+      setUploadingAttachments(false)
+    }
+  }
+
   const pageStart = total === 0 ? 0 : (page - 1) * perPage + 1
   const pageEnd = Math.min(total, page * perPage)
 
@@ -350,7 +469,7 @@ export function AccQueueNeonTable(props: Props) {
           <input
             value={queryInput}
             onChange={(event) => setQueryInput(event.target.value)}
-            placeholder="Search name, address, title, or description"
+            placeholder="Search request number, name, address, title, or description"
             style={{ width: "100%", border: "1.5px solid var(--pp-slate-200)", borderRadius: "var(--radius-sm)", padding: "0.7rem 0.8rem" }}
           />
           <select
@@ -365,8 +484,23 @@ export function AccQueueNeonTable(props: Props) {
               <option key={filter.key} value={filter.key}>{filter.label}</option>
             ))}
           </select>
+          <select
+            value={sort}
+            onChange={(event) => {
+              setSort(event.target.value as WorkflowSort)
+              setPage(1)
+            }}
+            style={{ width: "100%", border: "1.5px solid var(--pp-slate-200)", borderRadius: "var(--radius-sm)", padding: "0.7rem 0.8rem" }}
+          >
+            {SORT_OPTIONS.map((option) => (
+              <option key={option.key} value={option.key}>{option.label}</option>
+            ))}
+          </select>
           <button type="button" className="btn btn-primary" onClick={() => { setQuery(queryInput); setPage(1) }}>
             Filter
+          </button>
+          <button type="button" className="btn btn-secondary" onClick={resetFilters}>
+            Clear
           </button>
         </div>
       </div>
@@ -405,7 +539,7 @@ export function AccQueueNeonTable(props: Props) {
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr style={{ background: "#f8fafc", textAlign: "left" }}>
-                  {["Resident", "Request", "Status", "Submitted"].map((heading) => (
+                  {["Submit ID", "Resident", "Request", "Status", "Submitted"].map((heading) => (
                     <th key={heading} style={{ padding: "0.8rem 1rem", fontSize: "0.8rem", color: "var(--pp-slate-600)" }}>{heading}</th>
                   ))}
                 </tr>
@@ -421,6 +555,9 @@ export function AccQueueNeonTable(props: Props) {
                       background: selectedId === entry.id ? "#f8fafc" : "transparent",
                     }}
                   >
+                    <td style={{ padding: "0.85rem 1rem", verticalAlign: "top", whiteSpace: "nowrap" }}>
+                      <div style={{ fontWeight: 700, color: "var(--pp-navy-dark)", fontFamily: "monospace" }}>{entry.requestNumber}</div>
+                    </td>
                     <td style={{ padding: "0.85rem 1rem", verticalAlign: "top" }}>
                       <div style={{ fontWeight: 700, color: "var(--pp-navy-dark)" }}>{entry.residentName}</div>
                       <div className="text-fluid-sm" style={{ color: "var(--pp-slate-600)" }}>{entry.residentAddress || "No address"}</div>
@@ -436,13 +573,13 @@ export function AccQueueNeonTable(props: Props) {
                       ) : null}
                     </td>
                     <td style={{ padding: "0.85rem 1rem", verticalAlign: "top", color: "var(--pp-slate-600)" }}>
-                      {formatDateTime(entry.submittedAt)}
+                      {formatDateOnly(entry.submittedAt)}
                     </td>
                   </tr>
                 ))}
                 {!loading && entries.length === 0 ? (
                   <tr>
-                    <td colSpan={4} style={{ padding: "1rem", textAlign: "center", color: "var(--pp-slate-600)" }}>
+                    <td colSpan={5} style={{ padding: "1rem", textAlign: "center", color: "var(--pp-slate-600)" }}>
                       No workflow requests match the current filters.
                     </td>
                   </tr>
@@ -468,6 +605,8 @@ export function AccQueueNeonTable(props: Props) {
                 <div>
                   <h3 style={{ margin: 0, color: "var(--pp-navy-dark)" }}>{detail.title || "ACC Request"}</h3>
                   <div className="text-fluid-sm" style={{ color: "var(--pp-slate-600)", marginTop: "0.25rem" }}>
+                    <span style={{ fontFamily: "monospace", fontWeight: 700 }}>{detail.requestNumber}</span>
+                    {" • "}
                     {detail.residentName} • {detail.residentAddress || "No address"}
                   </div>
                 </div>
@@ -576,6 +715,12 @@ export function AccQueueNeonTable(props: Props) {
                   <strong>Workflow Actions</strong>
                 </div>
 
+                {props.canControlWorkflow && detail.status === "initial_review" ? (
+                  <p style={{ margin: "0 0 0.75rem 0" }}>
+                    <Link href={`/resident-portal/management/acc-queue/${detail.id}/edit`}>Open full edit form</Link>
+                  </p>
+                ) : null}
+
                 <textarea
                   value={actionNote}
                   onChange={(event) => setActionNote(event.target.value)}
@@ -661,25 +806,64 @@ export function AccQueueNeonTable(props: Props) {
                 ) : null}
               </div>
 
-              {detail.attachments.length === 0 ? (
-                <div className="text-fluid-sm" style={{ color: "var(--pp-slate-600)" }}>
-                  No native attachments have been added yet.
-                </div>
-              ) : (
-                <div>
-                  <strong>Attachments</strong>
+              <div>
+                <strong>Attachments</strong>
+                {detail.attachments.length === 0 ? (
+                  <div className="text-fluid-sm" style={{ color: "var(--pp-slate-600)", marginTop: "0.45rem" }}>
+                    No native attachments have been added yet.
+                  </div>
+                ) : (
                   <div className="stack" style={{ gap: "0.45rem", marginTop: "0.5rem" }}>
                     {detail.attachments.map((attachment) => (
                       <div key={attachment.id} style={{ padding: "0.7rem", borderRadius: "var(--radius-sm)", background: "#f8fafc" }}>
-                        <div style={{ fontWeight: 700 }}>{attachment.originalFilename}</div>
+                        <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", flexWrap: "wrap" }}>
+                          <a href={attachment.url} target="_blank" rel="noopener noreferrer" style={{ fontWeight: 700 }}>
+                            {attachment.originalFilename}
+                          </a>
+                          {props.canControlWorkflow ? (
+                            <button
+                              type="button"
+                              className="btn btn-secondary"
+                              disabled={uploadingAttachments}
+                              onClick={() => deleteManagementAttachment(attachment.id)}
+                            >
+                              Delete
+                            </button>
+                          ) : null}
+                        </div>
                         <div className="text-fluid-sm" style={{ color: "var(--pp-slate-600)" }}>
-                          {attachment.mimeType} • {attachment.fileSizeBytes} bytes
+                          {attachment.mimeType} • {attachment.fileSizeBytes} bytes • {attachment.scope}
                         </div>
                       </div>
                     ))}
                   </div>
-                </div>
-              )}
+                )}
+                {props.canControlWorkflow && detail.status === "initial_review" ? (
+                  <div style={{ marginTop: "0.75rem", display: "grid", gap: "0.5rem" }}>
+                    <input
+                      key={attachmentInputKey}
+                      type="file"
+                      multiple
+                      onChange={(event) => setInternalAttachmentFiles(Array.from(event.target.files ?? []))}
+                    />
+                    <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "center" }}>
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        disabled={uploadingAttachments || internalAttachmentFiles.length === 0}
+                        onClick={uploadManagementAttachments}
+                      >
+                        {uploadingAttachments ? "Uploading..." : "Upload attachments"}
+                      </button>
+                      <span className="text-fluid-sm" style={{ color: "var(--pp-slate-600)" }}>
+                        {internalAttachmentFiles.length
+                          ? `${internalAttachmentFiles.length} file${internalAttachmentFiles.length === 1 ? "" : "s"} selected`
+                          : "No files selected"}
+                      </span>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
             </div>
           ) : null}
         </div>

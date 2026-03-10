@@ -1,7 +1,7 @@
 # ACC Workflow Implementation Checklist
 
-Version: 1.0  
-Last updated: March 9, 2026  
+Version: 1.1  
+Last updated: March 10, 2026  
 Related documents:
 - [`docs/acc-workflow-spec.md`](./acc-workflow-spec.md)
 - [`docs/acc-workflow-implementation-plan.md`](./acc-workflow-implementation-plan.md)
@@ -54,6 +54,9 @@ Convert the ACC workflow plan into a build checklist tied to the current codebas
 - [ ] Confirm whether workflow requests link to `Residency`, `Household`, and/or `clerkUserId` directly.
 - [ ] Confirm whether workflow attachments use existing storage plumbing or need a new provider abstraction.
 - [ ] Confirm whether the current imported ACC queue stays read-only after native workflow cutover or remains as legacy history.
+- [ ] Confirm native request numbering format:
+  - `REQ-YYYY-NNNN`
+  - separate from permit number format `YY-NNN`
 - [ ] Confirm purge scope:
   - native workflow requests only
   - delete request + votes + attachments + events
@@ -66,21 +69,26 @@ Convert the ACC workflow plan into a build checklist tied to the current codebas
 
 - [ ] Add workflow enums for request status, final decision, actor role, and event type.
 - [ ] Add workflow request model with:
+  - `requestNumber`
   - resident snapshot fields
   - normalized status
   - `reviewCycle`
   - `residentActionNote`
   - final decision fields
   - lock/finalization timestamps
+- [ ] Add annual request-number sequence model/table for native workflow requests.
+- [ ] Add unique constraint and lookup index for native `requestNumber`.
 - [ ] Add workflow vote model with unique constraint on `(requestId, reviewCycle, voterUserId)`.
 - [ ] Add workflow attachment model with uploader role metadata and storage key.
 - [ ] Add immutable workflow event model with `reviewCycle`, actor, note, and metadata.
 - [ ] Add indexes for resident lookup, review status queues, and deadline queries.
 - [ ] Write Prisma migration and validate it against existing ACC import tables.
+- [x] Confirm pre-existing native workflow rows are disposable test data and can be deleted before making `requestNumber` required.
 
 ### 2. Shared Domain Logic
 
 - [ ] Add central workflow constants/types for statuses, decisions, roles, and event names.
+- [ ] Add request-number generator helper using annual transactional sequence reservation.
 - [ ] Add state-transition guards for:
   - submit -> `initial_review`
   - `initial_review` -> `needs_more_info`
@@ -97,6 +105,7 @@ Convert the ACC workflow plan into a build checklist tied to the current codebas
 
 - [ ] Implement `POST /api/acc/requests`.
   - Creates workflow request in `initial_review`
+  - Assigns `REQ-YYYY-NNNN`
   - Writes initial event
   - Stores resident snapshot
 - [ ] Implement `GET /api/acc/requests`.
@@ -135,6 +144,7 @@ Convert the ACC workflow plan into a build checklist tied to the current codebas
 - [ ] Add resident attachment upload flow tied to workflow request records.
 - [ ] Add `My ACC Requests` page.
 - [ ] Add resident request detail page.
+- [ ] Show human-facing native request number in resident and management UI instead of raw `cuid()`.
 - [ ] Add `needs_more_info` presentation:
   - chair note
   - editable fields
@@ -169,6 +179,7 @@ Convert the ACC workflow plan into a build checklist tied to the current codebas
 - [ ] Send chair notification on resident resubmission.
 - [ ] Send committee notification on send-to-vote.
 - [ ] Send resident notification on final decision.
+- [ ] Create the ACC workflow Sanity `emailTemplate` documents using `docs/acc-workflow-email-template-reference.md`.
 - [ ] Add notification test mode so live recipients are not emailed during testing.
 - [ ] Decide whether notifications run inline first or via retry-safe job mechanism.
 

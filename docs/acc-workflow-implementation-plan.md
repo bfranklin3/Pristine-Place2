@@ -1,7 +1,7 @@
 # ACC Workflow Implementation Plan
 
-Version: 1.1  
-Last updated: March 9, 2026  
+Version: 1.2  
+Last updated: March 10, 2026  
 Related spec: [`docs/acc-workflow-spec.md`](./acc-workflow-spec.md)
 Current-surface checklist: [`docs/acc-workflow-implementation-checklist.md`](./acc-workflow-implementation-checklist.md)
 Prisma proposal: [`docs/acc-workflow-prisma-model-proposal.md`](./acc-workflow-prisma-model-proposal.md)
@@ -51,11 +51,13 @@ This document describes the target Neon workflow and phased implementation towar
 - Define normalized workflow data model.
 - Implement role checks for chair/member/admin.
 - Prepare shared status/action constants.
+- Define native request numbering separate from permit numbering.
 
 ### Deliverables
 
 - Database schema/migrations for:
   - `acc_requests`
+  - `acc_request_number_sequences`
   - `acc_votes`
   - `acc_attachments`
   - `acc_events` (audit log)
@@ -71,6 +73,7 @@ This document describes the target Neon workflow and phased implementation towar
 - Schema migrated in dev.
 - Seed/sample data validates constraints.
 - Role helpers pass unit tests.
+- Native requests can be assigned `REQ-YYYY-NNNN` numbers without race conditions.
 
 ---
 
@@ -216,6 +219,7 @@ This document describes the target Neon workflow and phased implementation towar
 ## `acc_requests`
 
 - `id` (uuid)
+- `request_number` (`REQ-YYYY-NNNN`, unique, user-facing; internal `id` remains technical primary key)
 - `resident_user_id`
 - `resident_name`
 - `resident_email`
@@ -238,6 +242,17 @@ This document describes the target Neon workflow and phased implementation towar
 - `verified_by_user_id` (nullable)
 - `verification_note` (nullable)
 - `locked_at` (nullable)
+
+## Native Request Numbering
+
+- Native workflow requests should display a separate human-facing request number.
+- Format:
+  - `REQ-YYYY-NNNN`
+  - example: `REQ-2026-0042`
+- This must remain visually distinct from permit numbers, which keep the existing `YY-NNN` format, for example `26-034`.
+- The raw internal Prisma `cuid()` must remain the database primary key and should not be used as the main display identifier.
+- Request number generation should use a dedicated yearly sequence table and run transactionally during request creation.
+- Because the pre-existing native workflow rows were disposable test data and were deleted before rollout, request numbering can be introduced as required in a single migration.
 - `created_at`, `updated_at`
 
 ## `acc_votes`
@@ -465,6 +480,8 @@ All endpoints assume authenticated portal user. Role checks enforced server-side
 
 - Committee metadata structure (including chair flags) on Resident Directory
 - Email templates and sender identity for ACC notifications
+- Sanity template keys/placeholders reference:
+  - `docs/acc-workflow-email-template-reference.md`
 - Notification test mode behavior:
   - reroute all ACC workflow emails to configured admin test inbox (preferred)
   - or suppress all ACC workflow emails

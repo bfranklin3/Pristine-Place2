@@ -3,7 +3,13 @@
 import type React from "react"
 import type { Metadata } from "next"
 import { ClerkProvider } from "@clerk/nextjs"
+import { cookies } from "next/headers"
 import "./globals.css"
+import {
+  PORTAL_TEST_SESSION_COOKIE,
+  PORTAL_TEST_SESSION_TOKEN_COOKIE,
+  isPortalTestSessionEnabled,
+} from "@/lib/auth/test-session"
 import { siteConfig } from "@/lib/site-config"
 
 export const metadata: Metadata = {
@@ -71,12 +77,17 @@ export const metadata: Metadata = {
   },
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
   const clerkPublishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+  const cookieStore = await cookies()
+  const hasPortalTestSession =
+    isPortalTestSessionEnabled() &&
+    Boolean(cookieStore.get(PORTAL_TEST_SESSION_COOKIE)?.value?.trim()) &&
+    cookieStore.get(PORTAL_TEST_SESSION_TOKEN_COOKIE)?.value?.trim() === process.env.PORTAL_TEST_SESSION_SECRET
   const organizationSchema = {
     "@context": "https://schema.org",
     "@type": "Organization",
@@ -132,7 +143,7 @@ export default function RootLayout({
         />
       </head>
       <body>
-        {clerkPublishableKey ? <ClerkProvider>{children}</ClerkProvider> : children}
+        {clerkPublishableKey && !hasPortalTestSession ? <ClerkProvider>{children}</ClerkProvider> : children}
       </body>
     </html>
   )

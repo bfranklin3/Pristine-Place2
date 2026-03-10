@@ -1,8 +1,8 @@
-import { auth, currentUser } from "@clerk/nextjs/server"
 import { NextResponse } from "next/server"
 import { getUserCommittees, hasAnyCommittee } from "@/lib/auth/portal-admin"
 import type { CommitteeSlug } from "@/lib/portal/committees"
 import { hasCapability, type CapabilityKey } from "@/lib/auth/permissions"
+import { getPortalSession } from "@/lib/auth/portal-session"
 
 export interface AccessApiIdentity {
   userId: string
@@ -12,12 +12,11 @@ export interface AccessApiIdentity {
 export async function requireManagementApiAccess(
   allowedRoles: Array<CommitteeSlug | "admin">,
 ): Promise<{ ok: true; identity: AccessApiIdentity } | { ok: false; response: NextResponse }> {
-  const { userId } = await auth()
+  const { userId, user } = await getPortalSession()
   if (!userId) {
     return { ok: false, response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) }
   }
 
-  const user = await currentUser()
   const isApproved = user?.publicMetadata?.portalApproved === true
 
   if (!isApproved && !hasAnyCommittee(user, ["admin"])) {
@@ -40,12 +39,11 @@ export async function requireManagementCapabilityAccess(
   requiredCapabilities: CapabilityKey[],
   mode: "all" | "any" = "all",
 ): Promise<{ ok: true; identity: AccessApiIdentity } | { ok: false; response: NextResponse }> {
-  const { userId } = await auth()
+  const { userId, user } = await getPortalSession()
   if (!userId) {
     return { ok: false, response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) }
   }
 
-  const user = await currentUser()
   const isApproved = user?.publicMetadata?.portalApproved === true
 
   if (!isApproved && !hasAnyCommittee(user, ["admin"])) {

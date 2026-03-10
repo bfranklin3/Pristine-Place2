@@ -77,10 +77,11 @@ const fullTerms = [
 ]
 
 type AccSubmitPageClientProps = {
-  mode?: "create" | "edit"
+  mode?: "create" | "edit" | "management-edit"
   requestId?: string
   initialFormData?: Partial<AccSubmitFormState>
   residentActionNote?: string | null
+  backHref?: string
 }
 
 export function AccSubmitPageClient({
@@ -88,10 +89,12 @@ export function AccSubmitPageClient({
   requestId,
   initialFormData,
   residentActionNote = null,
+  backHref,
 }: AccSubmitPageClientProps = {}) {
   const router = useRouter()
   const [form, setForm] = useState<AccSubmitFormState>({ ...initialForm, ...(initialFormData || {}) })
-  const [agreedToTerms, setAgreedToTerms] = useState(mode === "edit")
+  const requiresTerms = mode !== "management-edit"
+  const [agreedToTerms, setAgreedToTerms] = useState(mode === "edit" || !requiresTerms)
   const [showFullTerms, setShowFullTerms] = useState(false)
   const [status, setStatus] = useState<{ type: "success" | "error"; message: string } | null>(null)
   const [errors, setErrors] = useState<FormErrors>({})
@@ -132,6 +135,10 @@ export function AccSubmitPageClient({
   )
 
   function updateField<K extends keyof AccSubmitFormState>(key: K, value: AccSubmitFormState[K]) {
+    if (key === "hasSupportingDocs" && value === "no") {
+      setSelectedFiles([])
+      setUploadStatus(null)
+    }
     setForm((prev) => ({ ...prev, [key]: value }))
     setErrors((prev) => {
       if (!prev[key]) return prev
@@ -206,13 +213,38 @@ export function AccSubmitPageClient({
     return value || undefined
   }
 
+  async function uploadSelectedFiles(targetUrl: string) {
+    if (selectedFiles.length === 0) return
+
+    const formData = new FormData()
+    for (const file of selectedFiles) {
+      formData.append("files", file, file.name)
+    }
+
+    const uploadRes = await fetch(targetUrl, {
+      method: "POST",
+      body: formData,
+    })
+    const uploadBody = (await uploadRes.json().catch(() => ({}))) as {
+      error?: string
+      detail?: string
+      validationErrors?: string[]
+    }
+
+    if (!uploadRes.ok) {
+      throw new Error(
+        uploadBody.validationErrors?.[0] || uploadBody.error || uploadBody.detail || "Failed to upload ACC attachments.",
+      )
+    }
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
     setStatus(null)
 
     const nextErrors: FormErrors = {}
 
-    if (!agreedToTerms) nextErrors.agreedToTerms = "Please acknowledge the Terms & Conditions."
+    if (requiresTerms && !agreedToTerms) nextErrors.agreedToTerms = "Please acknowledge the Terms & Conditions."
     if (!form.ownerName.trim()) nextErrors.ownerName = "Owner name is required."
     if (!form.streetAddress.trim()) nextErrors.streetAddress = "Street address is required."
     if (!form.ownerPhone.trim()) nextErrors.ownerPhone = "Owner phone number is required."
@@ -262,14 +294,6 @@ export function AccSubmitPageClient({
       return
     }
 
-    if (form.hasSupportingDocs === "yes") {
-      setStatus({
-        type: "error",
-        message: "Native ACC attachment uploads are not wired yet. For now, submit without files or continue using the existing WordPress path for attachment-based requests.",
-      })
-      return
-    }
-
     setIsSubmitting(true)
     try {
       if (mode === "edit") {
@@ -291,6 +315,10 @@ export function AccSubmitPageClient({
           throw new Error(
             patchBody.validationErrors?.[0] || patchBody.error || patchBody.detail || "Failed to update ACC request.",
           )
+        }
+
+        if (form.hasSupportingDocs === "yes" && selectedFiles.length > 0) {
+          await uploadSelectedFiles(`/api/acc/requests/${requestId}/attachments`)
         }
 
         const resubmitRes = await fetch(`/api/acc/requests/${requestId}/resubmit`, {
@@ -315,6 +343,36 @@ export function AccSubmitPageClient({
         return
       }
 
+      if (mode === "management-edit") {
+        if (!requestId) {
+          throw new Error("Missing ACC request id for management edit mode.")
+        }
+
+        const res = await fetch(`/api/acc/queue/${requestId}/edit`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ formData: form }),
+        })
+        const body = (await res.json().catch(() => ({}))) as {
+          request?: { id: string }
+          error?: string
+          detail?: string
+          validationErrors?: string[]
+        }
+        if (!res.ok || !body.request) {
+          throw new Error(body.validationErrors?.[0] || body.error || body.detail || "Failed to update ACC request.")
+        }
+
+        if (form.hasSupportingDocs === "yes" && selectedFiles.length > 0) {
+          await uploadSelectedFiles(`/api/acc/queue/${requestId}/attachments`)
+        }
+
+        setStatus({ type: "success", message: "The ACC request was updated." })
+        router.push(backHref || "/resident-portal/management/acc-queue")
+        router.refresh()
+        return
+      }
+
       const res = await fetch("/api/acc/requests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -330,9 +388,13 @@ export function AccSubmitPageClient({
         throw new Error(body.validationErrors?.[0] || body.error || body.detail || "Failed to create ACC request.")
       }
 
+      if (form.hasSupportingDocs === "yes" && selectedFiles.length > 0) {
+        await uploadSelectedFiles(`/api/acc/requests/${body.request.id}/attachments`)
+      }
+
       setStatus({ type: "success", message: "Your ACC request was submitted successfully." })
       setForm(initialForm)
-      setAgreedToTerms(false)
+      setAgreedToTerms(!requiresTerms)
       setSelectedFiles([])
       setUploadStatus(null)
       router.push(`/resident-portal/acc/requests/${body.request.id}`)
@@ -365,10 +427,14 @@ export function AccSubmitPageClient({
               Resident Portal
             </span>
           </div>
-          <h1 className="hero-title">{mode === "edit" ? "Update ACC Request" : "Submit ACC Request"}</h1>
+          <h1 className="hero-title">
+            {mode === "edit" ? "Update ACC Request" : mode === "management-edit" ? "Edit ACC Request" : "Submit ACC Request"}
+          </h1>
           <p className="hero-subtitle" style={{ maxWidth: "58ch" }}>
             {mode === "edit"
               ? "Update your ACC request with the additional information requested by the committee."
+              : mode === "management-edit"
+                ? "Review and correct ACC request details before the initial review decision."
               : "Planning an exterior modification? Submit your request here for ACC review."}
           </p>
         </div>
@@ -385,7 +451,9 @@ export function AccSubmitPageClient({
             }}
           >
             <p className="text-fluid-base" style={{ color: "var(--pp-slate-700)", lineHeight: 1.7, marginBottom: "0.9rem" }}>
-              Before you begin, review the requirements for your project type below. Submitting this form confirms your agreement to the community Terms &amp; Conditions.
+              {requiresTerms
+                ? "Before you begin, review the requirements for your project type below. Submitting this form confirms your agreement to the community Terms & Conditions."
+                : "Review the original request details below, make any needed corrections, and save the updated request back into the ACC workflow."}
             </p>
 
             <button
@@ -474,32 +542,34 @@ export function AccSubmitPageClient({
               ) : null}
 
               <form onSubmit={onSubmit} style={{ marginTop: "1rem", display: "grid", gap: "1rem" }}>
-                <div
-                  style={{
-                    border: "1px solid #d4e8da",
-                    borderRadius: "var(--radius-md)",
-                    background: "#f8fffb",
-                    padding: "0.8rem 0.9rem",
-                  }}
-                >
-                  <p className="text-fluid-sm" style={{ fontWeight: 700, color: "var(--pp-slate-700)", marginBottom: "0.45rem" }}>
-                    Terms & Conditions
-                  </p>
-                  <label style={{ display: "flex", alignItems: "flex-start", gap: "0.5rem", cursor: "pointer" }}>
-                    <input
-                      type="checkbox"
-                      checked={agreedToTerms}
-                      onChange={(e) => setTerms(e.target.checked)}
-                      style={{ marginTop: "0.2rem" }}
-                      aria-invalid={!!errors.agreedToTerms}
-                      aria-describedby={errors.agreedToTerms ? "agreedToTerms-error" : undefined}
-                    />
-                    <span style={{ color: "var(--pp-slate-700)", fontWeight: 600, lineHeight: 1.5 }}>
-                      I hereby acknowledge that I have read and consent to the Pristine Place Terms & Conditions.
-                    </span>
-                  </label>
-                  {errors.agreedToTerms ? <small id="agreedToTerms-error" style={errorStyle}>{errors.agreedToTerms}</small> : null}
-                </div>
+                {requiresTerms ? (
+                  <div
+                    style={{
+                      border: "1px solid #d4e8da",
+                      borderRadius: "var(--radius-md)",
+                      background: "#f8fffb",
+                      padding: "0.8rem 0.9rem",
+                    }}
+                  >
+                    <p className="text-fluid-sm" style={{ fontWeight: 700, color: "var(--pp-slate-700)", marginBottom: "0.45rem" }}>
+                      Terms & Conditions
+                    </p>
+                    <label style={{ display: "flex", alignItems: "flex-start", gap: "0.5rem", cursor: "pointer" }}>
+                      <input
+                        type="checkbox"
+                        checked={agreedToTerms}
+                        onChange={(e) => setTerms(e.target.checked)}
+                        style={{ marginTop: "0.2rem" }}
+                        aria-invalid={!!errors.agreedToTerms}
+                        aria-describedby={errors.agreedToTerms ? "agreedToTerms-error" : undefined}
+                      />
+                      <span style={{ color: "var(--pp-slate-700)", fontWeight: 600, lineHeight: 1.5 }}>
+                        I hereby acknowledge that I have read and consent to the Pristine Place Terms & Conditions.
+                      </span>
+                    </label>
+                    {errors.agreedToTerms ? <small id="agreedToTerms-error" style={errorStyle}>{errors.agreedToTerms}</small> : null}
+                  </div>
+                ) : null}
 
                 <div style={{ borderTop: "1px solid var(--pp-slate-200)", paddingTop: "0.9rem" }}>
                   <p className="text-fluid-sm" style={{ fontWeight: 700, color: "var(--pp-navy-dark)", marginBottom: "0.55rem" }}>

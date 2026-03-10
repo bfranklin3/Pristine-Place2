@@ -58,6 +58,18 @@ const managementItems = [
     allowed: ["admin"] as Array<CommitteeSlug | "admin">,
   },
   {
+    label: "ACC All Submissions",
+    href: "/resident-portal/management/acc-dashboard",
+    description: "Combined native and legacy ACC dashboard",
+    allowed: ["admin", "acc", "board_of_directors"] as Array<CommitteeSlug | "admin">,
+  },
+  {
+    label: "ACC All Submissions (Redacted)",
+    href: "/resident-portal/management/acc-dashboard-redacted",
+    description: "Combined ACC dashboard with identity fields redacted",
+    allowed: ["admin", "acc", "board_of_directors"] as Array<CommitteeSlug | "admin">,
+  },
+  {
     label: "ACC Workflow Queue",
     href: "/resident-portal/management/acc-queue",
     description: "Review ACC applications (ACC committee)",
@@ -163,6 +175,8 @@ function categorizeManagementItems(items: ManagementItem[]) {
   }
 
   const orderedOperations = orderByHref(operations, [
+    "/resident-portal/management/acc-dashboard",
+    "/resident-portal/management/acc-dashboard-redacted",
     "/resident-portal/management/acc-queue",
     "/resident-portal/management/access",
     "/resident-portal/management/resident-360",
@@ -191,9 +205,35 @@ type DropdownKey = "community" | "resources" | "services" | "management" | "acco
 
 /* ── Component ───────────────────────────────────────────────────── */
 
-export function PortalHeader({ isAdmin, committees }: { isAdmin: boolean; committees: CommitteeSlug[] }) {
+type PortalHeaderProps = {
+  isAdmin: boolean
+  committees: CommitteeSlug[]
+  enableClerkClient?: boolean
+}
+
+function PortalHeaderWithClerk(props: PortalHeaderProps) {
   const pathname = usePathname()
   const { signOut } = useClerk()
+  return (
+    <PortalHeaderContent
+      {...props}
+      pathname={pathname}
+      onSignOut={() => signOut({ redirectUrl: "/" })}
+    />
+  )
+}
+
+function PortalHeaderContent({
+  isAdmin,
+  committees,
+  pathname,
+  onSignOut,
+}: {
+  isAdmin: boolean
+  committees: CommitteeSlug[]
+  pathname: string
+  onSignOut: () => Promise<void> | void
+}) {
   const visibleManagementItems = managementItems.filter(
     (item) => item.allowed.includes("admin") && isAdmin || item.allowed.some((role) => role !== "admin" && committees.includes(role)),
   )
@@ -262,7 +302,7 @@ export function PortalHeader({ isAdmin, committees }: { isAdmin: boolean; commit
   }
 
   const handleSignOut = async () => {
-    await signOut({ redirectUrl: "/" })
+    await onSignOut()
   }
 
   /* ── Helpers ── */
@@ -838,4 +878,22 @@ export function PortalHeader({ isAdmin, committees }: { isAdmin: boolean; commit
       <SearchModal isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
     </header>
   )
+}
+
+export function PortalHeader({ enableClerkClient = true, ...props }: PortalHeaderProps) {
+  const pathname = usePathname()
+
+  if (!enableClerkClient) {
+    return (
+      <PortalHeaderContent
+        {...props}
+        pathname={pathname}
+        onSignOut={() => {
+          window.location.assign("/")
+        }}
+      />
+    )
+  }
+
+  return <PortalHeaderWithClerk {...props} />
 }

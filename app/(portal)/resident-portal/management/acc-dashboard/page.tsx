@@ -1,20 +1,17 @@
 import type { Metadata } from "next"
+import Link from "next/link"
 import { FileText, Shield } from "lucide-react"
 import { siteConfig } from "@/lib/site-config"
-import { getAccWorkflowActorContext } from "@/lib/acc-workflow/actors"
 import { requirePortalCapabilityPageAccess } from "@/lib/auth/portal-admin"
-import { getPortalSession } from "@/lib/auth/portal-session"
-import { AccQueueNeonTable } from "@/components/portal/acc-queue-neon-table"
+import { AccCombinedDashboardTable } from "@/components/portal/acc-combined-dashboard-table"
 
 export const metadata: Metadata = {
-  title: `ACC Workflow Queue | ${siteConfig.name} Resident Portal`,
-  description: "Neon-backed ACC workflow queue.",
+  title: `ACC All Submissions | ${siteConfig.name} Resident Portal`,
+  description: "Combined ACC dashboard across native workflow and WordPress legacy submissions.",
 }
 
-export default async function AccQueuePage() {
-  await requirePortalCapabilityPageAccess(["acc.view"], "/resident-portal/management/acc-queue")
-  const { user } = await getPortalSession()
-  const actor = getAccWorkflowActorContext(user)
+export default async function AccDashboardPage() {
+  await requirePortalCapabilityPageAccess(["acc.view"], "/resident-portal/management/acc-dashboard")
 
   return (
     <>
@@ -33,9 +30,9 @@ export default async function AccQueuePage() {
               Management
             </span>
           </div>
-          <h1 className="hero-title">ACC Workflow Queue</h1>
-          <p className="hero-subtitle" style={{ maxWidth: "56ch" }}>
-            Neon-backed queue for ACC requests with workflow filtering and status updates.
+          <h1 className="hero-title">ACC All Submissions</h1>
+          <p className="hero-subtitle" style={{ maxWidth: "58ch" }}>
+            Read-only dashboard showing both native Neon workflow requests and legacy WordPress ACC submissions in one place.
           </p>
         </div>
       </section>
@@ -45,16 +42,18 @@ export default async function AccQueuePage() {
           <div className="stack" style={{ gap: "var(--space-l)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
               <FileText style={{ width: "1.25rem", height: "1.25rem", color: "var(--pp-navy)" }} />
-              <h2 style={{ color: "var(--pp-navy-dark)" }}>ACC Permit Requests (Neon)</h2>
+              <h2 style={{ color: "var(--pp-navy-dark)" }}>Combined ACC Dashboard</h2>
             </div>
 
-            <AccQueueNeonTable
-              canControlWorkflow={actor.canControlWorkflow}
-              canVote={actor.canVote}
-              canOverrideVote={actor.canOverrideVote}
-              canVerify={actor.canVerify}
-              canPurge={actor.canPurge}
-            />
+            <div className="card" style={{ padding: "0.9rem 1rem", background: "#fffef8" }}>
+              <span style={{ color: "var(--pp-slate-700)" }}>
+                This dashboard is read-only. Native requests remain actionable in the{" "}
+                <Link href="/resident-portal/management/acc-queue">native workflow queue</Link>, and legacy WordPress records remain editable in the{" "}
+                <Link href="/resident-portal/management/wp-acc-queue">legacy queue</Link>.
+              </span>
+            </div>
+
+            <AccCombinedDashboardTable viewMode="full" />
           </div>
         </div>
       </section>

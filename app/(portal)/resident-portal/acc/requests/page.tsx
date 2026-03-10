@@ -1,9 +1,9 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { FileText, Shield } from "lucide-react"
-import { auth } from "@clerk/nextjs/server"
 import { siteConfig } from "@/lib/site-config"
 import { requireApprovedPortalAccess } from "@/lib/auth/portal-access"
+import { getPortalSession } from "@/lib/auth/portal-session"
 import { listWorkflowRequestsForResident } from "@/lib/acc-workflow/repository"
 
 export const metadata: Metadata = {
@@ -22,7 +22,7 @@ function statusLabel(status: string) {
 
 export default async function MyAccRequestsPage() {
   await requireApprovedPortalAccess()
-  const { userId } = await auth()
+  const { userId } = await getPortalSession()
   const requests = userId ? await listWorkflowRequestsForResident(userId) : []
 
   return (
@@ -75,6 +75,9 @@ export default async function MyAccRequestsPage() {
                     <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
                       <div style={{ display: "grid", gap: "0.35rem" }}>
                         <h3 style={{ margin: 0, color: "var(--pp-navy-dark)" }}>{request.title || "ACC Request"}</h3>
+                        <p style={{ margin: 0, color: "var(--pp-slate-600)", fontFamily: "monospace", fontSize: "0.95rem" }}>
+                          {request.requestNumber}
+                        </p>
                         <p style={{ margin: 0, color: "var(--pp-slate-700)" }}>{request.residentAddress || "Address unavailable"}</p>
                         <p style={{ margin: 0, color: "var(--pp-slate-500)", fontSize: "0.95rem" }}>
                           Submitted {new Date(request.submittedAt).toLocaleString()}

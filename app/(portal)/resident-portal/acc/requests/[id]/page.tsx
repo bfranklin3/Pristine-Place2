@@ -1,10 +1,10 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { FileText, Shield } from "lucide-react"
-import { auth } from "@clerk/nextjs/server"
 import { notFound } from "next/navigation"
 import { siteConfig } from "@/lib/site-config"
 import { requireApprovedPortalAccess } from "@/lib/auth/portal-access"
+import { getPortalSession } from "@/lib/auth/portal-session"
 import { EMPTY_FORM_DATA, getWorkflowRequestForResident } from "@/lib/acc-workflow/repository"
 
 export const metadata: Metadata = {
@@ -23,7 +23,7 @@ function statusLabel(status: string) {
 
 export default async function AccRequestDetailPage({ params }: { params: Promise<{ id: string }> }) {
   await requireApprovedPortalAccess()
-  const { userId } = await auth()
+  const { userId } = await getPortalSession()
   const { id } = await params
 
   if (!userId) notFound()
@@ -67,6 +67,10 @@ export default async function AccRequestDetailPage({ params }: { params: Promise
 
             <div className="card" style={{ padding: "var(--space-l)", background: "#fffef9", display: "grid", gap: "0.9rem" }}>
               <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
+                <div style={{ display: "grid", gap: "0.25rem" }}>
+                  <strong style={{ color: "var(--pp-navy-dark)" }}>Request Number</strong>
+                  <span style={{ fontFamily: "monospace" }}>{request.requestNumber}</span>
+                </div>
                 <div style={{ display: "grid", gap: "0.25rem" }}>
                   <strong style={{ color: "var(--pp-navy-dark)" }}>Status</strong>
                   <span>{statusLabel(request.status)}</span>
@@ -117,6 +121,23 @@ export default async function AccRequestDetailPage({ params }: { params: Promise
                   <p style={{ margin: "0.35rem 0 0 0", color: "var(--pp-slate-700)" }}>{request.locationDetails}</p>
                 </div>
               ) : null}
+
+              <div>
+                <strong style={{ color: "var(--pp-navy-dark)" }}>Attachments</strong>
+                {request.attachments.length === 0 ? (
+                  <p style={{ margin: "0.35rem 0 0 0", color: "var(--pp-slate-700)" }}>No attachments uploaded.</p>
+                ) : (
+                  <ul style={{ margin: "0.45rem 0 0 1rem", color: "var(--pp-slate-700)" }}>
+                    {request.attachments.map((attachment) => (
+                      <li key={attachment.id}>
+                        <a href={attachment.url} target="_blank" rel="noopener noreferrer">
+                          {attachment.originalFilename}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
 
               <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
                 {request.canEdit ? (

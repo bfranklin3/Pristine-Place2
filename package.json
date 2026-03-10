@@ -28,6 +28,8 @@
     "apply:acc:link-review": "tsx scripts/apply-reviewed-acc-link-csv.ts",
     "reconcile:households:address": "tsx scripts/reconcile-households-by-address.ts",
     "sanity:set-about-faq-categories": "node scripts/set-faq-about-categories.mjs",
+    "test:acc-workflow:ui-smoke": "node scripts/acc-workflow-ui-smoke.mjs",
+    "test:acc-dashboard:ui-smoke": "node scripts/acc-dashboard-ui-smoke.mjs",
     "lint": "eslint .",
     "start": "next start"
   },
@@ -60,6 +62,7 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "@tailwindcss/postcss": "^4.1.9",
     "@types/node": "^22",
     "@types/nodemailer": "^7.0.10",
@@ -68,6 +71,7 @@
     "dotenv": "^17.3.1",
     "eslint": "^9.36.0",
     "eslint-config-next": "^15.5.7",
+    "playwright": "^1.58.2",
     "postcss": "^8.5",
     "prisma": "^6.4.1",
     "tailwindcss": "^4.1.9",

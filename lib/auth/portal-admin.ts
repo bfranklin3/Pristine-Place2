@@ -1,7 +1,7 @@
-import { auth, currentUser } from "@clerk/nextjs/server"
 import { redirect } from "next/navigation"
 import { normalizeCommitteeSlugs, type CommitteeSlug } from "@/lib/portal/committees"
 import { hasCapability, type CapabilityKey } from "@/lib/auth/permissions"
+import { getPortalSession } from "@/lib/auth/portal-session"
 
 export interface PortalAdminIdentity {
   userId: string
@@ -66,13 +66,12 @@ export function hasAnyCommittee(
 }
 
 export async function requirePortalAdminPageAccess(redirectPath = "/resident-portal/management/resident-approvals") {
-  const { userId } = await auth()
+  const { userId, user } = await getPortalSession()
 
   if (!userId) {
     redirect(`/sign-in?redirect_url=${encodeURIComponent(redirectPath)}`)
   }
 
-  const user = await currentUser()
   const admin = isPortalAdmin(user)
   const approved = user?.publicMetadata?.portalApproved === true
 
@@ -89,13 +88,12 @@ export async function requirePortalRolePageAccess(
   allowed: Array<CommitteeSlug | "admin">,
   redirectPath = "/resident-portal",
 ) {
-  const { userId } = await auth()
+  const { userId, user } = await getPortalSession()
 
   if (!userId) {
     redirect(`/sign-in?redirect_url=${encodeURIComponent(redirectPath)}`)
   }
 
-  const user = await currentUser()
   const admin = isPortalAdmin(user)
   const approved = user?.publicMetadata?.portalApproved === true
 
@@ -113,13 +111,12 @@ export async function requirePortalCapabilityPageAccess(
   redirectPath = "/resident-portal",
   mode: "all" | "any" = "all",
 ) {
-  const { userId } = await auth()
+  const { userId, user } = await getPortalSession()
 
   if (!userId) {
     redirect(`/sign-in?redirect_url=${encodeURIComponent(redirectPath)}`)
   }
 
-  const user = await currentUser()
   const admin = isPortalAdmin(user)
   const approved = user?.publicMetadata?.portalApproved === true
 
@@ -139,13 +136,12 @@ export async function requirePortalCapabilityPageAccess(
 }
 
 export async function getPortalAdminIdentity(): Promise<PortalAdminIdentity | null> {
-  const { userId } = await auth()
+  const { userId, user } = await getPortalSession()
 
   if (!userId) {
     return null
   }
 
-  const user = await currentUser()
   if (!isPortalAdmin(user)) {
     return null
   }

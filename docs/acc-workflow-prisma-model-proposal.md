@@ -1,7 +1,7 @@
 # ACC Workflow Prisma Model Proposal
 
-Version: 1.0  
-Last updated: March 9, 2026  
+Version: 1.3  
+Last updated: March 10, 2026  
 Related documents:
 - [`docs/acc-workflow-spec.md`](./acc-workflow-spec.md)
 - [`docs/acc-workflow-implementation-plan.md`](./acc-workflow-implementation-plan.md)
@@ -91,6 +91,20 @@ Reason:
 - Existing Prisma models in this repo use `cuid()`.
 - Sticking to one id style avoids avoidable migration and tooling inconsistency.
 
+### 8. Add a separate human-facing request number for native workflow requests
+
+Decision:
+- Keep `AccWorkflowRequest.id` as the internal `cuid()` primary key.
+- Add a separate unique `requestNumber` field for human-facing native workflow identifiers.
+- Format native request numbers as `REQ-YYYY-NNNN`, for example `REQ-2026-0042`.
+- Add a dedicated yearly sequence table to generate these numbers transactionally.
+
+Reason:
+- The raw `cuid()` value is too long and technical for staff, residents, emails, and reporting.
+- Native request numbers must be clearly distinguishable from ACC permit numbers, which remain in the legacy format `YY-NNN`, for example `26-034`.
+- A `REQ-` prefix plus 4-digit annual sequence avoids confusion with permit numbers while remaining short and readable.
+- Sequence generation must be concurrency-safe; `count + 1` is not acceptable.
+
 ## Proposed Enums
 
 ```prisma
@@ -174,6 +188,7 @@ model AccRequest {
 ```prisma
 model AccWorkflowRequest {
   id                     String                    @id @default(cuid())
+  requestNumber          String?                   @unique
   origin                 AccWorkflowRequestOrigin @default(portal_native)
   importedAccRequestId   String?                  @unique
   importedAccRequest     AccRequest?              @relation("ImportedAccRequestToWorkflow", fields: [importedAccRequestId], references: [id], onDelete: SetNull)
@@ -227,11 +242,19 @@ model AccWorkflowRequest {
   events                 AccWorkflowEvent[]
 
   @@index([residentClerkUserId, createdAt])
+  @@index([requestNumber])
   @@index([householdId, createdAt])
   @@index([residencyId, createdAt])
   @@index([status, createdAt])
   @@index([status, voteDeadlineAt])
   @@index([addressKey])
+}
+
+model AccWorkflowRequestNumberSequence {
+  year        Int      @id
+  nextNumber  Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model AccWorkflowVote {
@@ -311,6 +334,27 @@ model AccWorkflowEvent {
 
 These preserve the resident-visible submission record as it existed at the time of submit/resubmit, even if the portal profile changes later.
 
+### `requestNumber`
+
+- `requestNumber` is the native human-facing submit identifier.
+- Format: `REQ-YYYY-NNNN`
+- Example: `REQ-2026-0042`
+- It is distinct from ACC permit numbers, which remain in the separate format `YY-NNN`.
+- It should be shown in resident/admin UI and emails anywhere a user-facing submission identifier is needed.
+- The internal `id` remains the technical primary key and should not be used as the main display identifier.
+
+### `AccWorkflowRequestNumberSequence`
+
+- Stores the next available annual sequence for native request numbers.
+- One row per calendar year.
+- Generation should happen inside the same transaction as workflow request creation.
+- The generator should:
+  1. determine the effective request year from server time at create
+  2. fetch or create the sequence row for that year
+  3. atomically reserve the next number
+  4. format `requestNumber` as `REQ-${year}-${sequence.toString().padStart(4, "0")}`
+- This table is only for native request numbering, not permit numbering.
+
 ### `formDataJson`
 
 - Stores the full resident form payload as submitted or last edited.
@@ -383,7 +427,39 @@ Recommended execution plan:
    - expected indexes and unique constraints
 6. Do not apply any data backfill in the same migration.
 
-### Migration 2+: data/backfill only if needed
+### Migration N: request numbering
+
+Current environment note:
+
+- The previously existing native workflow rows were disposable test data and were deleted before request-number rollout.
+- Because of that, request numbering can use the simpler single-step migration path with `requestNumber` required immediately.
+
+Selected migration name:
+
+```text
+add_acc_workflow_request_numbers
+```
+
+This migration should:
+- add required `AccWorkflowRequest.requestNumber`
+- add unique index/constraint on `requestNumber`
+- add `AccWorkflowRequestNumberSequence`
+
+It should not:
+- replace `AccWorkflowRequest.id`
+- change permit numbering
+- change legacy imported ACC identifiers
+
+Recommended execution plan:
+
+1. Add `requestNumber String @unique` to `AccWorkflowRequest`.
+1. Add `requestNumber String @unique` to `AccWorkflowRequest`.
+2. Add `AccWorkflowRequestNumberSequence`.
+3. Generate and review the migration SQL.
+4. Apply the migration.
+5. Create fresh native workflow test records and verify `REQ-YYYY-NNNN` assignment.
+
+### Migration 2+: cutover/import data only if needed later
 
 Only after native workflow routes exist:
 - optionally create native workflow rows for active in-flight imported requests
@@ -396,6 +472,8 @@ The proposed indexes are aimed at the first expected queries:
 
 - resident list/detail:
   - `residentClerkUserId, createdAt`
+- request lookup / search:
+  - `requestNumber`
 - management initial-review queue:
   - `status, createdAt`
 - vote queue:
@@ -419,5 +497,6 @@ The proposed indexes are aimed at the first expected queries:
 If this proposal is accepted, the next implementation step is:
 
 1. add these enums/models to `prisma/schema.prisma`
-2. generate the migration
-3. review the generated SQL before applying it
+2. add `requestNumber` + annual sequence table
+3. generate the migration(s)
+4. review the generated SQL before applying it

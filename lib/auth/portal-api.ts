@@ -1,6 +1,6 @@
-import { auth, currentUser } from "@clerk/nextjs/server"
 import { NextResponse } from "next/server"
 import { isPortalAdmin } from "@/lib/auth/portal-admin"
+import { getPortalSession } from "@/lib/auth/portal-session"
 
 export interface PortalApiIdentity {
   clerkUserId: string
@@ -9,12 +9,11 @@ export interface PortalApiIdentity {
 
 export async function requireApprovedPortalApiAccess():
   Promise<{ ok: true; identity: PortalApiIdentity } | { ok: false; response: NextResponse }> {
-  const { userId } = await auth()
+  const { userId, user } = await getPortalSession()
   if (!userId) {
     return { ok: false, response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) }
   }
 
-  const user = await currentUser()
   const admin = isPortalAdmin(user)
   const isApproved = user?.publicMetadata?.portalApproved === true
 

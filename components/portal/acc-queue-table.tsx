@@ -3,6 +3,7 @@
 // components/portal/acc-queue-table.tsx
 
 import { useState, useEffect, useCallback, useRef } from "react"
+import { useSearchParams } from "next/navigation"
 import { RefreshCw, AlertCircle, FileText, Calendar, CheckCircle, XCircle, Clock, Search, ChevronLeft, ChevronRight } from "lucide-react"
 import { format, parseISO, addMonths, endOfMonth, getDay, isSameDay, isSameMonth, startOfMonth } from "date-fns"
 import * as Dialog from "@radix-ui/react-dialog"
@@ -342,6 +343,9 @@ function SafariDatePicker({
 /* ── Main component ─────────────────────────────────────────── */
 
 export function AccQueueTable({ viewMode = "full" }: { viewMode?: AccQueueViewMode }) {
+  const searchParams = useSearchParams()
+  const requestedEntryId = searchParams.get("entry")
+  const requestedMode = searchParams.get("mode") === "edit" ? "edit" : "view"
   const [entries, setEntries] = useState<GfEntry[]>([])
   const [total, setTotal] = useState(0)
   const [totalPages, setTotalPages] = useState(1)
@@ -395,6 +399,8 @@ export function AccQueueTable({ viewMode = "full" }: { viewMode?: AccQueueViewMo
   const [accInputKey, setAccInputKey] = useState(0)
   const residentFileInputRef = useRef<HTMLInputElement | null>(null)
   const accFileInputRef = useRef<HTMLInputElement | null>(null)
+  const autoOpenedModalRef = useRef<string | null>(null)
+  const openEntryModalRef = useRef<((id: string, mode: ModalMode) => Promise<void>) | null>(null)
   const DEFAULT_PAGE_SIZE = 25
 
   useEffect(() => {
@@ -987,6 +993,23 @@ export function AccQueueTable({ viewMode = "full" }: { viewMode?: AccQueueViewMo
     setEditProcessDate(normalizeDateForInput(firstFieldValue(detail, ["61", "process_date"])))
     setEntryModalLoading(false)
   }
+
+  useEffect(() => {
+    openEntryModalRef.current = openEntryModal
+  })
+
+  useEffect(() => {
+    if (!requestedEntryId) {
+      autoOpenedModalRef.current = null
+      return
+    }
+
+    const requestKey = `${requestedMode}:${requestedEntryId}`
+    if (autoOpenedModalRef.current === requestKey) return
+
+    autoOpenedModalRef.current = requestKey
+    void openEntryModalRef.current?.(requestedEntryId, requestedMode)
+  }, [requestedEntryId, requestedMode])
 
   async function saveEntryEdit() {
     if (!entryModal?.id || !entryDetail) return

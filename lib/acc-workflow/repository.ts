@@ -63,6 +63,7 @@ export const EMPTY_FORM_DATA: AccWorkflowFormData = {
 const residentRequestSelect = Prisma.validator<Prisma.AccWorkflowRequestDefaultArgs>()({
   select: {
     id: true,
+    requestNumber: true,
     residentClerkUserId: true,
     residentNameSnapshot: true,
     residentEmailSnapshot: true,
@@ -82,10 +83,25 @@ const residentRequestSelect = Prisma.validator<Prisma.AccWorkflowRequestDefaultA
     finalDecision: true,
     finalDecisionAt: true,
     decisionNote: true,
+    lockedAt: true,
     submittedAt: true,
     createdAt: true,
     updatedAt: true,
     formDataJson: true,
+    attachments: {
+      where: { deletedAt: null },
+      select: {
+        id: true,
+        originalFilename: true,
+        storageKey: true,
+        mimeType: true,
+        fileSizeBytes: true,
+        scope: true,
+        note: true,
+        createdAt: true,
+      },
+      orderBy: [{ createdAt: "asc" }],
+    },
   },
 })
 
@@ -94,6 +110,7 @@ type ResidentRequestRow = Prisma.AccWorkflowRequestGetPayload<typeof residentReq
 const managementListSelect = Prisma.validator<Prisma.AccWorkflowRequestDefaultArgs>()({
   select: {
     id: true,
+    requestNumber: true,
     residentNameSnapshot: true,
     residentEmailSnapshot: true,
     residentPhoneSnapshot: true,
@@ -121,6 +138,7 @@ const managementListSelect = Prisma.validator<Prisma.AccWorkflowRequestDefaultAr
 const managementDetailSelect = Prisma.validator<Prisma.AccWorkflowRequestDefaultArgs>()({
   select: {
     id: true,
+    requestNumber: true,
     origin: true,
     importedAccRequestId: true,
     residentClerkUserId: true,
@@ -158,6 +176,7 @@ const managementDetailSelect = Prisma.validator<Prisma.AccWorkflowRequestDefault
       select: {
         id: true,
         originalFilename: true,
+        storageKey: true,
         scope: true,
         mimeType: true,
         fileSizeBytes: true,
@@ -196,12 +215,18 @@ type ManagementListRow = Prisma.AccWorkflowRequestGetPayload<typeof managementLi
 type ManagementDetailRow = Prisma.AccWorkflowRequestGetPayload<typeof managementDetailSelect>
 
 export type AccWorkflowManagementStatusFilter = "all" | AccWorkflowRequestStatus
+export type AccWorkflowManagementSort =
+  | "submitted_desc"
+  | "submitted_asc"
+  | "request_number_asc"
+  | "request_number_desc"
 
 export interface AccWorkflowManagementFilters {
   status: AccWorkflowManagementStatusFilter
   query?: string
   page?: number
   perPage?: number
+  sort?: AccWorkflowManagementSort
 }
 
 type WorkflowActionResult =
@@ -211,6 +236,17 @@ type WorkflowActionResult =
   | { kind: "validation_error"; errors: string[] }
   | { kind: "duplicate_vote" }
   | { kind: "already_verified" }
+  | { kind: "not_allowed" }
+
+export interface AccWorkflowUploadedAttachmentInput {
+  originalFilename: string
+  storageProvider: string
+  storageKey: string
+  storageBucket: string | null
+  mimeType: string
+  fileSizeBytes: number
+  note?: string | null
+}
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === "object" && !Array.isArray(value)
@@ -388,6 +424,7 @@ function toResidentResponse(row: ResidentRequestRow, includeFormData: boolean) {
 
   return {
     id: row.id,
+    requestNumber: row.requestNumber,
     residentName: row.residentNameSnapshot,
     residentEmail: row.residentEmailSnapshot,
     residentPhone: row.residentPhoneSnapshot,
@@ -411,6 +448,16 @@ function toResidentResponse(row: ResidentRequestRow, includeFormData: boolean) {
     updatedAt: row.updatedAt.toISOString(),
     canEdit: row.status === "needs_more_info",
     canResubmit: row.status === "needs_more_info",
+    attachments: row.attachments.map((attachment) => ({
+      id: attachment.id,
+      originalFilename: attachment.originalFilename,
+      url: attachment.storageKey,
+      mimeType: attachment.mimeType,
+      fileSizeBytes: attachment.fileSizeBytes,
+      scope: attachment.scope,
+      note: attachment.note,
+      createdAt: attachment.createdAt.toISOString(),
+    })),
     ...(includeFormData ? { formData: normalizeAccWorkflowFormData(row.formDataJson) } : {}),
   }
 }
@@ -418,6 +465,7 @@ function toResidentResponse(row: ResidentRequestRow, includeFormData: boolean) {
 function toManagementListResponse(row: ManagementListRow) {
   return {
     id: row.id,
+    requestNumber: row.requestNumber,
     residentName: row.residentNameSnapshot,
     residentEmail: row.residentEmailSnapshot,
     residentPhone: row.residentPhoneSnapshot,
@@ -451,6 +499,7 @@ function toManagementDetailResponse(row: ManagementDetailRow, viewerUserId: stri
 
   return {
     id: row.id,
+    requestNumber: row.requestNumber,
     origin: row.origin,
     importedAccRequestId: row.importedAccRequestId,
     residentClerkUserId: row.residentClerkUserId,
@@ -486,6 +535,7 @@ function toManagementDetailResponse(row: ManagementDetailRow, viewerUserId: stri
     attachments: row.attachments.map((attachment) => ({
       id: attachment.id,
       originalFilename: attachment.originalFilename,
+      url: attachment.storageKey,
       scope: attachment.scope,
       mimeType: attachment.mimeType,
       fileSizeBytes: attachment.fileSizeBytes,
@@ -525,6 +575,7 @@ function buildSearchWhere(query?: string): Prisma.AccWorkflowRequestWhereInput {
   return {
     OR: [
       { residentNameSnapshot: { contains: q, mode: "insensitive" } },
+      { requestNumber: { contains: q, mode: "insensitive" } },
       { residentEmailSnapshot: { contains: q, mode: "insensitive" } },
       { residentPhoneSnapshot: { contains: q, mode: "insensitive" } },
       { residentAddressSnapshot: { contains: q, mode: "insensitive" } },
@@ -554,6 +605,16 @@ async function fetchManagementDetailById(tx: Prisma.TransactionClient | typeof p
   return tx.accWorkflowRequest.findUnique({
     where: { id: requestId },
     ...managementDetailSelect,
+  })
+}
+
+async function fetchResidentDetailById(tx: Prisma.TransactionClient | typeof prisma, requestId: string, clerkUserId: string) {
+  return tx.accWorkflowRequest.findFirst({
+    where: {
+      id: requestId,
+      residentClerkUserId: clerkUserId,
+    },
+    ...residentRequestSelect,
   })
 }
 
@@ -601,14 +662,39 @@ async function finalizeByCommitteeVote(tx: Prisma.TransactionClient, input: {
   })
 }
 
+async function reserveNextWorkflowRequestNumber(
+  tx: Prisma.TransactionClient,
+  requestDate: Date,
+) {
+  const year = requestDate.getUTCFullYear()
+  const sequence = await tx.accWorkflowRequestNumberSequence.upsert({
+    where: { year },
+    update: {
+      nextNumber: {
+        increment: 1,
+      },
+    },
+    create: {
+      year,
+      nextNumber: 2,
+    },
+  })
+
+  const reservedNumber = sequence.nextNumber - 1
+  return `REQ-${year}-${String(reservedNumber).padStart(4, "0")}`
+}
+
 export async function createWorkflowRequestForResident(input: { clerkUserId: string; formData: AccWorkflowFormData }) {
   const { clerkUserId, formData } = input
   const residency = await resolveCurrentResidency(clerkUserId)
   const canonical = canonicalizeAddressParts(formData.streetAddress)
+  const submittedAt = new Date()
 
   const created = await prisma.$transaction(async (tx) => {
+    const requestNumber = await reserveNextWorkflowRequestNumber(tx, submittedAt)
     const request = await tx.accWorkflowRequest.create({
       data: {
+        requestNumber,
         residentClerkUserId: clerkUserId,
         householdId: residency?.householdId || null,
         residencyId: residency?.id || null,
@@ -628,6 +714,7 @@ export async function createWorkflowRequestForResident(input: { clerkUserId: str
         authorizedRepName: formData.authorizedRepName || null,
         estimatedStartDate: parseDateInput(formData.startDate),
         estimatedCompletionDate: parseDateInput(formData.completionDate),
+        submittedAt,
       },
       ...residentRequestSelect,
     })
@@ -672,6 +759,72 @@ export async function getWorkflowRequestForResident(clerkUserId: string, request
   })
 
   return row ? toResidentResponse(row, true) : null
+}
+
+export async function updateWorkflowRequestForManagement(input: {
+  requestId: string
+  actorUserId: string
+  actorRole: Exclude<AccWorkflowActorRole, "resident" | "system">
+  formPatch: Partial<AccWorkflowFormData>
+}) {
+  const existing = await prisma.accWorkflowRequest.findUnique({
+    where: { id: input.requestId },
+    ...managementDetailSelect,
+  })
+
+  if (!existing) return { kind: "not_found" as const }
+  if (existing.status !== "initial_review" || existing.lockedAt) {
+    return { kind: "invalid_state" as const, status: existing.status }
+  }
+
+  const merged = normalizeAccWorkflowFormData({
+    ...normalizeAccWorkflowFormData(existing.formDataJson),
+    ...input.formPatch,
+  })
+
+  const errors = validateAccWorkflowFormData(merged)
+  if (errors.length > 0) return { kind: "validation_error" as const, errors }
+
+  const canonical = canonicalizeAddressParts(merged.streetAddress)
+
+  const updated = await prisma.$transaction(async (tx) => {
+    await tx.accWorkflowRequest.update({
+      where: { id: existing.id },
+      data: {
+        residentNameSnapshot: merged.ownerName,
+        residentEmailSnapshot: merged.ownerEmail,
+        residentPhoneSnapshot: merged.ownerPhone || null,
+        residentAddressSnapshot: merged.streetAddress || null,
+        addressCanonical: canonical.canonical || null,
+        addressKey: canonical.canonical || null,
+        phase: merged.phase || null,
+        lot: merged.lot || null,
+        workType: merged.workType || null,
+        title: buildTitle(merged.workType),
+        description: merged.projectDescription,
+        locationDetails: buildLocationDetails(merged),
+        formDataJson: toFormDataJson(merged),
+        authorizedRepName: merged.authorizedRepName || null,
+        estimatedStartDate: parseDateInput(merged.startDate),
+        estimatedCompletionDate: parseDateInput(merged.completionDate),
+      },
+    })
+
+    await tx.accWorkflowEvent.create({
+      data: {
+        requestId: existing.id,
+        reviewCycle: existing.reviewCycle,
+        eventType: "request_updated",
+        actorUserId: input.actorUserId,
+        actorRole: input.actorRole,
+      },
+    })
+
+    const refreshed = await fetchManagementDetailById(tx, existing.id)
+    return refreshed ? toManagementDetailResponse(refreshed, input.actorUserId) : null
+  })
+
+  return updated ? { kind: "ok" as const, request: updated } : { kind: "not_found" as const }
 }
 
 export async function updateWorkflowRequestForResident(input: {
@@ -787,9 +940,26 @@ export function isApprovedDecisionStatus(status: AccWorkflowRequestStatus) {
   return status === "approved"
 }
 
+function buildManagementOrderBy(sort: AccWorkflowManagementSort | undefined): Prisma.AccWorkflowRequestOrderByWithRelationInput[] {
+  if (sort === "submitted_asc") {
+    return [{ submittedAt: "asc" }, { requestNumber: "asc" }]
+  }
+
+  if (sort === "request_number_asc") {
+    return [{ requestNumber: "asc" }, { submittedAt: "asc" }]
+  }
+
+  if (sort === "request_number_desc") {
+    return [{ requestNumber: "desc" }, { submittedAt: "desc" }]
+  }
+
+  return [{ submittedAt: "desc" }, { requestNumber: "desc" }]
+}
+
 export async function listWorkflowRequestsForManagement(filters: AccWorkflowManagementFilters) {
   const page = Math.max(1, filters.page || 1)
   const perPage = Math.max(5, Math.min(100, filters.perPage || 25))
+  const orderBy = buildManagementOrderBy(filters.sort)
   const where: Prisma.AccWorkflowRequestWhereInput = {
     ...(filters.status !== "all" ? { status: filters.status } : {}),
     ...buildSearchWhere(filters.query),
@@ -799,7 +969,7 @@ export async function listWorkflowRequestsForManagement(filters: AccWorkflowMana
     prisma.accWorkflowRequest.findMany({
       where,
       ...managementListSelect,
-      orderBy: [{ lockedAt: "asc" }, { updatedAt: "desc" }, { id: "desc" }],
+      orderBy,
       skip: (page - 1) * perPage,
       take: perPage,
     }),
@@ -830,6 +1000,7 @@ export async function listWorkflowRequestsForManagement(filters: AccWorkflowMana
     totalPages: Math.max(1, Math.ceil(total / perPage)),
     page,
     perPage,
+    sort: filters.sort || "submitted_desc",
     counts,
   }
 }
@@ -1180,6 +1351,228 @@ export async function verifyApprovedWorkflowRequest(input: {
         actorUserId: input.actorUserId,
         actorRole: input.actorRole,
         note: note || null,
+      },
+    })
+
+    const refreshed = await fetchManagementDetailById(tx, existing.id)
+    return refreshed ? { kind: "ok" as const, request: toManagementDetailResponse(refreshed, input.actorUserId) } : { kind: "not_found" as const }
+  })
+
+  return result
+}
+
+export async function addAttachmentsToWorkflowRequestForResident(input: {
+  requestId: string
+  clerkUserId: string
+  attachments: AccWorkflowUploadedAttachmentInput[]
+}) {
+  if (input.attachments.length === 0) {
+    return { kind: "validation_error" as const, errors: ["At least one attachment is required."] }
+  }
+
+  const result = await prisma.$transaction(async (tx) => {
+    const existing = await fetchResidentDetailById(tx, input.requestId, input.clerkUserId)
+    if (!existing) return { kind: "not_found" as const }
+    if (existing.lockedAt || !["initial_review", "needs_more_info"].includes(existing.status)) {
+      return { kind: "invalid_state" as const, status: existing.status }
+    }
+
+    for (const attachment of input.attachments) {
+      const created = await tx.accWorkflowAttachment.create({
+        data: {
+          requestId: existing.id,
+          uploadedByUserId: input.clerkUserId,
+          uploadedByRole: "resident",
+          scope: "resident",
+          originalFilename: attachment.originalFilename,
+          storageProvider: attachment.storageProvider,
+          storageKey: attachment.storageKey,
+          storageBucket: attachment.storageBucket,
+          mimeType: attachment.mimeType,
+          fileSizeBytes: attachment.fileSizeBytes,
+          note: attachment.note || null,
+        },
+      })
+
+      await tx.accWorkflowEvent.create({
+        data: {
+          requestId: existing.id,
+          reviewCycle: existing.reviewCycle,
+          eventType: "attachment_added",
+          actorUserId: input.clerkUserId,
+          actorRole: "resident",
+          note: attachment.note || null,
+          metadataJson: {
+            attachmentId: created.id,
+            filename: created.originalFilename,
+            scope: created.scope,
+          },
+        },
+      })
+    }
+
+    const refreshed = await fetchResidentDetailById(tx, existing.id, input.clerkUserId)
+    return refreshed ? { kind: "ok" as const, request: toResidentResponse(refreshed, true) } : { kind: "not_found" as const }
+  })
+
+  return result
+}
+
+export async function addAttachmentsToWorkflowRequestForManagement(input: {
+  requestId: string
+  actorUserId: string
+  actorRole: Exclude<AccWorkflowActorRole, "resident" | "system">
+  attachments: AccWorkflowUploadedAttachmentInput[]
+  scope?: "resident" | "internal"
+}) {
+  if (input.attachments.length === 0) {
+    return { kind: "validation_error" as const, errors: ["At least one attachment is required."] }
+  }
+
+  const scope = input.scope || "internal"
+
+  const result = await prisma.$transaction(async (tx) => {
+    const existing = await fetchManagementDetailById(tx, input.requestId)
+    if (!existing) return { kind: "not_found" as const }
+    if (existing.status !== "initial_review" || existing.lockedAt) {
+      return { kind: "invalid_state" as const, status: existing.status }
+    }
+
+    for (const attachment of input.attachments) {
+      const created = await tx.accWorkflowAttachment.create({
+        data: {
+          requestId: existing.id,
+          uploadedByUserId: input.actorUserId,
+          uploadedByRole: input.actorRole,
+          scope,
+          originalFilename: attachment.originalFilename,
+          storageProvider: attachment.storageProvider,
+          storageKey: attachment.storageKey,
+          storageBucket: attachment.storageBucket,
+          mimeType: attachment.mimeType,
+          fileSizeBytes: attachment.fileSizeBytes,
+          note: attachment.note || null,
+        },
+      })
+
+      await tx.accWorkflowEvent.create({
+        data: {
+          requestId: existing.id,
+          reviewCycle: existing.reviewCycle,
+          eventType: "attachment_added",
+          actorUserId: input.actorUserId,
+          actorRole: input.actorRole,
+          note: attachment.note || null,
+          metadataJson: {
+            attachmentId: created.id,
+            filename: created.originalFilename,
+            scope: created.scope,
+          },
+        },
+      })
+    }
+
+    const refreshed = await fetchManagementDetailById(tx, existing.id)
+    return refreshed ? { kind: "ok" as const, request: toManagementDetailResponse(refreshed, input.actorUserId) } : { kind: "not_found" as const }
+  })
+
+  return result
+}
+
+export async function deleteWorkflowAttachmentForResident(input: {
+  requestId: string
+  attachmentId: string
+  clerkUserId: string
+}) {
+  const result = await prisma.$transaction(async (tx) => {
+    const existing = await fetchResidentDetailById(tx, input.requestId, input.clerkUserId)
+    if (!existing) return { kind: "not_found" as const }
+    if (existing.lockedAt || !["initial_review", "needs_more_info"].includes(existing.status)) {
+      return { kind: "invalid_state" as const, status: existing.status }
+    }
+
+    const attachment = await tx.accWorkflowAttachment.findFirst({
+      where: {
+        id: input.attachmentId,
+        requestId: existing.id,
+        deletedAt: null,
+      },
+    })
+
+    if (!attachment) return { kind: "not_found" as const }
+    if (attachment.uploadedByRole !== "resident" && attachment.scope !== "resident") {
+      return { kind: "not_allowed" as const }
+    }
+
+    await tx.accWorkflowAttachment.update({
+      where: { id: attachment.id },
+      data: {
+        deletedAt: new Date(),
+        deletedByUserId: input.clerkUserId,
+      },
+    })
+
+    await tx.accWorkflowEvent.create({
+      data: {
+        requestId: existing.id,
+        reviewCycle: existing.reviewCycle,
+        eventType: "attachment_deleted",
+        actorUserId: input.clerkUserId,
+        actorRole: "resident",
+        metadataJson: {
+          attachmentId: attachment.id,
+          filename: attachment.originalFilename,
+        },
+      },
+    })
+
+    const refreshed = await fetchResidentDetailById(tx, existing.id, input.clerkUserId)
+    return refreshed ? { kind: "ok" as const, request: toResidentResponse(refreshed, true) } : { kind: "not_found" as const }
+  })
+
+  return result
+}
+
+export async function deleteWorkflowAttachmentForManagement(input: {
+  requestId: string
+  attachmentId: string
+  actorUserId: string
+  actorRole: Exclude<AccWorkflowActorRole, "resident" | "system">
+}) {
+  const result = await prisma.$transaction(async (tx) => {
+    const existing = await fetchManagementDetailById(tx, input.requestId)
+    if (!existing) return { kind: "not_found" as const }
+    if (existing.lockedAt) return { kind: "invalid_state" as const, status: existing.status }
+
+    const attachment = await tx.accWorkflowAttachment.findFirst({
+      where: {
+        id: input.attachmentId,
+        requestId: existing.id,
+        deletedAt: null,
+      },
+    })
+
+    if (!attachment) return { kind: "not_found" as const }
+
+    await tx.accWorkflowAttachment.update({
+      where: { id: attachment.id },
+      data: {
+        deletedAt: new Date(),
+        deletedByUserId: input.actorUserId,
+      },
+    })
+
+    await tx.accWorkflowEvent.create({
+      data: {
+        requestId: existing.id,
+        reviewCycle: existing.reviewCycle,
+        eventType: "attachment_deleted",
+        actorUserId: input.actorUserId,
+        actorRole: input.actorRole,
+        metadataJson: {
+          attachmentId: attachment.id,
+          filename: attachment.originalFilename,
+        },
       },
     })
 

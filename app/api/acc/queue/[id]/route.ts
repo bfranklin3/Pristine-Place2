@@ -1,4 +1,3 @@
-import { currentUser } from "@clerk/nextjs/server"
 import { NextRequest, NextResponse } from "next/server"
 import { getAccWorkflowActorContext } from "@/lib/acc-workflow/actors"
 import {
@@ -13,6 +12,7 @@ import {
   verifyApprovedWorkflowRequest,
 } from "@/lib/acc-workflow/repository"
 import { requireManagementCapabilityAccess } from "@/lib/auth/portal-management-api"
+import { getPortalSession } from "@/lib/auth/portal-session"
 import {
   sendAccWorkflowFinalDecisionNotification,
   sendAccWorkflowMoreInfoNotification,
@@ -81,7 +81,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   const access = await requireManagementCapabilityAccess(["acc.view"])
   if (!access.ok) return access.response
 
-  const user = await currentUser()
+  const { user } = await getPortalSession()
   const actor = getAccWorkflowActorContext(user)
   const { id } = await ctx.params
   const body = (await req.json().catch(() => ({}))) as {
@@ -264,6 +264,10 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
 
     if (result.kind === "already_verified") {
       return NextResponse.json({ error: "This request has already been marked verified." }, { status: 409 })
+    }
+
+    if (result.kind === "not_allowed") {
+      return NextResponse.json({ error: "That action is not allowed for this request." }, { status: 403 })
     }
 
     if ("deletedRequestId" in result) {

@@ -1,7 +1,7 @@
 # ACC Workflow Spec
 
-Version: 1.1  
-Last updated: March 9, 2026
+Version: 1.2  
+Last updated: March 10, 2026
 
 ## Purpose
 
@@ -49,7 +49,11 @@ Related cross-domain identity/linking spec:
 2. System sends email confirmations:
    - To resident: request received.
    - To chair(s): request requires processing.
-3. Request enters `initial_review`.
+3. System assigns a native request number for portal-native submissions:
+   - format: `REQ-YYYY-NNNN`
+   - example: `REQ-2026-0042`
+   - distinct from permit number format `YY-NNN`, for example `26-034`
+4. Request enters `initial_review`.
 
 ## Step 1: Initial Review (Chair Only)
 
@@ -146,6 +150,7 @@ If simultaneous actions cross a decision threshold:
 ## Data Model (Minimum)
 
 1. ACC Request
+   - internal `id` + human-facing native `requestNumber`
    - resident snapshot, request fields, status, cycle number
    - outstanding resident-action note when in `needs_more_info`
    - vote deadline
