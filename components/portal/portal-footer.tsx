@@ -16,6 +16,7 @@ const portalLinks = {
   ],
   services: [
     { label: "Submit ACC Request",      href: "/resident-portal/acc/submit" },
+    { label: "My ACC Requests",         href: "/resident-portal/acc/requests" },
     { label: "Clubhouse Rental",        href: "/resident-portal/clubhouse/rental" },
     { label: "Pay HOA Fees",            href: "/resident-portal/pay-fees" },
     { label: "Report an Issue",         href: "/resident-portal/report-issue" },

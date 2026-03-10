@@ -29,3 +29,20 @@
 ## Operations Notes
 - Keep a report/list of users with `migrationPasswordResetRequired = true` for follow-up reminders.
 - After rollout, remove any temporary migration UI copy that is no longer needed.
+
+## Current Status (2026-03-09)
+- Full WordPress export import was started from `/Users/billfranklin/Downloads/My WP User Export.xls`.
+- Dry run with bridge-compatible import flag succeeded:
+  - `selectedRows: 726`, `created: 725`, `skippedExisting: 1`, `skippedInvalid: 0`, `errors: 0`.
+- Execute run partially completed, then stopped:
+  - `selectedRows: 726`, `created: 95`, `errors: 631`.
+- Primary stop reason: Clerk **Development instance** hard cap of **100 users** (`user_quota_exceeded`).
+- Secondary issue on some rows: source formatting/validation errors (username/name cleanup needed).
+
+## Resume Checklist
+1. Move auth to a Clerk **Production instance** (or otherwise increase user quota) before resuming bulk import.
+2. Re-run the import from the same file after production instance is ready.
+3. Apply username/name sanitization improvements in the migration script before the next full execute run.
+4. Use the same password-reset-first flow:
+   - keep `migrationPasswordResetRequired` set for imported users.
+   - direct residents to `/welcome-set-password` for first-time password setup.

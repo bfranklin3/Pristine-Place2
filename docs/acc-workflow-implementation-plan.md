@@ -1,8 +1,11 @@
 # ACC Workflow Implementation Plan
 
-Version: 1.0  
-Last updated: February 28, 2026  
+Version: 1.1  
+Last updated: March 9, 2026  
 Related spec: [`docs/acc-workflow-spec.md`](./acc-workflow-spec.md)
+Current-surface checklist: [`docs/acc-workflow-implementation-checklist.md`](./acc-workflow-implementation-checklist.md)
+Prisma proposal: [`docs/acc-workflow-prisma-model-proposal.md`](./acc-workflow-prisma-model-proposal.md)
+Notification matrix: [`docs/acc-workflow-notification-matrix.md`](./acc-workflow-notification-matrix.md)
 
 ## Objective
 
@@ -32,9 +35,9 @@ This document describes the target Neon workflow and phased implementation towar
 
 ## Out of Scope (v1)
 
-- “Provide More Information” loopback state.
 - Re-opening finalized requests.
 - Vote edits after vote cast.
+- Committee-vote return-to-resident loopback path.
 - Full resident-facing history detail (resident sees status + final decision only).
 
 ---
@@ -96,27 +99,34 @@ This document describes the target Neon workflow and phased implementation towar
 
 ---
 
-## Phase 2: Initial Review Decisions
+## Phase 2: Initial Review Decisions + More Information Loopback
 
 ### Goals
 
 - Implement chair actions:
   - Approve (final)
   - Reject (final)
+  - Request More Information
   - Send to Committee Vote
 - Enforce required notes where applicable.
+- Allow resident resubmission on the same request record after missing details are provided.
 
 ### Deliverables
 
 - Initial Review action API.
 - UI controls in review queue.
+- Resident edit/resubmit flow for requests in `needs_more_info`.
 - Finalization notifications to resident.
+- More-information notification to resident.
+- Resubmission notification to chair(s).
 - Transition into `committee_vote` with deadline + member notifications.
 
 ### Exit Criteria
 
-- All three initial-review transitions are functional.
+- All four initial-review transitions are functional.
 - Approve/Reject finalizes and locks request.
+- Request More Information moves request to `needs_more_info` with required note.
+- Resident resubmission returns the same request to `initial_review` and increments `review_cycle`.
 - Send-to-vote creates deadline and notifies committee.
 
 ---
@@ -166,7 +176,7 @@ This document describes the target Neon workflow and phased implementation towar
   - Who has voted and vote type
   - Deadline + days remaining/overdue
 - Resident view:
-  - Request status + final decision summary only.
+  - Request status + action-required note when applicable + final decision summary.
 
 ### Exit Criteria
 
@@ -209,14 +219,20 @@ This document describes the target Neon workflow and phased implementation towar
 - `title`
 - `description`
 - `location_details`
-- `status` (`initial_review | committee_vote | approved | rejected`)
-- `review_cycle` (int, default 1)
+- `form_data_json` (nullable; stores the full resident form payload for edit/resubmit round-tripping)
+- `status` (`initial_review | needs_more_info | committee_vote | approved | rejected`)
+- `review_cycle` (int, default 1; increments only on resident resubmission after `needs_more_info`)
+- `resident_action_note` (nullable; required when moving to `needs_more_info`, cleared on resubmit)
 - `vote_deadline_at` (nullable)
 - `final_decision` (nullable enum)
 - `final_decision_at` (nullable)
 - `final_decision_by_user_id` (nullable)
 - `final_decision_by_role` (`chair | vote`, nullable)
 - `decision_note` (nullable, required by rule in reject/override paths)
+- `is_verified` (bool, default `false`; internal only)
+- `verified_at` (nullable)
+- `verified_by_user_id` (nullable)
+- `verification_note` (nullable)
 - `locked_at` (nullable)
 - `created_at`, `updated_at`
 
@@ -261,12 +277,15 @@ Constraints:
 Event types include:
 
 - `request_submitted`
+- `more_info_requested`
+- `resident_resubmitted`
 - `initial_review_approved`
 - `initial_review_rejected`
 - `sent_to_committee_vote`
 - `committee_vote_cast`
 - `chair_override_approved`
 - `chair_override_rejected`
+- `request_verified`
 - `request_finalized`
 
 ---
@@ -280,8 +299,15 @@ All endpoints assume authenticated portal user. Role checks enforced server-side
 - `POST /api/acc/requests`
   - Create request in `initial_review`
   - Trigger resident/chair notifications
+- `PATCH /api/acc/requests/:id`
+  - Resident may edit own request only while in `needs_more_info`
+- `POST /api/acc/requests/:id/resubmit`
+  - Returns same request to `initial_review`
+  - Increments `review_cycle`
+  - Clears current `resident_action_note`
 - `GET /api/acc/requests/:id`
-  - Resident-safe response (status/final decision only)
+  - Resident-safe response
+  - Includes action-required note when in `needs_more_info`
 - `GET /api/acc/requests`
   - Resident list view (own requests)
 
@@ -291,7 +317,11 @@ All endpoints assume authenticated portal user. Role checks enforced server-side
   - Initial Review queue
 - `POST /api/acc/review/initial/:id/approve`
 - `POST /api/acc/review/initial/:id/reject`
+- `POST /api/acc/review/initial/:id/request-more-info`
 - `POST /api/acc/review/initial/:id/send-to-vote`
+- `POST /api/acc/review/:id/verify`
+  - admin/chair only
+  - allowed only for approved requests
 
 ## Committee Vote Endpoints
 
@@ -322,7 +352,8 @@ All endpoints assume authenticated portal user. Role checks enforced server-side
 
 - `Resident Portal -> Submit ACC Request` (existing/new shared form entry points)
 - `My ACC Requests` list
-- `ACC Request Detail` (status + final decision summary)
+- `ACC Request Detail` (status + action-required note when applicable + final decision summary)
+- `Edit + Resubmit` experience for requests in `needs_more_info`
 
 ## Committee/Admin
 
@@ -332,6 +363,7 @@ All endpoints assume authenticated portal user. Role checks enforced server-side
 - `ACC Finalized Dashboard`
 - `ACC Request Detail (internal)` with:
   - editable fields (chair in initial review)
+  - internal verification marker for approved requests
   - attachments panel
   - vote panel
   - immutable event timeline
@@ -343,21 +375,32 @@ All endpoints assume authenticated portal user. Role checks enforced server-side
 1. On submit:
    - Resident confirmation
    - Chair notification
-2. On initial approve/reject:
+2. On request-more-info:
+   - Resident action-required notification
+3. On resident resubmission:
+   - Chair notification
+4. On initial approve/reject:
    - Resident decision notification
-3. On send-to-vote:
+5. On send-to-vote:
    - Committee notification with deadline
-4. On final vote result:
+6. On final vote result:
    - Resident decision notification
-5. On chair override:
+7. On chair override:
    - Resident decision notification
    - Committee informational notification (optional but recommended)
+8. On verification:
+   - no email notifications in v1
 
 ---
 
 ## Validation Rules
 
-- Reject and override require note.
+- Reject, request-more-info, and override require note.
+- Resident edits/resubmission allowed only for own request in `needs_more_info`.
+- Resubmission must reuse the same request record, not create a new request.
+- Resubmission increments `review_cycle` and clears current `resident_action_note`.
+- Verification allowed only for approved requests.
+- Verification is internal-only and excluded from resident-facing responses.
 - Vote allowed only in `committee_vote` and unlocked requests.
 - One vote per member per request cycle.
 - Exactly 3 votes max per cycle.
@@ -386,6 +429,7 @@ All endpoints assume authenticated portal user. Role checks enforced server-side
 ## Integration Tests
 
 - Submit -> initial review -> final decision paths
+- Submit -> request more info -> resident resubmit -> initial review
 - Submit -> send to vote -> finalize paths
 - Chair override behavior
 - Concurrent vote finalization path
@@ -394,7 +438,9 @@ All endpoints assume authenticated portal user. Role checks enforced server-side
 
 - Minor request approved at initial review
 - Rejected request with required note
+- Request sent back for more information, updated by resident, and resubmitted on same request
 - 3-vote cycle with majority decision
+- Approved request optionally marked internally as verified complete
 - Deadline display behavior (remaining/overdue)
 
 ---

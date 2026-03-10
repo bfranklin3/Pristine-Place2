@@ -75,6 +75,59 @@ enum AccMatchStatus {
   rejected
 }
 
+enum AccWorkflowRequestOrigin {
+  portal_native
+  gravity_cutover_import
+}
+
+enum AccWorkflowRequestStatus {
+  initial_review
+  needs_more_info
+  committee_vote
+  approved
+  rejected
+}
+
+enum AccWorkflowDecision {
+  approve
+  reject
+}
+
+enum AccWorkflowVoteValue {
+  approve
+  reject
+}
+
+enum AccWorkflowActorRole {
+  resident
+  member
+  chair
+  admin
+  system
+}
+
+enum AccWorkflowAttachmentScope {
+  resident
+  internal
+}
+
+enum AccWorkflowEventType {
+  request_submitted
+  request_updated
+  more_info_requested
+  resident_resubmitted
+  initial_review_approved
+  initial_review_rejected
+  sent_to_committee_vote
+  vote_cast
+  chair_override_approved
+  chair_override_rejected
+  request_verified
+  request_finalized
+  attachment_added
+  attachment_deleted
+}
+
 enum CapabilityEffect {
   allow
   deny
@@ -119,37 +172,39 @@ enum LinkAuditEntityType {
 }
 
 model Household {
-  id               String            @id @default(cuid())
-  addressRaw       String?
-  addressCanonical String
-  addressKey       String            @unique
-  lotNumber        String?
-  phase            String?
-  residentProfiles ResidentProfile[]
-  residencies      Residency[]
-  accRequests      AccRequest[]
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
+  id                  String               @id @default(cuid())
+  addressRaw          String?
+  addressCanonical    String
+  addressKey          String               @unique
+  lotNumber           String?
+  phase               String?
+  residentProfiles    ResidentProfile[]
+  residencies         Residency[]
+  accRequests         AccRequest[]
+  accWorkflowRequests AccWorkflowRequest[]
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
 
   @@index([addressCanonical])
   @@index([lotNumber])
 }
 
 model Residency {
-  id               String            @id @default(cuid())
-  householdId      String
-  household        Household         @relation(fields: [householdId], references: [id], onDelete: Restrict)
-  clerkUserId      String?
-  residentType     ResidencyType     @default(unknown)
-  startDate        DateTime?
-  endDate          DateTime?
-  isCurrent        Boolean           @default(true)
-  sourceSystem     String?
-  sourceRecordId   String?
-  residentProfiles ResidentProfile[]
-  accRequests      AccRequest[]
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
+  id                  String               @id @default(cuid())
+  householdId         String
+  household           Household            @relation(fields: [householdId], references: [id], onDelete: Restrict)
+  clerkUserId         String?
+  residentType        ResidencyType        @default(unknown)
+  startDate           DateTime?
+  endDate             DateTime?
+  isCurrent           Boolean              @default(true)
+  sourceSystem        String?
+  sourceRecordId      String?
+  residentProfiles    ResidentProfile[]
+  accRequests         AccRequest[]
+  accWorkflowRequests AccWorkflowRequest[]
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
 
   @@index([householdId, isCurrent])
   @@index([clerkUserId, isCurrent])
@@ -309,6 +364,7 @@ model AccRequest {
   lastSeenAt        DateTime               @default(now())
   attachments       AccRequestAttachment[]
   matches           ResidentAccMatch[]
+  workflowRequest   AccWorkflowRequest?    @relation("ImportedAccRequestToWorkflow")
   createdAt         DateTime               @default(now())
   updatedAt         DateTime               @updatedAt
 
@@ -321,6 +377,115 @@ model AccRequest {
   @@index([submittedAt])
   @@index([disposition])
   @@index([permitNumber])
+}
+
+model AccWorkflowRequest {
+  id                      String                   @id @default(cuid())
+  origin                  AccWorkflowRequestOrigin @default(portal_native)
+  importedAccRequestId    String?                  @unique
+  importedAccRequest      AccRequest?              @relation("ImportedAccRequestToWorkflow", fields: [importedAccRequestId], references: [id], onDelete: SetNull)
+  residentClerkUserId     String
+  householdId             String?
+  household               Household?               @relation(fields: [householdId], references: [id], onDelete: SetNull)
+  residencyId             String?
+  residency               Residency?               @relation(fields: [residencyId], references: [id], onDelete: SetNull)
+  residentNameSnapshot    String
+  residentEmailSnapshot   String
+  residentPhoneSnapshot   String?
+  residentAddressSnapshot String?
+  addressCanonical        String?
+  addressKey              String?
+  phase                   String?
+  lot                     String?
+  workType                String?
+  title                   String?
+  description             String?
+  locationDetails         String?
+  formDataJson            Json?
+  authorizedRepName       String?
+  estimatedStartDate      DateTime?
+  estimatedCompletionDate DateTime?
+  status                  AccWorkflowRequestStatus @default(initial_review)
+  reviewCycle             Int                      @default(1)
+  residentActionNote      String?
+  voteDeadlineAt          DateTime?
+  finalDecision           AccWorkflowDecision?
+  finalDecisionAt         DateTime?
+  finalDecisionByUserId   String?
+  finalDecisionByRole     AccWorkflowActorRole?
+  decisionNote            String?
+  isVerified              Boolean                  @default(false)
+  verifiedAt              DateTime?
+  verifiedByUserId        String?
+  verificationNote        String?
+  lockedAt                DateTime?
+  submittedAt             DateTime                 @default(now())
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
+  votes                   AccWorkflowVote[]
+  attachments             AccWorkflowAttachment[]
+  events                  AccWorkflowEvent[]
+
+  @@index([residentClerkUserId, createdAt])
+  @@index([householdId, createdAt])
+  @@index([residencyId, createdAt])
+  @@index([status, createdAt])
+  @@index([status, voteDeadlineAt])
+  @@index([addressKey])
+}
+
+model AccWorkflowVote {
+  id          String               @id @default(cuid())
+  requestId   String
+  request     AccWorkflowRequest   @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  reviewCycle Int
+  voterUserId String
+  vote        AccWorkflowVoteValue
+  createdAt   DateTime             @default(now())
+
+  @@unique([requestId, reviewCycle, voterUserId])
+  @@index([requestId, reviewCycle, createdAt])
+  @@index([voterUserId, createdAt])
+}
+
+model AccWorkflowAttachment {
+  id               String                     @id @default(cuid())
+  requestId        String
+  request          AccWorkflowRequest         @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  uploadedByUserId String?
+  uploadedByRole   AccWorkflowActorRole
+  scope            AccWorkflowAttachmentScope
+  originalFilename String
+  storageProvider  String
+  storageKey       String
+  storageBucket    String?
+  mimeType         String
+  fileSizeBytes    Int
+  note             String?
+  deletedAt        DateTime?
+  deletedByUserId  String?
+  createdAt        DateTime                   @default(now())
+  updatedAt        DateTime                   @updatedAt
+
+  @@index([requestId, scope, createdAt])
+  @@index([requestId, deletedAt])
+}
+
+model AccWorkflowEvent {
+  id           String               @id @default(cuid())
+  requestId    String
+  request      AccWorkflowRequest   @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  reviewCycle  Int
+  eventType    AccWorkflowEventType
+  actorUserId  String?
+  actorRole    AccWorkflowActorRole
+  note         String?
+  metadataJson Json?
+  createdAt    DateTime             @default(now())
+
+  @@index([requestId, createdAt])
+  @@index([requestId, reviewCycle, createdAt])
+  @@index([eventType, createdAt])
 }
 
 model AccRequestAttachment {

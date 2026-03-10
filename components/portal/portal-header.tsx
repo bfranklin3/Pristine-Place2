@@ -36,6 +36,7 @@ const resourceItems = [
 
 const serviceItems = [
   { label: "Submit ACC Request",        href: "/resident-portal/acc/submit",       description: "Apply for architectural modifications" },
+  { label: "My ACC Requests",           href: "/resident-portal/acc/requests",     description: "Review your submitted ACC requests" },
   { label: "Clubhouse Rental Request",  href: "/resident-portal/clubhouse/rental", description: "Reserve the clubhouse for an event" },
   { label: "Pay HOA Fees",              href: "/resident-portal/pay-fees",          description: "Make an assessment payment online" },
   { label: "Report an Issue",           href: "/resident-portal/report-issue",      description: "Report a common area maintenance issue" },

@@ -1,7 +1,7 @@
 # ACC Workflow Spec
 
-Version: 1.0  
-Last updated: February 28, 2026
+Version: 1.1  
+Last updated: March 9, 2026
 
 ## Purpose
 
@@ -10,6 +10,7 @@ Define the finalized, simple workflow for ACC change requests in the new Next.js
 ## Scope
 
 - Resident ACC request submission
+- Resident resubmission after a request for more information
 - Initial Review by ACC Chair(s)
 - Optional Committee Vote
 - Final decisions and notifications
@@ -29,10 +30,18 @@ Related cross-domain identity/linking spec:
 ## Workflow States
 
 - `initial_review`
+- `needs_more_info`
 - `committee_vote`
 - `approved`
 - `rejected`
-- Future state (not yet implemented): `needs_more_info` and `verified` 
+
+## Post-Approval Verification
+
+- `verified` is not a primary workflow state.
+- It is an optional internal post-approval flag used when approved work has later been confirmed as completed.
+- It applies only to already-approved requests.
+- Residents do not see verification status.
+- No notification emails are sent when a request is marked verified.
 
 ## Submission Flow
 
@@ -52,14 +61,31 @@ Chair actions:
    - Resident is notified.
 
 2. Reject  
-   - Used for disallowed requests or incomplete/invalid submissions.
+   - Used for disallowed requests or submissions that should not continue in-system.
    - Request transitions to `rejected` and workflow ends.
    - Resident is notified.
 
-3. Send to Committee Vote  
+3. Request More Information  
+   - Used when the request is missing details, clarification, or attachments needed for review.
+   - Request transitions to `needs_more_info`.
+   - Chair note is required and is shown to the resident.
+   - Resident is notified that action is required.
+
+4. Send to Committee Vote  
    - Used for larger/complex requests.
    - Request transitions to `committee_vote`.
    - Committee members are notified with vote deadline.
+
+## Step 1A: Resident Resubmission After More Information Request
+
+- Resident may update request fields and add attachments while the request is in `needs_more_info`.
+- Resident resubmits the same request record; this is not treated as a new ACC request.
+- On resubmission:
+  - status returns to `initial_review`
+  - `review_cycle` increments
+  - prior votes remain tied to prior cycles
+  - full audit history remains attached to the same request
+- Chair(s) are notified that the request has been resubmitted.
 
 ## Step 2: Committee Vote (Optional)
 
@@ -75,7 +101,6 @@ Vote options:
 
 - Approve
 - Reject
-- Future (not yet implemented): Provide More Information
 
 Chair override:
 
@@ -91,29 +116,41 @@ Deadline behavior:
 
 ## Visibility Rules
 
-- Residents: status + final decision only.
+- Residents:
+  - status + final decision only for normal in-progress/finalized requests
+  - if `needs_more_info`, show the outstanding chair note and allow resubmission
 - Committee members/admins: full internal vote activity and progress details.
 
 ## Editing Rules
 
 - During `initial_review`, chair(s) may edit request fields and add attachments.
+- During `needs_more_info`, the resident submitter may edit request fields and add attachments.
 - Attachments allowed from:
   - Resident submitter
   - ACC committee users
+
+## Resubmission Cycle Rule
+
+- `review_cycle` starts at `1` on initial submission.
+- `review_cycle` increments only when the resident resubmits after `needs_more_info`.
+- The request keeps the same `id` across all cycles.
+- A loopback/resubmission must preserve one continuous audit trail.
 
 ## Concurrency Rule
 
 If simultaneous actions cross a decision threshold:
 
 - First write that finalizes the request wins.
-- Request is then locked from additional vote/decsion actions.
+- Request is then locked from additional vote/decision actions.
 
 ## Data Model (Minimum)
 
 1. ACC Request
    - resident snapshot, request fields, status, cycle number
+   - outstanding resident-action note when in `needs_more_info`
    - vote deadline
    - final decision summary (who/when/how + notes)
+   - optional internal verification metadata for approved requests
 
 2. ACC Votes
    - one vote per member per request cycle
@@ -128,6 +165,7 @@ If simultaneous actions cross a decision threshold:
 
 - Required for:
   - Reject actions
+  - Request More Information actions
   - Chair overrides
 
 ## Retention and Audit
@@ -137,7 +175,6 @@ If simultaneous actions cross a decision threshold:
 
 ## Future Enhancements (Out of Scope for v1)
 
-- Provide More Information loopback to resident and resubmission cycle handling
 - Downloadable decision letters
+- Committee-vote return-to-resident loopback path
 - Expanded committee/role controls for workflow routing
-- Add  `verified`  state; used only for `approved` submissions. Used when completion of work has been verified.
