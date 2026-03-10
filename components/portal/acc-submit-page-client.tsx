@@ -2,12 +2,13 @@
 
 import { useMemo, useState, type CSSProperties } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { ClipboardCheck, FileText, Info, Save, Shield, Wrench } from "lucide-react"
 
 type WorkType = "paint" | "roof" | "fence" | "landscaping" | "other" | ""
 type RoleType = "owner" | "authorized_rep" | ""
 
-type FormState = {
+export type AccSubmitFormState = {
   ownerName: string
   streetAddress: string
   ownerPhone: string
@@ -31,14 +32,14 @@ type FormState = {
   otherWorkDetails: string
 }
 
-type FormErrors = Partial<Record<keyof FormState | "agreedToTerms", string>>
+type FormErrors = Partial<Record<keyof AccSubmitFormState | "agreedToTerms", string>>
 type UploadStatus = { type: "info" | "error" | "success"; message: string } | null
 
 const MAX_UPLOAD_FILES = 20
 const MAX_FILE_BYTES = 256 * 1024 * 1024
 const ALLOWED_EXTENSIONS = ["jpg", "jpeg", "png", "bmp", "pdf", "doc", "docx", "xls", "xlsx", "xlsm", "txt"]
 
-const initialForm: FormState = {
+const initialForm: AccSubmitFormState = {
   ownerName: "",
   streetAddress: "",
   ownerPhone: "",
@@ -75,14 +76,28 @@ const fullTerms = [
   "On completion, return the permit to the ACC mailbox and provide completion date for final inspection.",
 ]
 
-export function AccSubmitPageClient() {
-  const [form, setForm] = useState<FormState>(initialForm)
-  const [agreedToTerms, setAgreedToTerms] = useState(false)
+type AccSubmitPageClientProps = {
+  mode?: "create" | "edit"
+  requestId?: string
+  initialFormData?: Partial<AccSubmitFormState>
+  residentActionNote?: string | null
+}
+
+export function AccSubmitPageClient({
+  mode = "create",
+  requestId,
+  initialFormData,
+  residentActionNote = null,
+}: AccSubmitPageClientProps = {}) {
+  const router = useRouter()
+  const [form, setForm] = useState<AccSubmitFormState>({ ...initialForm, ...(initialFormData || {}) })
+  const [agreedToTerms, setAgreedToTerms] = useState(mode === "edit")
   const [showFullTerms, setShowFullTerms] = useState(false)
   const [status, setStatus] = useState<{ type: "success" | "error"; message: string } | null>(null)
   const [errors, setErrors] = useState<FormErrors>({})
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [uploadStatus, setUploadStatus] = useState<UploadStatus>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const workTypeCards = [
     { value: "paint" as WorkType, icon: "🎨", label: "Paint" },
@@ -116,7 +131,7 @@ export function AccSubmitPageClient() {
     [],
   )
 
-  function updateField<K extends keyof FormState>(key: K, value: FormState[K]) {
+  function updateField<K extends keyof AccSubmitFormState>(key: K, value: AccSubmitFormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }))
     setErrors((prev) => {
       if (!prev[key]) return prev
@@ -191,7 +206,7 @@ export function AccSubmitPageClient() {
     return value || undefined
   }
 
-  function onSubmit(e: React.FormEvent) {
+  async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
     setStatus(null)
 
@@ -247,13 +262,88 @@ export function AccSubmitPageClient() {
       return
     }
 
-    setStatus({
-      type: "success",
-      message:
-        `Request captured${form.hasSupportingDocs === "yes" ? ` with ${selectedFiles.length} attachment${selectedFiles.length === 1 ? "" : "s"}` : ""}. Final submit integration is the next step; for immediate processing please continue using the current ACC WordPress workflow.`,
-    })
-    if (form.hasSupportingDocs === "yes" && selectedFiles.length > 0) {
-      setUploadStatus({ type: "info", message: "Attachments are queued with this submission request." })
+    if (form.hasSupportingDocs === "yes") {
+      setStatus({
+        type: "error",
+        message: "Native ACC attachment uploads are not wired yet. For now, submit without files or continue using the existing WordPress path for attachment-based requests.",
+      })
+      return
+    }
+
+    setIsSubmitting(true)
+    try {
+      if (mode === "edit") {
+        if (!requestId) {
+          throw new Error("Missing ACC request id for edit mode.")
+        }
+
+        const patchRes = await fetch(`/api/acc/requests/${requestId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ formData: form }),
+        })
+        const patchBody = (await patchRes.json().catch(() => ({}))) as {
+          error?: string
+          detail?: string
+          validationErrors?: string[]
+        }
+        if (!patchRes.ok) {
+          throw new Error(
+            patchBody.validationErrors?.[0] || patchBody.error || patchBody.detail || "Failed to update ACC request.",
+          )
+        }
+
+        const resubmitRes = await fetch(`/api/acc/requests/${requestId}/resubmit`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        })
+        const resubmitBody = (await resubmitRes.json().catch(() => ({}))) as {
+          request?: { id: string }
+          error?: string
+          detail?: string
+          validationErrors?: string[]
+        }
+        if (!resubmitRes.ok || !resubmitBody.request) {
+          throw new Error(
+            resubmitBody.validationErrors?.[0] || resubmitBody.error || resubmitBody.detail || "Failed to resubmit ACC request.",
+          )
+        }
+
+        setStatus({ type: "success", message: "Your ACC request was updated and resubmitted for review." })
+        router.push(`/resident-portal/acc/requests/${resubmitBody.request.id}`)
+        router.refresh()
+        return
+      }
+
+      const res = await fetch("/api/acc/requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ formData: form }),
+      })
+      const body = (await res.json().catch(() => ({}))) as {
+        request?: { id: string }
+        error?: string
+        detail?: string
+        validationErrors?: string[]
+      }
+      if (!res.ok || !body.request) {
+        throw new Error(body.validationErrors?.[0] || body.error || body.detail || "Failed to create ACC request.")
+      }
+
+      setStatus({ type: "success", message: "Your ACC request was submitted successfully." })
+      setForm(initialForm)
+      setAgreedToTerms(false)
+      setSelectedFiles([])
+      setUploadStatus(null)
+      router.push(`/resident-portal/acc/requests/${body.request.id}`)
+      router.refresh()
+    } catch (error) {
+      setStatus({
+        type: "error",
+        message: error instanceof Error ? error.message : "Failed to submit ACC request.",
+      })
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -275,9 +365,11 @@ export function AccSubmitPageClient() {
               Resident Portal
             </span>
           </div>
-          <h1 className="hero-title">Submit ACC Request</h1>
+          <h1 className="hero-title">{mode === "edit" ? "Update ACC Request" : "Submit ACC Request"}</h1>
           <p className="hero-subtitle" style={{ maxWidth: "58ch" }}>
-            Planning an exterior modification? Submit your request here for ACC review.
+            {mode === "edit"
+              ? "Update your ACC request with the additional information requested by the committee."
+              : "Planning an exterior modification? Submit your request here for ACC review."}
           </p>
         </div>
       </section>
@@ -361,8 +453,25 @@ export function AccSubmitPageClient() {
             <div className="card acc-form-card" style={{ padding: "var(--space-l)", background: "#fffef9" }}>
               <h2 style={{ color: "var(--pp-navy-dark)", marginBottom: "0.35rem" }}>ACC Change Request Form</h2>
               <p className="text-fluid-sm" style={{ color: "var(--pp-slate-500)" }}>
-                Please acknowledge the Terms and Conditions checkbox below, then complete your project request.
+                {mode === "edit"
+                  ? "Please review the ACC note below, update your request, and resubmit it for review."
+                  : "Please acknowledge the Terms and Conditions checkbox below, then complete your project request."}
               </p>
+
+              {residentActionNote ? (
+                <div
+                  style={{
+                    marginTop: "1rem",
+                    borderRadius: "var(--radius-md)",
+                    border: "1px solid #fed7aa",
+                    background: "#fff7ed",
+                    color: "#9a3412",
+                    padding: "0.85rem 0.95rem",
+                  }}
+                >
+                  <strong>Additional information requested:</strong> {residentActionNote}
+                </div>
+              ) : null}
 
               <form onSubmit={onSubmit} style={{ marginTop: "1rem", display: "grid", gap: "1rem" }}>
                 <div
@@ -827,6 +936,7 @@ export function AccSubmitPageClient() {
                   <button
                     type="submit"
                     className="acc-primary-action"
+                    disabled={isSubmitting}
                     style={{
                       borderRadius: "var(--radius-md)",
                       border: "none",
@@ -834,20 +944,22 @@ export function AccSubmitPageClient() {
                       color: "var(--pp-white)",
                       padding: "0.72rem 1.2rem",
                       fontWeight: 800,
-                      cursor: "pointer",
                       display: "inline-flex",
                       alignItems: "center",
                       gap: "0.45rem",
                       justifyContent: "center",
+                      opacity: isSubmitting ? 0.7 : 1,
+                      cursor: isSubmitting ? "progress" : "pointer",
                     }}
                   >
                     <ClipboardCheck style={{ width: "1rem", height: "1rem" }} />
-                    Submit My Request
+                    {isSubmitting ? "Submitting..." : mode === "edit" ? "Update & Resubmit Request" : "Submit My Request"}
                   </button>
                   <button
                     type="button"
                     onClick={onSaveDraft}
                     className="acc-secondary-action"
+                    disabled={isSubmitting}
                     style={{
                       borderRadius: "var(--radius-md)",
                       border: "1.5px solid var(--pp-slate-300)",
@@ -855,11 +967,12 @@ export function AccSubmitPageClient() {
                       color: "var(--pp-slate-700)",
                       padding: "0.68rem 1.1rem",
                       fontWeight: 700,
-                      cursor: "pointer",
                       display: "inline-flex",
                       alignItems: "center",
                       justifyContent: "center",
                       gap: "0.4rem",
+                      opacity: isSubmitting ? 0.7 : 1,
+                      cursor: isSubmitting ? "not-allowed" : "pointer",
                     }}
                   >
                     <Save style={{ width: "0.95rem", height: "0.95rem" }} />
@@ -868,7 +981,8 @@ export function AccSubmitPageClient() {
                 </div>
                 <div className="acc-actions-help" style={{ display: "grid", gap: "0.35rem", marginTop: "-0.3rem" }}>
                   <small style={helperStyle}>
-                    <strong>Submit My Request:</strong> sends your application to ACC for review.
+                    <strong>{mode === "edit" ? "Update & Resubmit Request:" : "Submit My Request:"}</strong>{" "}
+                    {mode === "edit" ? "updates this request and returns it to ACC for review." : "sends your application to ACC for review."}
                   </small>
                   <small style={helperStyle}>
                     <strong>Save & Continue Later:</strong> stores progress so you can finish later.

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireApprovedPortalApiAccess } from "@/lib/auth/portal-api"
 import { resubmitWorkflowRequestForResident } from "@/lib/acc-workflow/repository"
+import { sendAccWorkflowResubmittedNotification } from "@/lib/email/acc-workflow-notifications"
 
 export async function POST(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const access = await requireApprovedPortalApiAccess()
@@ -32,7 +33,15 @@ export async function POST(_req: NextRequest, ctx: { params: Promise<{ id: strin
       )
     }
 
-    return NextResponse.json({ request: result.request })
+    const notificationResult = await sendAccWorkflowResubmittedNotification({
+      requestId: result.request.id,
+      title: result.request.title,
+      residentName: result.request.residentName,
+      residentEmail: result.request.residentEmail,
+      residentAddress: result.request.residentAddress,
+    })
+
+    return NextResponse.json({ request: result.request, notificationResult })
   } catch (error) {
     const detail = error instanceof Error ? error.message : "unknown error"
     return NextResponse.json({ error: "Failed to resubmit ACC request", detail }, { status: 500 })

@@ -16,6 +16,7 @@ Define the v1 email notification events, recipients, and timing for the native A
 - Keep resident emails simple and status-oriented.
 - Keep committee emails action-oriented and link directly to the request.
 - Use the same ACC request record throughout the `needs_more_info` loopback; notifications should refer to the same request.
+- Notification test mode must prevent live workflow emails from reaching real resident/committee recipients.
 
 ## Notification Matrix
 
@@ -89,6 +90,15 @@ Define the v1 email notification events, recipients, and timing for the native A
 - `ACC chair(s)` means users with chair authority for the ACC committee.
 - `ACC committee members eligible to vote` means ACC committee members, including chairs if chairs are allowed to vote for that cycle.
 - Resident emails go only to the submitting resident for v1.
+
+## Test Mode
+
+- Preferred test mode behavior:
+  - deliver every workflow email to a configured admin testing inbox instead of the live recipients
+- Acceptable fallback:
+  - suppress workflow emails entirely
+- Test mode applies to all rows in the matrix marked `Yes` or `Optional`.
+- In test mode, the workflow event still occurs; only the delivery target changes.
 
 ## Deferred Decisions
 

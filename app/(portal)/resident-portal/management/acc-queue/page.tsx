@@ -1,6 +1,8 @@
 import type { Metadata } from "next"
 import { FileText, Shield } from "lucide-react"
+import { currentUser } from "@clerk/nextjs/server"
 import { siteConfig } from "@/lib/site-config"
+import { getAccWorkflowActorContext } from "@/lib/acc-workflow/actors"
 import { requirePortalCapabilityPageAccess } from "@/lib/auth/portal-admin"
 import { AccQueueNeonTable } from "@/components/portal/acc-queue-neon-table"
 
@@ -11,6 +13,7 @@ export const metadata: Metadata = {
 
 export default async function AccQueuePage() {
   await requirePortalCapabilityPageAccess(["acc.view"], "/resident-portal/management/acc-queue")
+  const actor = getAccWorkflowActorContext(await currentUser())
 
   return (
     <>
@@ -44,7 +47,13 @@ export default async function AccQueuePage() {
               <h2 style={{ color: "var(--pp-navy-dark)" }}>ACC Permit Requests (Neon)</h2>
             </div>
 
-            <AccQueueNeonTable />
+            <AccQueueNeonTable
+              canControlWorkflow={actor.canControlWorkflow}
+              canVote={actor.canVote}
+              canOverrideVote={actor.canOverrideVote}
+              canVerify={actor.canVerify}
+              canPurge={actor.canPurge}
+            />
           </div>
         </div>
       </section>

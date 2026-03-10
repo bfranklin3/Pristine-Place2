@@ -118,7 +118,10 @@ export default async function AccRequestDetailPage({ params }: { params: Promise
                 </div>
               ) : null}
 
-              <div>
+              <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
+                {request.canEdit ? (
+                  <Link href={`/resident-portal/acc/requests/${request.id}/edit`}>Update and Resubmit</Link>
+                ) : null}
                 <Link href="/resident-portal/acc/requests">Back to My ACC Requests</Link>
               </div>
             </div>

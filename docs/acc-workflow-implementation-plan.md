@@ -89,6 +89,7 @@ This document describes the target Neon workflow and phased implementation towar
 - Email notifications:
   - Resident confirmation
   - Chair(s) notification
+  - Test-mode routing/suppression control before live send is enabled
 - Initial Review queue page for chair/admin.
 
 ### Exit Criteria
@@ -96,6 +97,7 @@ This document describes the target Neon workflow and phased implementation towar
 - Resident can submit from portal.
 - Request lands in queue with `initial_review`.
 - Emails are delivered to configured recipients.
+- Test mode can reroute or suppress ACC workflow emails.
 
 ---
 
@@ -171,6 +173,7 @@ This document describes the target Neon workflow and phased implementation towar
   - My voting queue
   - In-progress requests
   - Finalized requests
+  - Combined all-submissions dashboard across legacy + native sources
 - Display fields:
   - Current tally
   - Who has voted and vote type
@@ -198,6 +201,7 @@ This document describes the target Neon workflow and phased implementation towar
 - Decision-letter generation (PDF or HTML export).
 - Data export tool for audit/legal requests.
 - Soft-delete/archive policy for workflow records.
+- Admin-only purge/delete utility for native workflow requests used for testing/support cleanup.
 - Ops runbook (failure handling + manual override protocol).
 
 ### Exit Criteria
@@ -368,6 +372,17 @@ All endpoints assume authenticated portal user. Role checks enforced server-side
   - vote panel
   - immutable event timeline
 
+## UI Pages (Later Dashboard Slice)
+
+- `ACC All Submissions Dashboard`
+  - merges legacy WordPress/imported rows and native workflow rows
+  - source column/indicator required
+  - normalized status display required
+  - full-data mode for admins, Board, and ACC committee members
+  - redacted mode for public display, similar to `/resident-portal/management/wp-acc-queue-redacted`
+  - legacy rows read-only
+  - native rows link to native detail/workflow surfaces
+
 ---
 
 ## Notification Plan (v1)
@@ -414,6 +429,7 @@ All endpoints assume authenticated portal user. Role checks enforced server-side
 - Server-enforced role checks on every action endpoint.
 - Immutable `acc_events` logging for all state transitions.
 - No hard-delete of ACC request records in v1.
+- Exception: native workflow requests may have an admin-only purge path for testing/support correction use cases.
 - Export capability for audits/disputes (Phase 5).
 
 ---
@@ -449,6 +465,10 @@ All endpoints assume authenticated portal user. Role checks enforced server-side
 
 - Committee metadata structure (including chair flags) on Resident Directory
 - Email templates and sender identity for ACC notifications
+- Notification test mode behavior:
+  - reroute all ACC workflow emails to configured admin test inbox (preferred)
+  - or suppress all ACC workflow emails
+- Admin-only purge visibility and confirmation rules
 
 ## Finalized Attachment Policy (Locked for v1)
 

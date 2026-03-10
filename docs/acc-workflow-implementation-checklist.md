@@ -54,6 +54,13 @@ Convert the ACC workflow plan into a build checklist tied to the current codebas
 - [ ] Confirm whether workflow requests link to `Residency`, `Household`, and/or `clerkUserId` directly.
 - [ ] Confirm whether workflow attachments use existing storage plumbing or need a new provider abstraction.
 - [ ] Confirm whether the current imported ACC queue stays read-only after native workflow cutover or remains as legacy history.
+- [ ] Confirm purge scope:
+  - native workflow requests only
+  - delete request + votes + attachments + events
+  - no purge for imported legacy `AccRequest` rows
+- [ ] Confirm notification test mode:
+  - reroute all workflow emails to admin test inbox (preferred)
+  - or suppress workflow emails entirely
 
 ### 1. Prisma Schema + Migration
 
@@ -147,6 +154,11 @@ Convert the ACC workflow plan into a build checklist tied to the current codebas
   - audit timeline
 - [ ] Add `Committee Vote Queue` UI.
 - [ ] Add in-progress/finalized workflow dashboards.
+- [ ] Add combined all-submissions dashboard across legacy + native ACC sources.
+- [ ] Add source indicator and normalized status display to combined dashboard rows.
+- [ ] Add full-data mode for admins, Board, and ACC committee members.
+- [ ] Add redacted mode for public-display use, aligned with `wp-acc-queue-redacted`.
+- [ ] Keep legacy rows read-only in the combined dashboard.
 - [ ] Update page copy so imported ACC queue and native workflow queue are clearly differentiated during transition.
 
 ### 7. Notifications
@@ -157,6 +169,7 @@ Convert the ACC workflow plan into a build checklist tied to the current codebas
 - [ ] Send chair notification on resident resubmission.
 - [ ] Send committee notification on send-to-vote.
 - [ ] Send resident notification on final decision.
+- [ ] Add notification test mode so live recipients are not emailed during testing.
 - [ ] Decide whether notifications run inline first or via retry-safe job mechanism.
 
 ### 8. Audit + Reporting
@@ -185,6 +198,13 @@ Convert the ACC workflow plan into a build checklist tied to the current codebas
 - [ ] Validate final GF re-migration and resident-linking state before switching resident submit to native workflow.
 - [ ] Update portal navigation and management labels once workflow-native pages are authoritative.
 - [ ] Prepare rollback plan for reverting resident submit back to WordPress if cutover fails.
+
+### 11. Admin Cleanup / Testing
+
+- [ ] Add admin-only purge endpoint/action for native workflow requests.
+- [ ] Require strong confirmation before purge.
+- [ ] Ensure purge deletes request + votes + attachments + events.
+- [ ] Ensure purge is hidden from residents and non-admin/non-chair users.
 
 ## Suggested Build Order
 

@@ -1,4 +1,10 @@
-import { Prisma, type AccWorkflowRequestStatus } from "@prisma/client"
+import {
+  Prisma,
+  type AccWorkflowActorRole,
+  type AccWorkflowDecision,
+  type AccWorkflowRequestStatus,
+  type AccWorkflowVoteValue,
+} from "@prisma/client"
 import { prisma } from "@/lib/db/prisma"
 import { canonicalizeAddressParts } from "@/lib/address-normalization"
 
@@ -85,8 +91,133 @@ const residentRequestSelect = Prisma.validator<Prisma.AccWorkflowRequestDefaultA
 
 type ResidentRequestRow = Prisma.AccWorkflowRequestGetPayload<typeof residentRequestSelect>
 
+const managementListSelect = Prisma.validator<Prisma.AccWorkflowRequestDefaultArgs>()({
+  select: {
+    id: true,
+    residentNameSnapshot: true,
+    residentEmailSnapshot: true,
+    residentPhoneSnapshot: true,
+    residentAddressSnapshot: true,
+    phase: true,
+    lot: true,
+    workType: true,
+    title: true,
+    description: true,
+    status: true,
+    reviewCycle: true,
+    voteDeadlineAt: true,
+    finalDecision: true,
+    finalDecisionAt: true,
+    decisionNote: true,
+    isVerified: true,
+    verifiedAt: true,
+    lockedAt: true,
+    submittedAt: true,
+    createdAt: true,
+    updatedAt: true,
+  },
+})
+
+const managementDetailSelect = Prisma.validator<Prisma.AccWorkflowRequestDefaultArgs>()({
+  select: {
+    id: true,
+    origin: true,
+    importedAccRequestId: true,
+    residentClerkUserId: true,
+    residentNameSnapshot: true,
+    residentEmailSnapshot: true,
+    residentPhoneSnapshot: true,
+    residentAddressSnapshot: true,
+    phase: true,
+    lot: true,
+    workType: true,
+    title: true,
+    description: true,
+    locationDetails: true,
+    formDataJson: true,
+    authorizedRepName: true,
+    status: true,
+    reviewCycle: true,
+    residentActionNote: true,
+    voteDeadlineAt: true,
+    finalDecision: true,
+    finalDecisionAt: true,
+    finalDecisionByUserId: true,
+    finalDecisionByRole: true,
+    decisionNote: true,
+    isVerified: true,
+    verifiedAt: true,
+    verifiedByUserId: true,
+    verificationNote: true,
+    lockedAt: true,
+    submittedAt: true,
+    createdAt: true,
+    updatedAt: true,
+    attachments: {
+      where: { deletedAt: null },
+      select: {
+        id: true,
+        originalFilename: true,
+        scope: true,
+        mimeType: true,
+        fileSizeBytes: true,
+        note: true,
+        createdAt: true,
+      },
+      orderBy: [{ createdAt: "asc" }],
+    },
+    votes: {
+      select: {
+        id: true,
+        reviewCycle: true,
+        voterUserId: true,
+        vote: true,
+        createdAt: true,
+      },
+      orderBy: [{ createdAt: "asc" }],
+    },
+    events: {
+      select: {
+        id: true,
+        reviewCycle: true,
+        eventType: true,
+        actorUserId: true,
+        actorRole: true,
+        note: true,
+        metadataJson: true,
+        createdAt: true,
+      },
+      orderBy: [{ createdAt: "desc" }],
+    },
+  },
+})
+
+type ManagementListRow = Prisma.AccWorkflowRequestGetPayload<typeof managementListSelect>
+type ManagementDetailRow = Prisma.AccWorkflowRequestGetPayload<typeof managementDetailSelect>
+
+export type AccWorkflowManagementStatusFilter = "all" | AccWorkflowRequestStatus
+
+export interface AccWorkflowManagementFilters {
+  status: AccWorkflowManagementStatusFilter
+  query?: string
+  page?: number
+  perPage?: number
+}
+
+type WorkflowActionResult =
+  | { kind: "ok"; request: ReturnType<typeof toManagementDetailResponse> }
+  | { kind: "not_found" }
+  | { kind: "invalid_state"; status: AccWorkflowRequestStatus }
+  | { kind: "validation_error"; errors: string[] }
+  | { kind: "duplicate_vote" }
+  | { kind: "already_verified" }
+
 function isObject(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === "object" && !Array.isArray(value)
+}
+
+function toIso(value: Date | null | undefined) {
+  return value ? value.toISOString() : null
 }
 
 function cleanString(value: unknown): string {
@@ -284,6 +415,192 @@ function toResidentResponse(row: ResidentRequestRow, includeFormData: boolean) {
   }
 }
 
+function toManagementListResponse(row: ManagementListRow) {
+  return {
+    id: row.id,
+    residentName: row.residentNameSnapshot,
+    residentEmail: row.residentEmailSnapshot,
+    residentPhone: row.residentPhoneSnapshot,
+    residentAddress: row.residentAddressSnapshot,
+    phase: row.phase,
+    lot: row.lot,
+    workType: row.workType,
+    title: row.title,
+    description: row.description,
+    status: row.status,
+    reviewCycle: row.reviewCycle,
+    voteDeadlineAt: toIso(row.voteDeadlineAt),
+    finalDecision: row.finalDecision,
+    finalDecisionAt: toIso(row.finalDecisionAt),
+    decisionNote: row.decisionNote,
+    isVerified: row.isVerified,
+    verifiedAt: toIso(row.verifiedAt),
+    lockedAt: toIso(row.lockedAt),
+    submittedAt: row.submittedAt.toISOString(),
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  }
+}
+
+function toManagementDetailResponse(row: ManagementDetailRow, viewerUserId: string) {
+  const formData = normalizeAccWorkflowFormData(row.formDataJson)
+  const votesCurrentCycle = row.votes.filter((vote) => vote.reviewCycle === row.reviewCycle)
+  const approveVotes = votesCurrentCycle.filter((vote) => vote.vote === "approve").length
+  const rejectVotes = votesCurrentCycle.filter((vote) => vote.vote === "reject").length
+  const currentUserVote = votesCurrentCycle.find((vote) => vote.voterUserId === viewerUserId) || null
+
+  return {
+    id: row.id,
+    origin: row.origin,
+    importedAccRequestId: row.importedAccRequestId,
+    residentClerkUserId: row.residentClerkUserId,
+    residentName: row.residentNameSnapshot,
+    residentEmail: row.residentEmailSnapshot,
+    residentPhone: row.residentPhoneSnapshot,
+    residentAddress: row.residentAddressSnapshot,
+    phase: row.phase,
+    lot: row.lot,
+    workType: row.workType,
+    title: row.title,
+    description: row.description,
+    locationDetails: row.locationDetails,
+    formData,
+    authorizedRepName: row.authorizedRepName,
+    status: row.status,
+    reviewCycle: row.reviewCycle,
+    residentActionNote: row.residentActionNote,
+    voteDeadlineAt: toIso(row.voteDeadlineAt),
+    finalDecision: row.finalDecision,
+    finalDecisionAt: toIso(row.finalDecisionAt),
+    finalDecisionByUserId: row.finalDecisionByUserId,
+    finalDecisionByRole: row.finalDecisionByRole,
+    decisionNote: row.decisionNote,
+    isVerified: row.isVerified,
+    verifiedAt: toIso(row.verifiedAt),
+    verifiedByUserId: row.verifiedByUserId,
+    verificationNote: row.verificationNote,
+    lockedAt: toIso(row.lockedAt),
+    submittedAt: row.submittedAt.toISOString(),
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+    attachments: row.attachments.map((attachment) => ({
+      id: attachment.id,
+      originalFilename: attachment.originalFilename,
+      scope: attachment.scope,
+      mimeType: attachment.mimeType,
+      fileSizeBytes: attachment.fileSizeBytes,
+      note: attachment.note,
+      createdAt: attachment.createdAt.toISOString(),
+    })),
+    votesCurrentCycle: votesCurrentCycle.map((vote) => ({
+      id: vote.id,
+      voterUserId: vote.voterUserId,
+      vote: vote.vote,
+      createdAt: vote.createdAt.toISOString(),
+    })),
+    voteSummary: {
+      total: votesCurrentCycle.length,
+      approve: approveVotes,
+      reject: rejectVotes,
+      currentUserVote: currentUserVote?.vote || null,
+      hasCurrentUserVoted: !!currentUserVote,
+    },
+    events: row.events.map((event) => ({
+      id: event.id,
+      reviewCycle: event.reviewCycle,
+      eventType: event.eventType,
+      actorUserId: event.actorUserId,
+      actorRole: event.actorRole,
+      note: event.note,
+      metadata: event.metadataJson,
+      createdAt: event.createdAt.toISOString(),
+    })),
+  }
+}
+
+function buildSearchWhere(query?: string): Prisma.AccWorkflowRequestWhereInput {
+  const q = (query || "").trim()
+  if (!q) return {}
+
+  return {
+    OR: [
+      { residentNameSnapshot: { contains: q, mode: "insensitive" } },
+      { residentEmailSnapshot: { contains: q, mode: "insensitive" } },
+      { residentPhoneSnapshot: { contains: q, mode: "insensitive" } },
+      { residentAddressSnapshot: { contains: q, mode: "insensitive" } },
+      { phase: { contains: q, mode: "insensitive" } },
+      { lot: { contains: q, mode: "insensitive" } },
+      { workType: { contains: q, mode: "insensitive" } },
+      { title: { contains: q, mode: "insensitive" } },
+      { description: { contains: q, mode: "insensitive" } },
+      { locationDetails: { contains: q, mode: "insensitive" } },
+    ],
+  }
+}
+
+function buildFinalizedDecisionNote(input: {
+  decision: AccWorkflowDecision
+  source: "initial_review" | "committee_vote" | "chair_override"
+  approveVotes?: number
+  rejectVotes?: number
+}) {
+  if (input.source !== "committee_vote") return null
+  return input.decision === "approve"
+    ? `Committee vote finalized the request as approved (${input.approveVotes || 0} approve, ${input.rejectVotes || 0} reject).`
+    : `Committee vote finalized the request as rejected (${input.approveVotes || 0} approve, ${input.rejectVotes || 0} reject).`
+}
+
+async function fetchManagementDetailById(tx: Prisma.TransactionClient | typeof prisma, requestId: string) {
+  return tx.accWorkflowRequest.findUnique({
+    where: { id: requestId },
+    ...managementDetailSelect,
+  })
+}
+
+async function finalizeByCommitteeVote(tx: Prisma.TransactionClient, input: {
+  requestId: string
+  reviewCycle: number
+  approveVotes: number
+  rejectVotes: number
+}) {
+  const finalDecision: AccWorkflowDecision = input.approveVotes >= 2 ? "approve" : "reject"
+  const finalizedAt = new Date()
+  const decisionNote = buildFinalizedDecisionNote({
+    decision: finalDecision,
+    source: "committee_vote",
+    approveVotes: input.approveVotes,
+    rejectVotes: input.rejectVotes,
+  })
+
+  await tx.accWorkflowRequest.update({
+    where: { id: input.requestId },
+    data: {
+      status: finalDecision === "approve" ? "approved" : "rejected",
+      finalDecision,
+      finalDecisionAt: finalizedAt,
+      finalDecisionByRole: "system",
+      decisionNote,
+      lockedAt: finalizedAt,
+    },
+  })
+
+  await tx.accWorkflowEvent.create({
+    data: {
+      requestId: input.requestId,
+      reviewCycle: input.reviewCycle,
+      eventType: "request_finalized",
+      actorRole: "system",
+      note: decisionNote,
+      metadataJson: {
+        source: "committee_vote",
+        finalDecision,
+        approveVotes: input.approveVotes,
+        rejectVotes: input.rejectVotes,
+      },
+    },
+  })
+}
+
 export async function createWorkflowRequestForResident(input: { clerkUserId: string; formData: AccWorkflowFormData }) {
   const { clerkUserId, formData } = input
   const residency = await resolveCurrentResidency(clerkUserId)
@@ -468,4 +785,430 @@ export async function resubmitWorkflowRequestForResident(input: { clerkUserId: s
 
 export function isApprovedDecisionStatus(status: AccWorkflowRequestStatus) {
   return status === "approved"
+}
+
+export async function listWorkflowRequestsForManagement(filters: AccWorkflowManagementFilters) {
+  const page = Math.max(1, filters.page || 1)
+  const perPage = Math.max(5, Math.min(100, filters.perPage || 25))
+  const where: Prisma.AccWorkflowRequestWhereInput = {
+    ...(filters.status !== "all" ? { status: filters.status } : {}),
+    ...buildSearchWhere(filters.query),
+  }
+
+  const [rows, total, grouped] = await Promise.all([
+    prisma.accWorkflowRequest.findMany({
+      where,
+      ...managementListSelect,
+      orderBy: [{ lockedAt: "asc" }, { updatedAt: "desc" }, { id: "desc" }],
+      skip: (page - 1) * perPage,
+      take: perPage,
+    }),
+    prisma.accWorkflowRequest.count({ where }),
+    prisma.accWorkflowRequest.groupBy({
+      by: ["status"],
+      _count: { _all: true },
+    }),
+  ])
+
+  const counts: Record<string, number> = {
+    all: 0,
+    initial_review: 0,
+    needs_more_info: 0,
+    committee_vote: 0,
+    approved: 0,
+    rejected: 0,
+  }
+
+  for (const row of grouped) {
+    counts[row.status] = row._count._all
+    counts.all += row._count._all
+  }
+
+  return {
+    entries: rows.map(toManagementListResponse),
+    total,
+    totalPages: Math.max(1, Math.ceil(total / perPage)),
+    page,
+    perPage,
+    counts,
+  }
+}
+
+export async function getWorkflowRequestForManagement(input: { requestId: string; viewerUserId: string }) {
+  const row = await prisma.accWorkflowRequest.findUnique({
+    where: { id: input.requestId },
+    ...managementDetailSelect,
+  })
+
+  return row ? toManagementDetailResponse(row, input.viewerUserId) : null
+}
+
+export async function requestMoreInfoForWorkflowRequest(input: {
+  requestId: string
+  actorUserId: string
+  actorRole: Exclude<AccWorkflowActorRole, "resident" | "system">
+  note: string
+}): Promise<WorkflowActionResult> {
+  const note = input.note.trim()
+  if (!note) return { kind: "validation_error", errors: ["A resident-facing note is required."] }
+
+  const updated = await prisma.$transaction(async (tx) => {
+    const existing = await fetchManagementDetailById(tx, input.requestId)
+    if (!existing) return { kind: "not_found" as const }
+    if (existing.status !== "initial_review") return { kind: "invalid_state" as const, status: existing.status }
+
+    await tx.accWorkflowRequest.update({
+      where: { id: existing.id },
+      data: {
+        status: "needs_more_info",
+        residentActionNote: note,
+      },
+    })
+
+    await tx.accWorkflowEvent.create({
+      data: {
+        requestId: existing.id,
+        reviewCycle: existing.reviewCycle,
+        eventType: "more_info_requested",
+        actorUserId: input.actorUserId,
+        actorRole: input.actorRole,
+        note,
+      },
+    })
+
+    const refreshed = await fetchManagementDetailById(tx, existing.id)
+    return refreshed ? { kind: "ok" as const, request: toManagementDetailResponse(refreshed, input.actorUserId) } : { kind: "not_found" as const }
+  })
+
+  return updated
+}
+
+async function finalizeInitialReview(input: {
+  requestId: string
+  actorUserId: string
+  actorRole: Exclude<AccWorkflowActorRole, "resident" | "system">
+  decision: AccWorkflowDecision
+  note?: string
+}): Promise<WorkflowActionResult> {
+  const trimmedNote = (input.note || "").trim()
+  if (input.decision === "reject" && !trimmedNote) {
+    return { kind: "validation_error", errors: ["A decision note is required when rejecting a request."] }
+  }
+
+  const result = await prisma.$transaction(async (tx) => {
+    const existing = await fetchManagementDetailById(tx, input.requestId)
+    if (!existing) return { kind: "not_found" as const }
+    if (existing.status !== "initial_review") return { kind: "invalid_state" as const, status: existing.status }
+
+    const finalizedAt = new Date()
+    const nextStatus: AccWorkflowRequestStatus = input.decision === "approve" ? "approved" : "rejected"
+
+    await tx.accWorkflowRequest.update({
+      where: { id: existing.id },
+      data: {
+        status: nextStatus,
+        finalDecision: input.decision,
+        finalDecisionAt: finalizedAt,
+        finalDecisionByUserId: input.actorUserId,
+        finalDecisionByRole: input.actorRole,
+        decisionNote: trimmedNote || null,
+        residentActionNote: null,
+        lockedAt: finalizedAt,
+      },
+    })
+
+    await tx.accWorkflowEvent.createMany({
+      data: [
+        {
+          requestId: existing.id,
+          reviewCycle: existing.reviewCycle,
+          eventType: input.decision === "approve" ? "initial_review_approved" : "initial_review_rejected",
+          actorUserId: input.actorUserId,
+          actorRole: input.actorRole,
+          note: trimmedNote || null,
+        },
+        {
+          requestId: existing.id,
+          reviewCycle: existing.reviewCycle,
+          eventType: "request_finalized",
+          actorUserId: input.actorUserId,
+          actorRole: input.actorRole,
+          note: trimmedNote || null,
+          metadataJson: {
+            source: "initial_review",
+            finalDecision: input.decision,
+          },
+        },
+      ],
+    })
+
+    const refreshed = await fetchManagementDetailById(tx, existing.id)
+    return refreshed ? { kind: "ok" as const, request: toManagementDetailResponse(refreshed, input.actorUserId) } : { kind: "not_found" as const }
+  })
+
+  return result
+}
+
+export async function approveWorkflowRequestInInitialReview(input: {
+  requestId: string
+  actorUserId: string
+  actorRole: Exclude<AccWorkflowActorRole, "resident" | "system">
+  note?: string
+}) {
+  return finalizeInitialReview({ ...input, decision: "approve" })
+}
+
+export async function rejectWorkflowRequestInInitialReview(input: {
+  requestId: string
+  actorUserId: string
+  actorRole: Exclude<AccWorkflowActorRole, "resident" | "system">
+  note: string
+}) {
+  return finalizeInitialReview({ ...input, decision: "reject" })
+}
+
+export async function sendWorkflowRequestToCommitteeVote(input: {
+  requestId: string
+  actorUserId: string
+  actorRole: Exclude<AccWorkflowActorRole, "resident" | "system">
+  voteDeadlineAt: Date
+}): Promise<WorkflowActionResult> {
+  const result = await prisma.$transaction(async (tx) => {
+    const existing = await fetchManagementDetailById(tx, input.requestId)
+    if (!existing) return { kind: "not_found" as const }
+    if (existing.status !== "initial_review") return { kind: "invalid_state" as const, status: existing.status }
+
+    await tx.accWorkflowRequest.update({
+      where: { id: existing.id },
+      data: {
+        status: "committee_vote",
+        voteDeadlineAt: input.voteDeadlineAt,
+        residentActionNote: null,
+      },
+    })
+
+    await tx.accWorkflowEvent.create({
+      data: {
+        requestId: existing.id,
+        reviewCycle: existing.reviewCycle,
+        eventType: "sent_to_committee_vote",
+        actorUserId: input.actorUserId,
+        actorRole: input.actorRole,
+        metadataJson: {
+          voteDeadlineAt: input.voteDeadlineAt.toISOString(),
+        },
+      },
+    })
+
+    const refreshed = await fetchManagementDetailById(tx, existing.id)
+    return refreshed ? { kind: "ok" as const, request: toManagementDetailResponse(refreshed, input.actorUserId) } : { kind: "not_found" as const }
+  })
+
+  return result
+}
+
+export async function castCommitteeVoteForWorkflowRequest(input: {
+  requestId: string
+  actorUserId: string
+  actorRole: Exclude<AccWorkflowActorRole, "resident" | "system">
+  vote: AccWorkflowVoteValue
+}): Promise<WorkflowActionResult> {
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      const existing = await fetchManagementDetailById(tx, input.requestId)
+      if (!existing) return { kind: "not_found" as const }
+      if (existing.status !== "committee_vote" || existing.lockedAt) {
+        return { kind: "invalid_state" as const, status: existing.status }
+      }
+
+      const currentVotes = existing.votes.filter((vote) => vote.reviewCycle === existing.reviewCycle)
+      if (currentVotes.some((vote) => vote.voterUserId === input.actorUserId)) {
+        return { kind: "duplicate_vote" as const }
+      }
+      if (currentVotes.length >= 3) {
+        return { kind: "invalid_state" as const, status: existing.status }
+      }
+
+      await tx.accWorkflowVote.create({
+        data: {
+          requestId: existing.id,
+          reviewCycle: existing.reviewCycle,
+          voterUserId: input.actorUserId,
+          vote: input.vote,
+        },
+      })
+
+      await tx.accWorkflowEvent.create({
+        data: {
+          requestId: existing.id,
+          reviewCycle: existing.reviewCycle,
+          eventType: "vote_cast",
+          actorUserId: input.actorUserId,
+          actorRole: input.actorRole,
+          metadataJson: {
+            vote: input.vote,
+          },
+        },
+      })
+
+      const afterVote = await fetchManagementDetailById(tx, existing.id)
+      if (!afterVote) return { kind: "not_found" as const }
+
+      const currentCycleVotes = afterVote.votes.filter((vote) => vote.reviewCycle === afterVote.reviewCycle)
+      if (currentCycleVotes.length === 3 && !afterVote.lockedAt) {
+        const approveVotes = currentCycleVotes.filter((vote) => vote.vote === "approve").length
+        const rejectVotes = currentCycleVotes.filter((vote) => vote.vote === "reject").length
+        await finalizeByCommitteeVote(tx, {
+          requestId: afterVote.id,
+          reviewCycle: afterVote.reviewCycle,
+          approveVotes,
+          rejectVotes,
+        })
+      }
+
+      const refreshed = await fetchManagementDetailById(tx, existing.id)
+      return refreshed ? { kind: "ok" as const, request: toManagementDetailResponse(refreshed, input.actorUserId) } : { kind: "not_found" as const }
+    }, {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+    })
+
+    return result
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      return { kind: "duplicate_vote" }
+    }
+    throw error
+  }
+}
+
+export async function overrideCommitteeVoteForWorkflowRequest(input: {
+  requestId: string
+  actorUserId: string
+  actorRole: "chair"
+  decision: AccWorkflowDecision
+  note: string
+}): Promise<WorkflowActionResult> {
+  const note = input.note.trim()
+  if (!note) return { kind: "validation_error", errors: ["An override note is required."] }
+
+  const result = await prisma.$transaction(async (tx) => {
+    const existing = await fetchManagementDetailById(tx, input.requestId)
+    if (!existing) return { kind: "not_found" as const }
+    if (existing.status !== "committee_vote" || existing.lockedAt) {
+      return { kind: "invalid_state" as const, status: existing.status }
+    }
+
+    const finalizedAt = new Date()
+    await tx.accWorkflowRequest.update({
+      where: { id: existing.id },
+      data: {
+        status: input.decision === "approve" ? "approved" : "rejected",
+        finalDecision: input.decision,
+        finalDecisionAt: finalizedAt,
+        finalDecisionByUserId: input.actorUserId,
+        finalDecisionByRole: input.actorRole,
+        decisionNote: note,
+        lockedAt: finalizedAt,
+      },
+    })
+
+    await tx.accWorkflowEvent.createMany({
+      data: [
+        {
+          requestId: existing.id,
+          reviewCycle: existing.reviewCycle,
+          eventType: input.decision === "approve" ? "chair_override_approved" : "chair_override_rejected",
+          actorUserId: input.actorUserId,
+          actorRole: input.actorRole,
+          note,
+        },
+        {
+          requestId: existing.id,
+          reviewCycle: existing.reviewCycle,
+          eventType: "request_finalized",
+          actorUserId: input.actorUserId,
+          actorRole: input.actorRole,
+          note,
+          metadataJson: {
+            source: "chair_override",
+            finalDecision: input.decision,
+          },
+        },
+      ],
+    })
+
+    const refreshed = await fetchManagementDetailById(tx, existing.id)
+    return refreshed ? { kind: "ok" as const, request: toManagementDetailResponse(refreshed, input.actorUserId) } : { kind: "not_found" as const }
+  })
+
+  return result
+}
+
+export async function verifyApprovedWorkflowRequest(input: {
+  requestId: string
+  actorUserId: string
+  actorRole: "chair" | "admin"
+  note?: string
+}): Promise<WorkflowActionResult> {
+  const note = (input.note || "").trim()
+
+  const result = await prisma.$transaction(async (tx) => {
+    const existing = await fetchManagementDetailById(tx, input.requestId)
+    if (!existing) return { kind: "not_found" as const }
+    if (existing.status !== "approved") return { kind: "invalid_state" as const, status: existing.status }
+    if (existing.isVerified) return { kind: "already_verified" as const }
+
+    const verifiedAt = new Date()
+    await tx.accWorkflowRequest.update({
+      where: { id: existing.id },
+      data: {
+        isVerified: true,
+        verifiedAt,
+        verifiedByUserId: input.actorUserId,
+        verificationNote: note || null,
+      },
+    })
+
+    await tx.accWorkflowEvent.create({
+      data: {
+        requestId: existing.id,
+        reviewCycle: existing.reviewCycle,
+        eventType: "request_verified",
+        actorUserId: input.actorUserId,
+        actorRole: input.actorRole,
+        note: note || null,
+      },
+    })
+
+    const refreshed = await fetchManagementDetailById(tx, existing.id)
+    return refreshed ? { kind: "ok" as const, request: toManagementDetailResponse(refreshed, input.actorUserId) } : { kind: "not_found" as const }
+  })
+
+  return result
+}
+
+export async function purgeWorkflowRequestForAdmin(input: {
+  requestId: string
+  actorUserId: string
+  confirmText: string
+}) {
+  if (input.confirmText.trim().toUpperCase() !== "PURGE") {
+    return { kind: "validation_error" as const, errors: ["Type PURGE to confirm permanent deletion."] }
+  }
+
+  const existing = await prisma.accWorkflowRequest.findUnique({
+    where: { id: input.requestId },
+    select: { id: true },
+  })
+
+  if (!existing) return { kind: "not_found" as const }
+
+  await prisma.accWorkflowRequest.delete({
+    where: { id: input.requestId },
+  })
+
+  return { kind: "ok" as const, deletedRequestId: input.requestId }
 }

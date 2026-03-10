@@ -1,31 +1,113 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
-import { AlertCircle, CheckCircle, Clock, FileText, RefreshCw, Search, XCircle } from "lucide-react"
-import * as Dialog from "@radix-ui/react-dialog"
+import { useCallback, useEffect, useState } from "react"
+import Link from "next/link"
+import { Clock3, Loader2, ShieldAlert, Trash2 } from "lucide-react"
 
-type Disposition = "pending" | "approved" | "rejected" | "conditional" | "duplicate" | "canceled"
-type DispositionFilter = "all" | Disposition
-type ModalMode = "view" | "edit"
+type WorkflowStatus = "initial_review" | "needs_more_info" | "committee_vote" | "approved" | "rejected"
+type WorkflowStatusFilter = "all" | WorkflowStatus
+type VoteValue = "approve" | "reject"
+type DecisionValue = "approve" | "reject"
+type QueueAction =
+  | "request_more_info"
+  | "approve"
+  | "reject"
+  | "send_to_vote"
+  | "cast_vote"
+  | "override"
+  | "verify"
+  | "purge"
 
-interface QueueEntry {
+type QueueEntry = {
   id: string
-  sourceEntryId: string
-  permitNumber: string | null
-  submittedAt: string | null
-  processDate: string | null
-  disposition: Disposition
-  ownerName: string | null
-  ownerPhone: string | null
-  ownerEmail: string | null
-  addressRaw: string | null
+  residentName: string
+  residentEmail: string
+  residentPhone: string | null
+  residentAddress: string | null
+  phase: string | null
+  lot: string | null
   workType: string | null
+  title: string | null
   description: string | null
-  notes: string | null
+  status: WorkflowStatus
+  reviewCycle: number
+  voteDeadlineAt: string | null
+  finalDecision: DecisionValue | null
+  finalDecisionAt: string | null
+  decisionNote: string | null
+  isVerified: boolean
+  verifiedAt: string | null
+  lockedAt: string | null
+  submittedAt: string
+  createdAt: string
   updatedAt: string
 }
 
-interface QueueResponse {
+type WorkflowDetail = {
+  id: string
+  residentName: string
+  residentEmail: string
+  residentPhone: string | null
+  residentAddress: string | null
+  phase: string | null
+  lot: string | null
+  workType: string | null
+  title: string | null
+  description: string | null
+  locationDetails: string | null
+  authorizedRepName: string | null
+  status: WorkflowStatus
+  reviewCycle: number
+  residentActionNote: string | null
+  voteDeadlineAt: string | null
+  finalDecision: DecisionValue | null
+  finalDecisionAt: string | null
+  finalDecisionByUserId: string | null
+  finalDecisionByRole: string | null
+  decisionNote: string | null
+  isVerified: boolean
+  verifiedAt: string | null
+  verifiedByUserId: string | null
+  verificationNote: string | null
+  lockedAt: string | null
+  submittedAt: string
+  updatedAt: string
+  formData: Record<string, string>
+  attachments: Array<{
+    id: string
+    originalFilename: string
+    scope: string
+    mimeType: string
+    fileSizeBytes: number
+    note: string | null
+    createdAt: string
+  }>
+  votesCurrentCycle: Array<{
+    id: string
+    voterUserId: string
+    vote: VoteValue
+    createdAt: string
+  }>
+  voteSummary: {
+    total: number
+    approve: number
+    reject: number
+    currentUserVote: VoteValue | null
+    hasCurrentUserVoted: boolean
+  }
+  events: Array<{
+    id: string
+    reviewCycle: number
+    eventType: string
+    actorUserId: string | null
+    actorRole: string
+    note: string | null
+    metadata: unknown
+    createdAt: string
+  }>
+}
+
+type QueueResponse = {
   entries: QueueEntry[]
   total: number
   totalPages: number
@@ -34,755 +116,587 @@ interface QueueResponse {
   counts: Record<string, number>
 }
 
-const FILTERS: Array<{ key: DispositionFilter; label: string }> = [
+const STATUS_FILTERS: Array<{ key: WorkflowStatusFilter; label: string }> = [
   { key: "all", label: "All" },
-  { key: "pending", label: "Pending" },
+  { key: "initial_review", label: "Initial Review" },
+  { key: "needs_more_info", label: "Needs More Info" },
+  { key: "committee_vote", label: "Committee Vote" },
   { key: "approved", label: "Approved" },
   { key: "rejected", label: "Rejected" },
-  { key: "conditional", label: "Conditional" },
-  { key: "duplicate", label: "Duplicate" },
-  { key: "canceled", label: "Canceled" },
 ]
 
-const EDIT_DISPOSITION_OPTIONS: Array<{ value: Disposition; label: string }> = [
-  { value: "pending", label: "Pending" },
-  { value: "approved", label: "Approved" },
-  { value: "rejected", label: "Rejected / Denied" },
-  { value: "conditional", label: "Conditional" },
-  { value: "duplicate", label: "Duplicate" },
-  { value: "canceled", label: "Canceled" },
-]
-
-function formatDate(value: string | null): string {
-  if (!value) return "—"
-  const d = new Date(value)
-  if (Number.isNaN(d.getTime())) return "—"
-  return d.toLocaleString()
+function statusLabel(status: WorkflowStatus) {
+  if (status === "initial_review") return "Initial Review"
+  if (status === "needs_more_info") return "Needs More Info"
+  if (status === "committee_vote") return "Committee Vote"
+  if (status === "approved") return "Approved"
+  return "Rejected"
 }
 
-function formatDateOnly(value: string | null): string {
+function formatDateTime(value: string | null) {
   if (!value) return "—"
-  const d = new Date(value)
-  if (Number.isNaN(d.getTime())) return "—"
-  return d.toLocaleDateString()
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return "—"
+  return date.toLocaleString()
 }
 
-function toYmd(value: string | null): string {
+function toDateTimeLocalValue(value: string | null) {
   if (!value) return ""
-  const d = new Date(value)
-  if (Number.isNaN(d.getTime())) return ""
-  return d.toISOString().slice(0, 10)
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ""
+  const offsetMs = date.getTimezoneOffset() * 60_000
+  return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16)
 }
 
-function badgeStyle(disposition: Disposition) {
-  if (disposition === "approved") return { bg: "#d1fae5", color: "#065f46", icon: CheckCircle, label: "Approved" }
-  if (disposition === "rejected") return { bg: "#fee2e2", color: "#991b1b", icon: XCircle, label: "Rejected" }
-  if (disposition === "conditional") return { bg: "#fef3c7", color: "#92400e", icon: Clock, label: "Conditional" }
-  if (disposition === "duplicate") return { bg: "#e0e7ff", color: "#3730a3", icon: FileText, label: "Duplicate" }
-  if (disposition === "canceled") return { bg: "#f3f4f6", color: "#4b5563", icon: XCircle, label: "Canceled" }
-  return { bg: "#dbeafe", color: "#1e3a8a", icon: Clock, label: "Pending" }
+function statusBadgeStyles(status: WorkflowStatus) {
+  if (status === "approved") return { background: "#dcfce7", color: "#166534" }
+  if (status === "rejected") return { background: "#fee2e2", color: "#991b1b" }
+  if (status === "committee_vote") return { background: "#dbeafe", color: "#1d4ed8" }
+  if (status === "needs_more_info") return { background: "#ffedd5", color: "#9a3412" }
+  return { background: "#f3f4f6", color: "#334155" }
 }
 
-function StatusBadge({ disposition }: { disposition: Disposition }) {
-  const style = badgeStyle(disposition)
-  const Icon = style.icon
+function StatusBadge({ status }: { status: WorkflowStatus }) {
+  const styles = statusBadgeStyles(status)
   return (
     <span
       style={{
         display: "inline-flex",
         alignItems: "center",
-        gap: "0.35rem",
         borderRadius: "999px",
+        padding: "0.25rem 0.7rem",
         fontSize: "0.75rem",
-        fontWeight: 600,
-        padding: "0.2rem 0.65rem",
-        background: style.bg,
-        color: style.color,
-        whiteSpace: "nowrap",
+        fontWeight: 700,
+        background: styles.background,
+        color: styles.color,
       }}
     >
-      <Icon style={{ width: "0.75rem", height: "0.75rem" }} />
-      {style.label}
+      {statusLabel(status)}
     </span>
   )
 }
 
-export function AccQueueNeonTable() {
+function EventLabel({ eventType }: { eventType: string }) {
+  const label = eventType
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ")
+  return <span>{label}</span>
+}
+
+type Props = {
+  canControlWorkflow: boolean
+  canVote: boolean
+  canOverrideVote: boolean
+  canVerify: boolean
+  canPurge: boolean
+}
+
+export function AccQueueNeonTable(props: Props) {
   const [entries, setEntries] = useState<QueueEntry[]>([])
-  const [total, setTotal] = useState(0)
-  const [totalPages, setTotalPages] = useState(1)
   const [counts, setCounts] = useState<Record<string, number>>({})
+  const [total, setTotal] = useState(0)
+  const [page, setPage] = useState(1)
+  const [perPage] = useState(25)
+  const [status, setStatus] = useState<WorkflowStatusFilter>("all")
+  const [queryInput, setQueryInput] = useState("")
+  const [query, setQuery] = useState("")
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const [statusFilter, setStatusFilter] = useState<DispositionFilter>("all")
-  const [queryInput, setQueryInput] = useState("")
-  const [query, setQuery] = useState("")
-  const [startDate, setStartDate] = useState("")
-  const [endDate, setEndDate] = useState("")
-  const [pageSize, setPageSize] = useState(25)
-  const [currentPage, setCurrentPage] = useState(1)
-
-  const [selected, setSelected] = useState<QueueEntry | null>(null)
-  const [modalMode, setModalMode] = useState<ModalMode>("view")
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [detail, setDetail] = useState<WorkflowDetail | null>(null)
   const [detailLoading, setDetailLoading] = useState(false)
-  const [saving, setSaving] = useState(false)
   const [detailError, setDetailError] = useState<string | null>(null)
 
-  const [editPermitNumber, setEditPermitNumber] = useState("")
-  const [editDisposition, setEditDisposition] = useState<Disposition>("pending")
-  const [editProcessDate, setEditProcessDate] = useState("")
-  const [editDescription, setEditDescription] = useState("")
-  const [editNotes, setEditNotes] = useState("")
+  const [actionNote, setActionNote] = useState("")
+  const [voteDeadlineAt, setVoteDeadlineAt] = useState("")
+  const [purgeConfirm, setPurgeConfirm] = useState("")
+  const [saving, setSaving] = useState(false)
+  const [statusMessage, setStatusMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
 
   const fetchEntries = useCallback(async () => {
     setLoading(true)
     setError(null)
-
     try {
       const params = new URLSearchParams()
-      params.set("disposition", statusFilter)
-      params.set("page", String(currentPage))
-      params.set("per_page", String(pageSize))
+      params.set("status", status)
+      params.set("page", String(page))
+      params.set("per_page", String(perPage))
       if (query.trim()) params.set("q", query.trim())
-      if (startDate) params.set("startDate", startDate)
-      if (endDate) params.set("endDate", endDate)
 
       const res = await fetch(`/api/acc/queue?${params.toString()}`, { cache: "no-store" })
       const body = (await res.json().catch(() => ({}))) as QueueResponse & { error?: string; detail?: string }
-      if (!res.ok) {
-        throw new Error(body.error || body.detail || "Failed to load ACC queue")
-      }
+      if (!res.ok) throw new Error(body.error || body.detail || "Failed to load ACC queue.")
 
       setEntries(body.entries || [])
-      setTotal(body.total || 0)
-      setTotalPages(Math.max(1, body.totalPages || 1))
       setCounts(body.counts || {})
+      setTotal(body.total || 0)
+
+      if (!selectedId && body.entries?.[0]?.id) {
+        setSelectedId(body.entries[0].id)
+      } else if (selectedId && !body.entries?.some((entry) => entry.id === selectedId)) {
+        setSelectedId(body.entries?.[0]?.id || null)
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load ACC queue")
+      setError(err instanceof Error ? err.message : "Failed to load ACC queue.")
     } finally {
       setLoading(false)
     }
-  }, [currentPage, endDate, pageSize, query, startDate, statusFilter])
+  }, [page, perPage, query, selectedId, status])
+
+  const fetchDetail = useCallback(async (requestId: string) => {
+    setDetailLoading(true)
+    setDetailError(null)
+
+    try {
+      const res = await fetch(`/api/acc/queue/${requestId}`, { cache: "no-store" })
+      const body = (await res.json().catch(() => ({}))) as { request?: WorkflowDetail; error?: string; detail?: string }
+      if (!res.ok || !body.request) throw new Error(body.error || body.detail || "Failed to load request detail.")
+
+      setDetail(body.request)
+      setActionNote(body.request.residentActionNote || body.request.decisionNote || body.request.verificationNote || "")
+      setVoteDeadlineAt(
+        body.request.voteDeadlineAt
+          ? toDateTimeLocalValue(body.request.voteDeadlineAt)
+          : toDateTimeLocalValue(new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString()),
+      )
+      setPurgeConfirm("")
+    } catch (err) {
+      setDetail(null)
+      setDetailError(err instanceof Error ? err.message : "Failed to load request detail.")
+    } finally {
+      setDetailLoading(false)
+    }
+  }, [])
 
   useEffect(() => {
     fetchEntries()
   }, [fetchEntries])
 
-  const pageStart = total === 0 ? 0 : (currentPage - 1) * pageSize + 1
-  const pageEnd = Math.min(total, currentPage * pageSize)
-
-  const summary = useMemo(
-    () => [
-      { label: "Pending", value: counts.pending || 0 },
-      { label: "Approved", value: counts.approved || 0 },
-      { label: "Rejected", value: counts.rejected || 0 },
-      { label: "Conditional", value: counts.conditional || 0 },
-    ],
-    [counts],
-  )
-
-  const resetFilters = () => {
-    setStatusFilter("all")
-    setQueryInput("")
-    setQuery("")
-    setStartDate("")
-    setEndDate("")
-    setPageSize(25)
-    setCurrentPage(1)
-  }
-
-  const handleSearch = () => {
-    setCurrentPage(1)
-    setQuery(queryInput)
-  }
-
-  const openEntry = async (id: string, mode: ModalMode) => {
-    setModalMode(mode)
-    setDetailLoading(true)
-    setDetailError(null)
-    try {
-      const res = await fetch(`/api/acc/queue/${id}`, { cache: "no-store" })
-      const body = (await res.json().catch(() => ({}))) as { entry?: QueueEntry; error?: string; detail?: string }
-      if (!res.ok || !body.entry) {
-        throw new Error(body.error || body.detail || "Failed to load queue entry")
-      }
-      setSelected(body.entry)
-      setEditPermitNumber(body.entry.permitNumber || "")
-      setEditDisposition(body.entry.disposition)
-      setEditProcessDate(toYmd(body.entry.processDate))
-      setEditDescription(body.entry.description || "")
-      setEditNotes(body.entry.notes || "")
-    } catch (err) {
-      setDetailError(err instanceof Error ? err.message : "Failed to load queue entry")
-    } finally {
-      setDetailLoading(false)
+  useEffect(() => {
+    if (!selectedId) {
+      setDetail(null)
+      return
     }
-  }
+    fetchDetail(selectedId)
+  }, [fetchDetail, selectedId])
 
-  const closeModal = () => {
-    setSelected(null)
-    setDetailError(null)
-  }
+  async function runAction(action: QueueAction, extras: Record<string, unknown> = {}) {
+    if (!detail) return
 
-  const saveEntry = async () => {
-    if (!selected) return
     setSaving(true)
-    setDetailError(null)
+    setStatusMessage(null)
+
     try {
-      const res = await fetch(`/api/acc/queue/${selected.id}`, {
+      const res = await fetch(`/api/acc/queue/${detail.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          permitNumber: editPermitNumber,
-          disposition: editDisposition,
-          processDate: editProcessDate,
-          description: editDescription,
-          notes: editNotes,
-        }),
+        body: JSON.stringify({ action, note: actionNote, voteDeadlineAt, confirmText: purgeConfirm, ...extras }),
       })
-      const body = (await res.json().catch(() => ({}))) as { entry?: QueueEntry; error?: string; detail?: string }
-      if (!res.ok || !body.entry) {
-        throw new Error(body.error || body.detail || "Save failed")
+
+      const body = (await res.json().catch(() => ({}))) as {
+        request?: WorkflowDetail
+        deletedRequestId?: string
+        error?: string
+        detail?: string
+        validationErrors?: string[]
       }
-      setSelected(body.entry)
+
+      if (!res.ok) {
+        throw new Error(body.validationErrors?.[0] || body.error || body.detail || "Workflow action failed.")
+      }
+
+      if (body.deletedRequestId) {
+        setStatusMessage({ type: "success", text: "ACC request permanently deleted." })
+        setSelectedId(null)
+        setDetail(null)
+        await fetchEntries()
+        return
+      }
+
+      if (body.request) {
+        setDetail(body.request)
+        setStatusMessage({ type: "success", text: "Workflow updated successfully." })
+      }
+
       await fetchEntries()
     } catch (err) {
-      setDetailError(err instanceof Error ? err.message : "Save failed")
+      setStatusMessage({
+        type: "error",
+        text: err instanceof Error ? err.message : "Workflow action failed.",
+      })
     } finally {
       setSaving(false)
     }
   }
 
+  const pageStart = total === 0 ? 0 : (page - 1) * perPage + 1
+  const pageEnd = Math.min(total, page * perPage)
+
   return (
-    <div className="stack" style={{ gap: "var(--space-m)" }}>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(11rem, 1fr))", gap: "0.55rem" }}>
-        {summary.map((item) => (
-          <div
-            key={item.label}
-            style={{
-              border: "1px solid var(--pp-slate-200)",
-              borderRadius: "var(--radius-sm)",
-              padding: "0.55rem 0.65rem",
-              background: "var(--pp-slate-50)",
-            }}
-          >
-            <div className="text-fluid-sm" style={{ color: "var(--pp-slate-500)" }}>{item.label}</div>
-            <div style={{ fontWeight: 700, color: "var(--pp-navy-dark)" }}>{item.value}</div>
+    <div className="stack" style={{ gap: "var(--space-l)" }}>
+      <div style={{ display: "grid", gap: "0.75rem", gridTemplateColumns: "repeat(auto-fit, minmax(10rem, 1fr))" }}>
+        {STATUS_FILTERS.filter((filter) => filter.key !== "all").map((filter) => (
+          <div key={filter.key} className="card" style={{ padding: "0.9rem 1rem" }}>
+            <div className="text-fluid-sm" style={{ color: "var(--pp-slate-600)" }}>{filter.label}</div>
+            <div style={{ fontSize: "1.5rem", fontWeight: 800, color: "var(--pp-navy-dark)" }}>{counts[filter.key] || 0}</div>
           </div>
         ))}
       </div>
 
-      <div className="stack" style={{ gap: "0.6rem" }}>
-        <div style={{ display: "flex", gap: "0.45rem", flexWrap: "wrap" }}>
-          {FILTERS.map((f) => (
-            <button
-              key={f.key}
-              type="button"
-              onClick={() => {
-                setStatusFilter(f.key)
-                setCurrentPage(1)
-              }}
-              style={{
-                borderRadius: "999px",
-                border: statusFilter === f.key ? "none" : "1.5px solid var(--pp-slate-200)",
-                background: statusFilter === f.key ? "var(--pp-navy-dark)" : "var(--pp-white)",
-                color: statusFilter === f.key ? "var(--pp-white)" : "var(--pp-slate-700)",
-                padding: "0.42rem 0.75rem",
-                fontSize: "0.78rem",
-                fontWeight: 700,
-                cursor: "pointer",
-              }}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="acc-controls-grid" style={{ display: "grid", gridTemplateColumns: "minmax(16rem, 1fr) 10rem 10rem auto auto", gap: "0.5rem", alignItems: "center" }}>
-          <div style={{ position: "relative" }}>
-            <Search style={{ position: "absolute", left: "0.6rem", top: "50%", transform: "translateY(-50%)", width: "0.85rem", height: "0.85rem", color: "var(--pp-slate-400)" }} />
-            <input
-              value={queryInput}
-              onChange={(e) => setQueryInput(e.target.value)}
-              placeholder="Search permit, owner, address..."
-              style={{ width: "100%", borderRadius: "var(--radius-sm)", border: "1.5px solid var(--pp-slate-200)", padding: "0.5rem 0.6rem 0.5rem 1.9rem" }}
-            />
-          </div>
-          <input type="date" value={startDate} onChange={(e) => { setStartDate(e.target.value); setCurrentPage(1) }} style={{ borderRadius: "var(--radius-sm)", border: "1.5px solid var(--pp-slate-200)", padding: "0.5rem" }} />
-          <input type="date" value={endDate} onChange={(e) => { setEndDate(e.target.value); setCurrentPage(1) }} style={{ borderRadius: "var(--radius-sm)", border: "1.5px solid var(--pp-slate-200)", padding: "0.5rem" }} />
-          <button type="button" onClick={handleSearch} className="btn btn-primary">Search</button>
-          <button type="button" onClick={resetFilters} className="btn btn-secondary">Reset</button>
-        </div>
-      </div>
-
-      {error && (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "flex-start",
-            gap: "0.6rem",
-            padding: "0.7rem",
-            borderRadius: "var(--radius-sm)",
-            border: "1px solid #fecaca",
-            background: "#fef2f2",
-          }}
-        >
-          <AlertCircle style={{ width: "1rem", height: "1rem", color: "#dc2626", marginTop: "0.15rem" }} />
-          <div>
-            <div style={{ fontWeight: 700, color: "#b91c1c" }}>Unable to load ACC queue</div>
-            <div className="text-fluid-sm" style={{ color: "#991b1b" }}>{error}</div>
-          </div>
-        </div>
-      )}
-
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.6rem", flexWrap: "wrap" }}>
-        <div className="text-fluid-sm" style={{ color: "var(--pp-slate-600)" }}>
-          Showing {pageStart}-{pageEnd} of {total}
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-          <label className="text-fluid-sm" style={{ color: "var(--pp-slate-600)" }}>Rows</label>
-          <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1) }} style={{ borderRadius: "var(--radius-sm)", border: "1.5px solid var(--pp-slate-200)", padding: "0.35rem 0.5rem" }}>
-            <option value={25}>25</option>
-            <option value={50}>50</option>
-            <option value={100}>100</option>
+      <div className="card" style={{ padding: "1rem" }}>
+        <div style={{ display: "grid", gap: "0.8rem", gridTemplateColumns: "repeat(auto-fit, minmax(12rem, 1fr))" }}>
+          <input
+            value={queryInput}
+            onChange={(event) => setQueryInput(event.target.value)}
+            placeholder="Search name, address, title, or description"
+            style={{ width: "100%", border: "1.5px solid var(--pp-slate-200)", borderRadius: "var(--radius-sm)", padding: "0.7rem 0.8rem" }}
+          />
+          <select
+            value={status}
+            onChange={(event) => {
+              setStatus(event.target.value as WorkflowStatusFilter)
+              setPage(1)
+            }}
+            style={{ width: "100%", border: "1.5px solid var(--pp-slate-200)", borderRadius: "var(--radius-sm)", padding: "0.7rem 0.8rem" }}
+          >
+            {STATUS_FILTERS.map((filter) => (
+              <option key={filter.key} value={filter.key}>{filter.label}</option>
+            ))}
           </select>
-          <button type="button" onClick={fetchEntries} className="btn btn-secondary" style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem" }}>
-            <RefreshCw style={{ width: "0.85rem", height: "0.85rem" }} /> Refresh
+          <button type="button" className="btn btn-primary" onClick={() => { setQuery(queryInput); setPage(1) }}>
+            Filter
           </button>
         </div>
       </div>
 
-      <div style={{ overflowX: "auto", borderRadius: "var(--radius-md)", border: "1px solid var(--pp-slate-200)" }}>
-        <table className="acc-table" style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr style={{ background: "var(--pp-navy-dark)" }}>
-              {[
-                "Permit / ID",
-                "Submitted",
-                "Applicant",
-                "Address",
-                "Description",
-                "Work Type",
-                "Disposition",
-                "Process Date",
-                "Actions",
-              ].map((label) => (
-                <th
-                  key={label}
-                  className={
-                    label === "Submitted"
-                      ? "acc-col-submitted"
-                      : label === "Applicant"
-                        ? "acc-col-applicant"
-                        : label === "Address"
-                          ? "acc-col-address"
-                      : label === "Description"
-                        ? "acc-col-description"
-                        : label === "Work Type"
-                          ? "acc-col-worktype"
-                      : label === "Disposition"
-                            ? "acc-col-status"
-                            : label === "Process Date"
-                              ? "acc-col-process"
-                              : label === "Actions"
-                                ? "acc-col-actions"
-                              : undefined
-                  }
-                  data-acc-cell="true"
-                  style={{ textAlign: "left", padding: "0.62rem 0.8rem", color: "var(--pp-gold-light)", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.07em" }}
-                >
-                  {label === "Permit / ID" ? (
-                    <>
-                      <span className="acc-col-permit-full">Permit / ID</span>
-                      <span className="acc-col-permit-short">Permit ID</span>
-                    </>
-                  ) : (
-                    label
-                  )}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr><td colSpan={9} style={{ padding: "1rem", textAlign: "center", color: "var(--pp-slate-500)" }}>Loading…</td></tr>
-            ) : entries.length === 0 ? (
-              <tr><td colSpan={9} style={{ padding: "1rem", textAlign: "center", color: "var(--pp-slate-500)" }}>No matching ACC requests found.</td></tr>
-            ) : (
-              entries.map((entry, index) => (
-                <tr key={entry.id} style={{ borderTop: "1px solid var(--pp-slate-100)", background: index % 2 === 0 ? "var(--pp-white)" : "var(--pp-slate-50)" }}>
-                  <td className="acc-col-permitid" data-acc-cell="true" style={{ padding: "0.55rem 0.7rem" }}>
-                    <div style={{ fontWeight: 700, color: "var(--pp-navy-dark)", fontFamily: "monospace", fontSize: "0.8rem" }}>{entry.permitNumber || "—"}</div>
-                    <div style={{ color: "var(--pp-slate-500)", fontSize: "0.76rem", fontFamily: "monospace" }}>#{entry.sourceEntryId}</div>
-                  </td>
-                  <td className="acc-col-submitted" data-acc-cell="true" style={{ padding: "0.55rem 0.7rem", color: "var(--pp-slate-600)", fontSize: "0.8rem", whiteSpace: "nowrap" }}>{formatDateOnly(entry.submittedAt)}</td>
-                  <td className="acc-col-applicant" data-acc-cell="true" style={{ padding: "0.55rem 0.7rem" }}>
-                    <div className="acc-applicant-text" style={{ fontWeight: 600, color: "var(--pp-navy-dark)", fontSize: "0.82rem" }}>{entry.ownerName || "—"}</div>
-                    <div style={{ color: "var(--pp-slate-500)", fontSize: "0.75rem" }}>{entry.ownerEmail || "—"}</div>
-                  </td>
-                  <td className="acc-col-address" data-acc-cell="true" style={{ padding: "0.55rem 0.7rem", color: "var(--pp-slate-700)", fontSize: "0.8rem" }}>{entry.addressRaw || "—"}</td>
-                  <td className="acc-col-description" data-acc-cell="true" style={{ padding: "0.55rem 0.7rem", color: "var(--pp-slate-600)", maxWidth: "18rem" }}>
-                    <span
-                      className="acc-description-text"
-                      style={{
-                        fontSize: "0.8rem",
-                        display: "-webkit-box",
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: "vertical",
-                        overflow: "hidden",
-                      }}
-                    >
-                      {entry.description || "—"}
-                    </span>
-                  </td>
-                  <td className="acc-col-worktype" data-acc-cell="true" style={{ padding: "0.55rem 0.7rem", color: "var(--pp-slate-700)", fontSize: "0.8rem", whiteSpace: "nowrap" }}>{entry.workType || "—"}</td>
-                  <td className="acc-col-status" data-acc-cell="true" style={{ padding: "0.55rem 0.7rem" }}><StatusBadge disposition={entry.disposition} /></td>
-                  <td className="acc-col-process" data-acc-cell="true" style={{ padding: "0.55rem 0.7rem", color: "var(--pp-slate-700)", fontSize: "0.8rem", whiteSpace: "nowrap" }}>{formatDateOnly(entry.processDate)}</td>
-                  <td className="acc-col-actions" data-acc-cell="true" style={{ padding: "0.55rem 0.7rem" }}>
-                    <div className="acc-actions-stack" style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap" }}>
-                      <button
-                        type="button"
-                        onClick={() => openEntry(entry.id, "view")}
-                        style={{
-                          padding: "0.35rem 0.6rem",
-                          borderRadius: "var(--radius-sm)",
-                          border: "1.5px solid var(--pp-slate-200)",
-                          background: "var(--pp-white)",
-                          color: "var(--pp-slate-700)",
-                          fontSize: "0.78rem",
-                          fontWeight: 600,
-                          cursor: "pointer",
-                        }}
-                      >
-                        View
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => openEntry(entry.id, "edit")}
-                        style={{
-                          padding: "0.35rem 0.6rem",
-                          borderRadius: "var(--radius-sm)",
-                          border: "none",
-                          background: "var(--pp-navy-dark)",
-                          color: "var(--pp-white)",
-                          fontSize: "0.78rem",
-                          fontWeight: 600,
-                          cursor: "pointer",
-                        }}
-                      >
-                        Edit
-                      </button>
-                    </div>
-                  </td>
+      {error ? (
+        <div className="card" style={{ padding: "1rem", borderColor: "#fecaca", background: "#fef2f2", color: "#991b1b" }}>
+          {error}
+        </div>
+      ) : null}
+
+      {!loading && (counts.all || 0) === 0 ? (
+        <div className="card" style={{ padding: "1rem", background: "#fffef8" }}>
+          <div style={{ fontWeight: 700, color: "var(--pp-navy-dark)" }}>No native ACC workflow requests yet</div>
+          <p style={{ margin: "0.45rem 0 0 0", color: "var(--pp-slate-700)" }}>
+            This queue now shows only new native ACC workflow submissions. Existing imported WordPress ACC records remain in the legacy queue until native requests are created.
+          </p>
+          <p style={{ margin: "0.45rem 0 0 0" }}>
+            <Link href="/resident-portal/management/wp-acc-queue">Open legacy ACC queue</Link>
+          </p>
+        </div>
+      ) : null}
+
+      <div style={{ display: "grid", gap: "1rem", gridTemplateColumns: "repeat(auto-fit, minmax(22rem, 1fr))" }}>
+        <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+          <div style={{ padding: "0.9rem 1rem", borderBottom: "1px solid var(--pp-slate-100)", display: "flex", justifyContent: "space-between", gap: "1rem" }}>
+            <div style={{ color: "var(--pp-slate-700)" }}>
+              {loading ? "Loading..." : `${pageStart}-${pageEnd} of ${total}`}
+            </div>
+            <div style={{ display: "flex", gap: "0.5rem" }}>
+              <button type="button" className="btn btn-secondary" disabled={page <= 1 || loading} onClick={() => setPage((current) => Math.max(1, current - 1))}>Prev</button>
+              <button type="button" className="btn btn-secondary" disabled={pageEnd >= total || loading} onClick={() => setPage((current) => current + 1)}>Next</button>
+            </div>
+          </div>
+
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr style={{ background: "#f8fafc", textAlign: "left" }}>
+                  {["Resident", "Request", "Status", "Submitted"].map((heading) => (
+                    <th key={heading} style={{ padding: "0.8rem 1rem", fontSize: "0.8rem", color: "var(--pp-slate-600)" }}>{heading}</th>
+                  ))}
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+              </thead>
+              <tbody>
+                {entries.map((entry) => (
+                  <tr
+                    key={entry.id}
+                    onClick={() => setSelectedId(entry.id)}
+                    style={{
+                      cursor: "pointer",
+                      borderTop: "1px solid var(--pp-slate-100)",
+                      background: selectedId === entry.id ? "#f8fafc" : "transparent",
+                    }}
+                  >
+                    <td style={{ padding: "0.85rem 1rem", verticalAlign: "top" }}>
+                      <div style={{ fontWeight: 700, color: "var(--pp-navy-dark)" }}>{entry.residentName}</div>
+                      <div className="text-fluid-sm" style={{ color: "var(--pp-slate-600)" }}>{entry.residentAddress || "No address"}</div>
+                    </td>
+                    <td style={{ padding: "0.85rem 1rem", verticalAlign: "top" }}>
+                      <div style={{ fontWeight: 700 }}>{entry.title || "ACC Request"}</div>
+                      <div className="text-fluid-sm" style={{ color: "var(--pp-slate-600)" }}>{entry.description || "No description provided."}</div>
+                    </td>
+                    <td style={{ padding: "0.85rem 1rem", verticalAlign: "top" }}>
+                      <StatusBadge status={entry.status} />
+                      {entry.isVerified ? (
+                        <div className="text-fluid-sm" style={{ marginTop: "0.35rem", color: "#166534" }}>Verified complete</div>
+                      ) : null}
+                    </td>
+                    <td style={{ padding: "0.85rem 1rem", verticalAlign: "top", color: "var(--pp-slate-600)" }}>
+                      {formatDateTime(entry.submittedAt)}
+                    </td>
+                  </tr>
+                ))}
+                {!loading && entries.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} style={{ padding: "1rem", textAlign: "center", color: "var(--pp-slate-600)" }}>
+                      No workflow requests match the current filters.
+                    </td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
+          </div>
+        </div>
 
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <button type="button" className="btn btn-secondary" onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage <= 1}>Previous</button>
-        <div className="text-fluid-sm" style={{ color: "var(--pp-slate-600)" }}>Page {currentPage} of {totalPages}</div>
-        <button type="button" className="btn btn-secondary" onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage >= totalPages}>Next</button>
-      </div>
-
-      <Dialog.Root open={!!selected} onOpenChange={(open) => { if (!open) closeModal() }}>
-        <Dialog.Portal>
-          <Dialog.Overlay style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.42)", zIndex: 70 }} />
-          <Dialog.Content
-            style={{
-              position: "fixed",
-              top: "50%",
-              left: "50%",
-              transform: "translate(-50%, -50%)",
-              width: "min(52rem, 94vw)",
-              maxHeight: "88vh",
-              overflowY: "auto",
-              background: "var(--pp-white)",
-              borderRadius: "var(--radius-md)",
-              border: "1px solid var(--pp-slate-200)",
-              padding: "1rem",
-              zIndex: 71,
-            }}
-          >
-            <Dialog.Title style={{ margin: 0, color: "var(--pp-navy-dark)" }}>
-              ACC Request Detail ({modalMode === "view" ? "View" : "Edit"})
-            </Dialog.Title>
-
-            {detailLoading ? (
-              <div style={{ padding: "1rem 0", color: "var(--pp-slate-600)" }}>Loading…</div>
-            ) : selected ? (
-              <div className="stack" style={{ gap: "0.75rem", marginTop: "0.75rem" }}>
-                {detailError && <div style={{ color: "#b91c1c", fontSize: "0.9rem" }}>{detailError}</div>}
-
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.6rem" }}>
-                  <label>
-                    <div className="text-fluid-sm" style={{ fontWeight: 700 }}>Permit Number</div>
-                    <input value={editPermitNumber} onChange={(e) => setEditPermitNumber(e.target.value)} readOnly={modalMode === "view"} style={{ width: "100%", borderRadius: "var(--radius-sm)", border: "1.5px solid var(--pp-slate-200)", padding: "0.45rem", background: modalMode === "view" ? "var(--pp-slate-50)" : "var(--pp-white)" }} />
-                  </label>
-                  <label>
-                    <div className="text-fluid-sm" style={{ fontWeight: 700 }}>Disposition</div>
-                    <select value={editDisposition} onChange={(e) => setEditDisposition(e.target.value as Disposition)} disabled={modalMode === "view"} style={{ width: "100%", borderRadius: "var(--radius-sm)", border: "1.5px solid var(--pp-slate-200)", padding: "0.45rem", background: modalMode === "view" ? "var(--pp-slate-50)" : "var(--pp-white)" }}>
-                      {EDIT_DISPOSITION_OPTIONS.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                    </select>
-                  </label>
-                  <label>
-                    <div className="text-fluid-sm" style={{ fontWeight: 700 }}>Process Date</div>
-                    <input type="date" value={editProcessDate} onChange={(e) => setEditProcessDate(e.target.value)} readOnly={modalMode === "view"} style={{ width: "100%", borderRadius: "var(--radius-sm)", border: "1.5px solid var(--pp-slate-200)", padding: "0.45rem", background: modalMode === "view" ? "var(--pp-slate-50)" : "var(--pp-white)" }} />
-                  </label>
-                  <div>
-                    <div className="text-fluid-sm" style={{ fontWeight: 700 }}>Submitted</div>
-                    <div style={{ color: "var(--pp-slate-700)", paddingTop: "0.4rem" }}>{formatDate(selected.submittedAt)}</div>
+        <div className="card" style={{ padding: "1rem" }}>
+          {!selectedId ? (
+            <div style={{ color: "var(--pp-slate-600)" }}>Select a request to view details.</div>
+          ) : detailLoading ? (
+            <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", color: "var(--pp-slate-700)" }}>
+              <Loader2 className="animate-spin" style={{ width: "1rem", height: "1rem" }} />
+              Loading request detail...
+            </div>
+          ) : detailError ? (
+            <div style={{ color: "#991b1b" }}>{detailError}</div>
+          ) : detail ? (
+            <div className="stack" style={{ gap: "1rem" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
+                <div>
+                  <h3 style={{ margin: 0, color: "var(--pp-navy-dark)" }}>{detail.title || "ACC Request"}</h3>
+                  <div className="text-fluid-sm" style={{ color: "var(--pp-slate-600)", marginTop: "0.25rem" }}>
+                    {detail.residentName} • {detail.residentAddress || "No address"}
                   </div>
                 </div>
+                <StatusBadge status={detail.status} />
+              </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.6rem" }}>
-                  <div>
-                    <div className="text-fluid-sm" style={{ fontWeight: 700 }}>Owner</div>
-                    <div>{selected.ownerName || "—"}</div>
-                    <div className="text-fluid-sm" style={{ color: "var(--pp-slate-600)" }}>{selected.ownerEmail || "—"}</div>
-                  </div>
-                  <div>
-                    <div className="text-fluid-sm" style={{ fontWeight: 700 }}>Address</div>
-                    <div>{selected.addressRaw || "—"}</div>
-                  </div>
+              {statusMessage ? (
+                <div
+                  style={{
+                    padding: "0.8rem 0.9rem",
+                    borderRadius: "var(--radius-sm)",
+                    background: statusMessage.type === "success" ? "#f0fdf4" : "#fef2f2",
+                    color: statusMessage.type === "success" ? "#166534" : "#991b1b",
+                  }}
+                >
+                  {statusMessage.text}
                 </div>
+              ) : null}
 
-                <label>
-                  <div className="text-fluid-sm" style={{ fontWeight: 700 }}>Description</div>
-                  <textarea value={editDescription} onChange={(e) => setEditDescription(e.target.value)} rows={3} readOnly={modalMode === "view"} style={{ width: "100%", borderRadius: "var(--radius-sm)", border: "1.5px solid var(--pp-slate-200)", padding: "0.45rem", background: modalMode === "view" ? "var(--pp-slate-50)" : "var(--pp-white)" }} />
-                </label>
+              {detail.residentActionNote ? (
+                <div style={{ padding: "0.85rem 0.9rem", borderRadius: "var(--radius-sm)", background: "#fff7ed", color: "#9a3412" }}>
+                  <strong>Resident action note:</strong> {detail.residentActionNote}
+                </div>
+              ) : null}
 
-                <label>
-                  <div className="text-fluid-sm" style={{ fontWeight: 700 }}>Notes</div>
-                  <textarea value={editNotes} onChange={(e) => setEditNotes(e.target.value)} rows={3} readOnly={modalMode === "view"} style={{ width: "100%", borderRadius: "var(--radius-sm)", border: "1.5px solid var(--pp-slate-200)", padding: "0.45rem", background: modalMode === "view" ? "var(--pp-slate-50)" : "var(--pp-white)" }} />
-                </label>
+              {detail.decisionNote ? (
+                <div style={{ padding: "0.85rem 0.9rem", borderRadius: "var(--radius-sm)", background: "#f8fafc", color: "var(--pp-slate-700)" }}>
+                  <strong>Decision note:</strong> {detail.decisionNote}
+                </div>
+              ) : null}
 
-                <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.55rem" }}>
-                  <button type="button" className="btn btn-secondary" onClick={closeModal}>Close</button>
-                  {modalMode === "edit" && (
-                    <button type="button" className="btn btn-primary" onClick={saveEntry} disabled={saving}>{saving ? "Saving..." : "Save"}</button>
-                  )}
+              {detail.isVerified ? (
+                <div style={{ padding: "0.85rem 0.9rem", borderRadius: "var(--radius-sm)", background: "#f0fdf4", color: "#166534" }}>
+                  <strong>Verified complete:</strong> {formatDateTime(detail.verifiedAt)}
+                  {detail.verificationNote ? ` • ${detail.verificationNote}` : ""}
+                </div>
+              ) : null}
+
+              <div style={{ display: "grid", gap: "0.8rem", gridTemplateColumns: "repeat(auto-fit, minmax(11rem, 1fr))" }}>
+                <div><strong>Submitted</strong><div>{formatDateTime(detail.submittedAt)}</div></div>
+                <div><strong>Review Cycle</strong><div>{detail.reviewCycle}</div></div>
+                <div><strong>Work Type</strong><div>{detail.workType || "—"}</div></div>
+                <div><strong>Vote Deadline</strong><div>{formatDateTime(detail.voteDeadlineAt)}</div></div>
+              </div>
+
+              <div>
+                <strong>Project Description</strong>
+                <p style={{ margin: "0.35rem 0 0 0", color: "var(--pp-slate-700)" }}>{detail.description || "—"}</p>
+              </div>
+
+              {detail.locationDetails ? (
+                <div>
+                  <strong>Project Details</strong>
+                  <p style={{ margin: "0.35rem 0 0 0", color: "var(--pp-slate-700)" }}>{detail.locationDetails}</p>
+                </div>
+              ) : null}
+
+              <div className="card" style={{ padding: "0.9rem", background: "#fbfdff" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.45rem", marginBottom: "0.6rem" }}>
+                  <Clock3 style={{ width: "1rem", height: "1rem", color: "var(--pp-navy)" }} />
+                  <strong>Committee Vote</strong>
+                </div>
+                <div style={{ display: "grid", gap: "0.45rem", gridTemplateColumns: "repeat(auto-fit, minmax(8rem, 1fr))" }}>
+                  <div><strong>Total</strong><div>{detail.voteSummary.total} / 3</div></div>
+                  <div><strong>Approve</strong><div>{detail.voteSummary.approve}</div></div>
+                  <div><strong>Reject</strong><div>{detail.voteSummary.reject}</div></div>
+                  <div><strong>Your Vote</strong><div>{detail.voteSummary.currentUserVote || "—"}</div></div>
                 </div>
               </div>
-            ) : null}
-          </Dialog.Content>
-        </Dialog.Portal>
-      </Dialog.Root>
 
-      <style jsx>{`
-        .acc-table {
-          min-width: 72rem;
-        }
+              <div>
+                <strong>Form Snapshot</strong>
+                <div style={{ display: "grid", gap: "0.5rem", gridTemplateColumns: "repeat(auto-fit, minmax(12rem, 1fr))", marginTop: "0.6rem" }}>
+                  {Object.entries(detail.formData).map(([key, value]) => (
+                    <div key={key} style={{ padding: "0.65rem 0.75rem", borderRadius: "var(--radius-sm)", background: "#f8fafc" }}>
+                      <div className="text-fluid-xs" style={{ color: "var(--pp-slate-600)", textTransform: "capitalize" }}>{key.replace(/([A-Z])/g, " $1")}</div>
+                      <div style={{ marginTop: "0.25rem" }}>{value || "—"}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
 
-        .acc-description-text {
-          -webkit-line-clamp: 2;
-        }
+              <div>
+                <strong>Event Timeline</strong>
+                <div className="stack" style={{ gap: "0.55rem", marginTop: "0.6rem" }}>
+                  {detail.events.map((event) => (
+                    <div key={event.id} style={{ padding: "0.75rem", borderRadius: "var(--radius-sm)", background: "#f8fafc" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: "0.8rem", flexWrap: "wrap" }}>
+                        <div style={{ fontWeight: 700 }}>
+                          <EventLabel eventType={event.eventType} />
+                        </div>
+                        <div className="text-fluid-sm" style={{ color: "var(--pp-slate-600)" }}>{formatDateTime(event.createdAt)}</div>
+                      </div>
+                      <div className="text-fluid-sm" style={{ marginTop: "0.25rem", color: "var(--pp-slate-600)" }}>
+                        {event.actorRole}{event.actorUserId ? ` • ${event.actorUserId}` : ""}
+                      </div>
+                      {event.note ? <div style={{ marginTop: "0.35rem" }}>{event.note}</div> : null}
+                    </div>
+                  ))}
+                </div>
+              </div>
 
-        .acc-col-permit-short {
-          display: none;
-        }
+              <div className="card" style={{ padding: "0.9rem", background: "#fffef8" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.45rem", marginBottom: "0.6rem" }}>
+                  <ShieldAlert style={{ width: "1rem", height: "1rem", color: "var(--pp-navy)" }} />
+                  <strong>Workflow Actions</strong>
+                </div>
 
-        .acc-applicant-text {
-          display: block;
-        }
+                <textarea
+                  value={actionNote}
+                  onChange={(event) => setActionNote(event.target.value)}
+                  rows={4}
+                  placeholder="Decision note, resident note, override note, or verification note"
+                  style={{ width: "100%", border: "1.5px solid var(--pp-slate-200)", borderRadius: "var(--radius-sm)", padding: "0.75rem", resize: "vertical" }}
+                />
 
-        @media (max-width: 1180px) {
-          .acc-description-text {
-            -webkit-line-clamp: 3;
-          }
-        }
+                <div style={{ marginTop: "0.75rem", display: "grid", gap: "0.6rem" }}>
+                  {props.canControlWorkflow && detail.status === "initial_review" ? (
+                    <>
+                      <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                        <button type="button" className="btn btn-primary" disabled={saving} onClick={() => runAction("approve")}>Approve</button>
+                        <button type="button" className="btn btn-secondary" disabled={saving} onClick={() => runAction("request_more_info")}>Request More Info</button>
+                        <button type="button" className="btn btn-secondary" disabled={saving} onClick={() => runAction("reject")}>Reject</button>
+                      </div>
+                      <div style={{ display: "grid", gap: "0.5rem", gridTemplateColumns: "1fr auto" }}>
+                        <input
+                          type="datetime-local"
+                          value={voteDeadlineAt}
+                          onChange={(event) => setVoteDeadlineAt(event.target.value)}
+                          style={{ width: "100%", border: "1.5px solid var(--pp-slate-200)", borderRadius: "var(--radius-sm)", padding: "0.7rem 0.8rem" }}
+                        />
+                        <button type="button" className="btn btn-secondary" disabled={saving} onClick={() => runAction("send_to_vote")}>Send to Vote</button>
+                      </div>
+                    </>
+                  ) : null}
 
-        @media (max-width: 1220px) {
-          .acc-col-submitted {
-            display: none;
-          }
+                  {props.canVote && detail.status === "committee_vote" && !detail.lockedAt ? (
+                    <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                      <button type="button" className="btn btn-primary" disabled={saving || detail.voteSummary.hasCurrentUserVoted} onClick={() => runAction("cast_vote", { vote: "approve" })}>
+                        Cast Approve Vote
+                      </button>
+                      <button type="button" className="btn btn-secondary" disabled={saving || detail.voteSummary.hasCurrentUserVoted} onClick={() => runAction("cast_vote", { vote: "reject" })}>
+                        Cast Reject Vote
+                      </button>
+                    </div>
+                  ) : null}
 
-          .acc-col-applicant,
-          .acc-col-address {
-            max-width: 11rem;
-            width: 11rem;
-            white-space: normal;
-            word-break: break-word;
-            overflow-wrap: anywhere;
-          }
-        }
+                  {props.canOverrideVote && detail.status === "committee_vote" && !detail.lockedAt ? (
+                    <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                      <button type="button" className="btn btn-primary" disabled={saving} onClick={() => runAction("override", { decision: "approve" })}>
+                        Chair Override Approve
+                      </button>
+                      <button type="button" className="btn btn-secondary" disabled={saving} onClick={() => runAction("override", { decision: "reject" })}>
+                        Chair Override Reject
+                      </button>
+                    </div>
+                  ) : null}
 
-        @media (max-width: 1170px) {
-          .acc-col-process {
-            display: none;
-          }
+                  {props.canVerify && detail.status === "approved" && !detail.isVerified ? (
+                    <button type="button" className="btn btn-secondary" disabled={saving} onClick={() => runAction("verify")}>
+                      Mark Verified
+                    </button>
+                  ) : null}
 
-          .acc-col-description {
-            display: none;
-          }
+                  {props.canPurge ? (
+                    <div style={{ marginTop: "0.5rem", paddingTop: "0.75rem", borderTop: "1px solid var(--pp-slate-200)" }}>
+                      <div className="text-fluid-sm" style={{ color: "#991b1b", marginBottom: "0.45rem" }}>
+                        Admin purge permanently deletes this native workflow request and all related records.
+                      </div>
+                      <div style={{ display: "grid", gap: "0.5rem", gridTemplateColumns: "1fr auto" }}>
+                        <input
+                          value={purgeConfirm}
+                          onChange={(event) => setPurgeConfirm(event.target.value)}
+                          placeholder='Type "PURGE" to confirm'
+                          style={{ width: "100%", border: "1.5px solid #fecaca", borderRadius: "var(--radius-sm)", padding: "0.7rem 0.8rem" }}
+                        />
+                        <button type="button" className="btn btn-secondary" disabled={saving || purgeConfirm.trim().toUpperCase() !== "PURGE"} onClick={() => runAction("purge")}>
+                          <Trash2 style={{ width: "0.9rem", height: "0.9rem" }} />
+                          Purge
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
 
-          .acc-col-permitid {
-            max-width: 7.25rem;
-            width: 7.25rem;
-          }
+                {saving ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.45rem", marginTop: "0.75rem", color: "var(--pp-slate-600)" }}>
+                    <Loader2 className="animate-spin" style={{ width: "0.95rem", height: "0.95rem" }} />
+                    Applying workflow action...
+                  </div>
+                ) : null}
+              </div>
 
-          .acc-col-applicant {
-            max-width: 9.25rem;
-            width: 9.25rem;
-            white-space: normal;
-            word-break: break-word;
-            overflow-wrap: anywhere;
-          }
+              {detail.attachments.length === 0 ? (
+                <div className="text-fluid-sm" style={{ color: "var(--pp-slate-600)" }}>
+                  No native attachments have been added yet.
+                </div>
+              ) : (
+                <div>
+                  <strong>Attachments</strong>
+                  <div className="stack" style={{ gap: "0.45rem", marginTop: "0.5rem" }}>
+                    {detail.attachments.map((attachment) => (
+                      <div key={attachment.id} style={{ padding: "0.7rem", borderRadius: "var(--radius-sm)", background: "#f8fafc" }}>
+                        <div style={{ fontWeight: 700 }}>{attachment.originalFilename}</div>
+                        <div className="text-fluid-sm" style={{ color: "var(--pp-slate-600)" }}>
+                          {attachment.mimeType} • {attachment.fileSizeBytes} bytes
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : null}
+        </div>
+      </div>
 
-          .acc-col-worktype,
-          .acc-col-status {
-            max-width: 7.5rem;
-            width: 7.5rem;
-            white-space: normal;
-            word-break: break-word;
-            overflow-wrap: anywhere;
-          }
-        }
+      {detail?.status === "committee_vote" && detail.voteSummary.hasCurrentUserVoted ? (
+        <div className="text-fluid-sm" style={{ color: "var(--pp-slate-600)" }}>
+          Your vote has been recorded for this review cycle.
+        </div>
+      ) : null}
 
-        @media (max-width: 820px) {
-          .acc-col-worktype {
-            display: none;
-          }
-        }
-
-        @media (max-width: 725px) {
-          .acc-col-status {
-            display: none;
-          }
-
-          .acc-table {
-            min-width: 0;
-          }
-
-          .acc-actions-stack {
-            flex-direction: column;
-            align-items: flex-start;
-            flex-wrap: nowrap;
-          }
-
-          .acc-actions-stack button {
-            width: auto;
-            max-width: 100%;
-            white-space: nowrap;
-            padding: 0.3rem 0.5rem !important;
-            font-size: 0.74rem !important;
-          }
-        }
-
-        @media (max-width: 740px) {
-          .acc-table {
-            min-width: 34rem;
-          }
-
-          .acc-table [data-acc-cell="true"] {
-            padding-left: 0.55rem !important;
-            padding-right: 0.55rem !important;
-          }
-        }
-
-        @media (max-width: 640px) {
-          .acc-controls-grid {
-            grid-template-columns: 1fr;
-          }
-
-          .acc-table {
-            min-width: 0;
-          }
-
-          .acc-table [data-acc-cell="true"] {
-            padding-left: 0.45rem !important;
-            padding-right: 0.45rem !important;
-          }
-
-          .acc-applicant-text {
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-            max-width: 9.5rem;
-            line-height: 1.25;
-          }
-
-          .acc-actions-stack {
-            flex-direction: column;
-            align-items: flex-start;
-            flex-wrap: nowrap;
-          }
-
-          .acc-actions-stack button {
-            width: auto;
-            max-width: 100%;
-            white-space: nowrap;
-            padding: 0.3rem 0.5rem !important;
-            font-size: 0.74rem !important;
-          }
-        }
-
-        @media (max-width: 545px) {
-          .acc-col-permitid {
-            max-width: 5.8rem;
-            width: 5.8rem;
-          }
-
-          .acc-col-applicant {
-            max-width: 8rem;
-            width: 8rem;
-          }
-
-          .acc-col-permitid,
-          .acc-col-permitid div {
-            white-space: normal;
-            overflow-wrap: anywhere;
-            word-break: break-word;
-          }
-        }
-
-        @media (max-width: 509px) {
-          .acc-table [data-acc-cell="true"] {
-            padding-left: 0.35rem !important;
-            padding-right: 0.35rem !important;
-          }
-
-          .acc-col-permit-full {
-            display: none;
-          }
-
-          .acc-col-permit-short {
-            display: inline;
-          }
-
-          .acc-col-permitid {
-            width: 22%;
-            max-width: none;
-          }
-
-          .acc-col-applicant {
-            width: 30%;
-            max-width: none;
-          }
-
-          .acc-col-address {
-            width: 30%;
-            max-width: none;
-            white-space: normal;
-            overflow-wrap: anywhere;
-            word-break: break-word;
-          }
-
-          .acc-col-actions {
-            width: 18%;
-            max-width: none;
-          }
-
-          .acc-col-applicant div {
-            overflow-wrap: anywhere;
-            word-break: break-word;
-          }
-        }
-      `}</style>
+      {loading ? (
+        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", color: "var(--pp-slate-600)" }}>
+          <Loader2 className="animate-spin" style={{ width: "1rem", height: "1rem" }} />
+          Loading workflow requests...
+        </div>
+      ) : null}
     </div>
   )
 }

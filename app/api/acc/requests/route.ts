@@ -6,6 +6,7 @@ import {
   normalizeAccWorkflowFormData,
   validateAccWorkflowFormData,
 } from "@/lib/acc-workflow/repository"
+import { sendAccWorkflowSubmittedNotifications } from "@/lib/email/acc-workflow-notifications"
 
 export async function GET() {
   const access = await requireApprovedPortalApiAccess()
@@ -37,7 +38,15 @@ export async function POST(req: NextRequest) {
       clerkUserId: access.identity.clerkUserId,
       formData,
     })
-    return NextResponse.json({ request }, { status: 201 })
+    const notificationResult = await sendAccWorkflowSubmittedNotifications({
+      requestId: request.id,
+      title: request.title,
+      residentName: request.residentName,
+      residentEmail: request.residentEmail,
+      residentAddress: request.residentAddress,
+    })
+
+    return NextResponse.json({ request, notificationResult }, { status: 201 })
   } catch (error) {
     const detail = error instanceof Error ? error.message : "unknown error"
     return NextResponse.json({ error: "Failed to create ACC request", detail }, { status: 500 })

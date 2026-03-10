@@ -1,28 +1,59 @@
+import { currentUser } from "@clerk/nextjs/server"
 import { NextRequest, NextResponse } from "next/server"
-import type { AccDisposition } from "@prisma/client"
-import { prisma } from "@/lib/db/prisma"
+import { getAccWorkflowActorContext } from "@/lib/acc-workflow/actors"
+import {
+  approveWorkflowRequestInInitialReview,
+  castCommitteeVoteForWorkflowRequest,
+  getWorkflowRequestForManagement,
+  overrideCommitteeVoteForWorkflowRequest,
+  purgeWorkflowRequestForAdmin,
+  rejectWorkflowRequestInInitialReview,
+  requestMoreInfoForWorkflowRequest,
+  sendWorkflowRequestToCommitteeVote,
+  verifyApprovedWorkflowRequest,
+} from "@/lib/acc-workflow/repository"
 import { requireManagementCapabilityAccess } from "@/lib/auth/portal-management-api"
+import {
+  sendAccWorkflowFinalDecisionNotification,
+  sendAccWorkflowMoreInfoNotification,
+  sendAccWorkflowSentToVoteNotification,
+} from "@/lib/email/acc-workflow-notifications"
 
-type UiDisposition = "pending" | "approved" | "rejected" | "conditional" | "duplicate" | "canceled"
+type QueueAction =
+  | "request_more_info"
+  | "approve"
+  | "reject"
+  | "send_to_vote"
+  | "cast_vote"
+  | "override"
+  | "verify"
+  | "purge"
 
-function toUiDisposition(value: AccDisposition): UiDisposition {
-  if (value === "unknown") return "pending"
-  if (value === "denied") return "rejected"
-  return value
-}
-
-function toDbDisposition(value: UiDisposition): AccDisposition {
-  if (value === "pending") return "unknown"
-  if (value === "rejected") return "denied"
-  return value
-}
-
-function parseYmd(value: string | null | undefined): Date | null {
+function parseVoteDeadline(value: string | null | undefined) {
   if (!value) return null
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null
-  const date = new Date(`${value}T00:00:00.000Z`)
-  if (Number.isNaN(date.getTime())) return null
-  return date
+  const parsed = new Date(value)
+  return Number.isNaN(parsed.getTime()) ? null : parsed
+}
+
+async function deliverFinalDecisionNotification(request: {
+  id: string
+  title?: string | null
+  residentName?: string | null
+  residentEmail?: string | null
+  residentAddress?: string | null
+  decisionNote?: string | null
+  finalDecision?: "approve" | "reject" | null
+}) {
+  if (!request.finalDecision) return undefined
+  return sendAccWorkflowFinalDecisionNotification({
+    requestId: request.id,
+    title: request.title,
+    residentName: request.residentName,
+    residentEmail: request.residentEmail,
+    residentAddress: request.residentAddress,
+    decisionNote: request.decisionNote,
+    decision: request.finalDecision,
+  })
 }
 
 export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
@@ -32,153 +63,220 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
   const { id } = await ctx.params
 
   try {
-    const row = await prisma.accRequest.findUnique({
-      where: { id },
-      select: {
-        id: true,
-        sourceEntryId: true,
-        permitNumber: true,
-        submittedAt: true,
-        processDate: true,
-        disposition: true,
-        ownerName: true,
-        ownerPhone: true,
-        ownerEmail: true,
-        authorizedRepName: true,
-        addressRaw: true,
-        workType: true,
-        description: true,
-        notes: true,
-        phase: true,
-        lot: true,
-        updatedAt: true,
-      },
+    const request = await getWorkflowRequestForManagement({
+      requestId: id,
+      viewerUserId: access.identity.clerkUserId,
     })
 
-    if (!row) return NextResponse.json({ error: "Entry not found" }, { status: 404 })
-
-    return NextResponse.json({
-      entry: {
-        id: row.id,
-        sourceEntryId: row.sourceEntryId,
-        permitNumber: row.permitNumber,
-        submittedAt: row.submittedAt?.toISOString() || null,
-        processDate: row.processDate?.toISOString() || null,
-        disposition: toUiDisposition(row.disposition),
-        ownerName: row.ownerName,
-        ownerPhone: row.ownerPhone,
-        ownerEmail: row.ownerEmail,
-        authorizedRepName: row.authorizedRepName,
-        addressRaw: row.addressRaw,
-        workType: row.workType,
-        description: row.description,
-        notes: row.notes,
-        phase: row.phase,
-        lot: row.lot,
-        updatedAt: row.updatedAt.toISOString(),
-      },
-    })
+    if (!request) return NextResponse.json({ error: "ACC workflow request not found" }, { status: 404 })
+    return NextResponse.json({ request })
   } catch (error) {
-    console.error("ACC queue detail failed:", error)
+    console.error("ACC workflow queue detail failed:", error)
     const detail = error instanceof Error ? error.message : "unknown error"
-    return NextResponse.json({ error: "Failed to load ACC queue entry", detail }, { status: 500 })
+    return NextResponse.json({ error: "Failed to load ACC workflow request", detail }, { status: 500 })
   }
 }
 
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
-  const access = await requireManagementCapabilityAccess(["acc.edit"])
+  const access = await requireManagementCapabilityAccess(["acc.view"])
   if (!access.ok) return access.response
 
+  const user = await currentUser()
+  const actor = getAccWorkflowActorContext(user)
   const { id } = await ctx.params
-  const body = await req.json().catch(() => ({})) as {
-    permitNumber?: string | null
-    disposition?: UiDisposition
-    processDate?: string | null
-    notes?: string | null
-    description?: string | null
+  const body = (await req.json().catch(() => ({}))) as {
+    action?: QueueAction
+    note?: string
+    decision?: "approve" | "reject"
+    vote?: "approve" | "reject"
+    voteDeadlineAt?: string
+    confirmText?: string
   }
 
-  const nextDisposition = body.disposition
-  if (nextDisposition && !["pending", "approved", "rejected", "conditional", "duplicate", "canceled"].includes(nextDisposition)) {
-    return NextResponse.json({ error: "Invalid disposition." }, { status: 400 })
-  }
-
-  const parsedProcessDate = body.processDate === "" ? null : parseYmd(body.processDate)
-  if (body.processDate && body.processDate !== "" && !parsedProcessDate) {
-    return NextResponse.json({ error: "Invalid process date. Use YYYY-MM-DD." }, { status: 400 })
-  }
-
-  if (nextDisposition && nextDisposition !== "pending" && body.processDate === "") {
-    return NextResponse.json({ error: "Process date is required when disposition is set." }, { status: 400 })
-  }
-
-  if (nextDisposition === "pending" && parsedProcessDate) {
-    return NextResponse.json({ error: "Clear process date when disposition is Pending." }, { status: 400 })
+  const action = body.action
+  if (!action) {
+    return NextResponse.json({ error: "action is required." }, { status: 400 })
   }
 
   try {
-    const updated = await prisma.accRequest.update({
-      where: { id },
-      data: {
-        ...(Object.prototype.hasOwnProperty.call(body, "permitNumber")
-          ? { permitNumber: (body.permitNumber || "").trim() || null }
-          : {}),
-        ...(nextDisposition ? { disposition: toDbDisposition(nextDisposition) } : {}),
-        ...(Object.prototype.hasOwnProperty.call(body, "processDate")
-          ? { processDate: parsedProcessDate }
-          : {}),
-        ...(Object.prototype.hasOwnProperty.call(body, "notes")
-          ? { notes: (body.notes || "").trim() || null }
-          : {}),
-        ...(Object.prototype.hasOwnProperty.call(body, "description")
-          ? { description: (body.description || "").trim() || null }
-          : {}),
-      },
-      select: {
-        id: true,
-        sourceEntryId: true,
-        permitNumber: true,
-        submittedAt: true,
-        processDate: true,
-        disposition: true,
-        ownerName: true,
-        ownerPhone: true,
-        ownerEmail: true,
-        authorizedRepName: true,
-        addressRaw: true,
-        workType: true,
-        description: true,
-        notes: true,
-        phase: true,
-        lot: true,
-        updatedAt: true,
-      },
-    })
+    let result:
+      | Awaited<ReturnType<typeof requestMoreInfoForWorkflowRequest>>
+      | Awaited<ReturnType<typeof approveWorkflowRequestInInitialReview>>
+      | Awaited<ReturnType<typeof rejectWorkflowRequestInInitialReview>>
+      | Awaited<ReturnType<typeof sendWorkflowRequestToCommitteeVote>>
+      | Awaited<ReturnType<typeof castCommitteeVoteForWorkflowRequest>>
+      | Awaited<ReturnType<typeof overrideCommitteeVoteForWorkflowRequest>>
+      | Awaited<ReturnType<typeof verifyApprovedWorkflowRequest>>
+      | Awaited<ReturnType<typeof purgeWorkflowRequestForAdmin>>
+    let notificationResult: unknown = undefined
+
+    if (action === "request_more_info") {
+      if (!actor.canControlWorkflow) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+      }
+      result = await requestMoreInfoForWorkflowRequest({
+        requestId: id,
+        actorUserId: access.identity.clerkUserId,
+        actorRole: actor.actorRole,
+        note: body.note || "",
+      })
+
+      if (result.kind === "ok") {
+        notificationResult = await sendAccWorkflowMoreInfoNotification({
+          requestId: result.request.id,
+          title: result.request.title,
+          residentName: result.request.residentName,
+          residentEmail: result.request.residentEmail,
+          residentAddress: result.request.residentAddress,
+          residentActionNote: result.request.residentActionNote,
+        })
+      }
+    } else if (action === "approve") {
+      if (!actor.canControlWorkflow) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+      }
+      result = await approveWorkflowRequestInInitialReview({
+        requestId: id,
+        actorUserId: access.identity.clerkUserId,
+        actorRole: actor.actorRole,
+        note: body.note,
+      })
+
+      if (result.kind === "ok") {
+        notificationResult = await deliverFinalDecisionNotification(result.request)
+      }
+    } else if (action === "reject") {
+      if (!actor.canControlWorkflow) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+      }
+      result = await rejectWorkflowRequestInInitialReview({
+        requestId: id,
+        actorUserId: access.identity.clerkUserId,
+        actorRole: actor.actorRole,
+        note: body.note || "",
+      })
+
+      if (result.kind === "ok") {
+        notificationResult = await deliverFinalDecisionNotification(result.request)
+      }
+    } else if (action === "send_to_vote") {
+      if (!actor.canControlWorkflow) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+      }
+      const voteDeadlineAt = parseVoteDeadline(body.voteDeadlineAt)
+      if (!voteDeadlineAt) {
+        return NextResponse.json({ error: "A valid vote deadline is required." }, { status: 400 })
+      }
+
+      result = await sendWorkflowRequestToCommitteeVote({
+        requestId: id,
+        actorUserId: access.identity.clerkUserId,
+        actorRole: actor.actorRole,
+        voteDeadlineAt,
+      })
+
+      if (result.kind === "ok") {
+        notificationResult = await sendAccWorkflowSentToVoteNotification({
+          requestId: result.request.id,
+          title: result.request.title,
+          residentName: result.request.residentName,
+          residentEmail: result.request.residentEmail,
+          residentAddress: result.request.residentAddress,
+          voteDeadlineAt: result.request.voteDeadlineAt,
+        })
+      }
+    } else if (action === "cast_vote") {
+      if (!actor.canVote) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+      }
+      if (body.vote !== "approve" && body.vote !== "reject") {
+        return NextResponse.json({ error: "vote must be approve or reject." }, { status: 400 })
+      }
+
+      result = await castCommitteeVoteForWorkflowRequest({
+        requestId: id,
+        actorUserId: access.identity.clerkUserId,
+        actorRole: actor.actorRole,
+        vote: body.vote,
+      })
+
+      if (result.kind === "ok" && result.request.voteSummary.total === 3 && result.request.finalDecision) {
+        notificationResult = await deliverFinalDecisionNotification(result.request)
+      }
+    } else if (action === "override") {
+      if (!actor.canOverrideVote) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+      }
+      if (body.decision !== "approve" && body.decision !== "reject") {
+        return NextResponse.json({ error: "decision must be approve or reject." }, { status: 400 })
+      }
+
+      result = await overrideCommitteeVoteForWorkflowRequest({
+        requestId: id,
+        actorUserId: access.identity.clerkUserId,
+        actorRole: "chair",
+        decision: body.decision,
+        note: body.note || "",
+      })
+
+      if (result.kind === "ok") {
+        notificationResult = await deliverFinalDecisionNotification(result.request)
+      }
+    } else if (action === "verify") {
+      if (!actor.canVerify) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+      }
+      result = await verifyApprovedWorkflowRequest({
+        requestId: id,
+        actorUserId: access.identity.clerkUserId,
+        actorRole: actor.actorRole === "admin" ? "admin" : "chair",
+        note: body.note,
+      })
+    } else {
+      if (!actor.canPurge) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+      }
+      result = await purgeWorkflowRequestForAdmin({
+        requestId: id,
+        actorUserId: access.identity.clerkUserId,
+        confirmText: body.confirmText || "",
+      })
+    }
+
+    if (result.kind === "not_found") {
+      return NextResponse.json({ error: "ACC workflow request not found." }, { status: 404 })
+    }
+
+    if (result.kind === "invalid_state") {
+      return NextResponse.json(
+        { error: "ACC workflow request cannot be updated from its current status.", status: result.status },
+        { status: 409 },
+      )
+    }
+
+    if (result.kind === "validation_error") {
+      return NextResponse.json({ error: "Invalid ACC workflow action.", validationErrors: result.errors }, { status: 400 })
+    }
+
+    if (result.kind === "duplicate_vote") {
+      return NextResponse.json({ error: "You have already voted on this request cycle." }, { status: 409 })
+    }
+
+    if (result.kind === "already_verified") {
+      return NextResponse.json({ error: "This request has already been marked verified." }, { status: 409 })
+    }
+
+    if ("deletedRequestId" in result) {
+      return NextResponse.json({ deletedRequestId: result.deletedRequestId })
+    }
 
     return NextResponse.json({
-      entry: {
-        id: updated.id,
-        sourceEntryId: updated.sourceEntryId,
-        permitNumber: updated.permitNumber,
-        submittedAt: updated.submittedAt?.toISOString() || null,
-        processDate: updated.processDate?.toISOString() || null,
-        disposition: toUiDisposition(updated.disposition),
-        ownerName: updated.ownerName,
-        ownerPhone: updated.ownerPhone,
-        ownerEmail: updated.ownerEmail,
-        authorizedRepName: updated.authorizedRepName,
-        addressRaw: updated.addressRaw,
-        workType: updated.workType,
-        description: updated.description,
-        notes: updated.notes,
-        phase: updated.phase,
-        lot: updated.lot,
-        updatedAt: updated.updatedAt.toISOString(),
-      },
+      request: result.request,
+      notificationResult,
     })
   } catch (error) {
-    console.error("ACC queue update failed:", error)
+    console.error("ACC workflow queue mutation failed:", error)
     const detail = error instanceof Error ? error.message : "unknown error"
-    return NextResponse.json({ error: "Failed to update ACC queue entry", detail }, { status: 500 })
+    return NextResponse.json({ error: "Failed to update ACC workflow request", detail }, { status: 500 })
   }
 }

@@ -173,6 +173,40 @@ If simultaneous actions cross a decision threshold:
 - ACC requests/events should not be hard-deleted.
 - Maintain exportable audit history for HOA/legal disputes and records requests.
 
+## Admin Purge Exception
+
+- Native workflow requests must support an admin-only hard-delete/purge operation for limited cases:
+  - testing cleanup
+  - incorrect resident submission replaced by assisted volunteer submission
+  - incorrect resident submission replaced by scanned paper submission entered on the resident's behalf
+- Purge must remove the workflow request and all workflow-child rows tied to it:
+  - votes
+  - attachments
+  - events
+- Purge is not available to residents or committee members.
+- Purge does not apply to legacy imported `AccRequest` records used for source-system history.
+
+## Notification Test Mode
+
+- Workflow notifications must support a test mode.
+- Preferred behavior:
+  - all ACC workflow emails are rerouted to a configured admin testing inbox
+- Acceptable fallback:
+  - suppress all workflow emails
+- In test mode, no workflow emails should be sent to live resident or committee recipients.
+
+## Combined Dashboard Requirement
+
+- The portal should eventually provide one combined ACC submissions dashboard across both sources:
+  - legacy WordPress/imported ACC submissions
+  - native Neon workflow submissions
+- This combined dashboard is operational/reporting-oriented and does not replace the native workflow queue.
+- The combined dashboard should support two display modes:
+  - full data view for admins, Board members, and ACC committee members
+  - redacted view for public display, consistent with the current redacted WordPress ACC queue behavior
+- Each row should clearly identify its source system and normalized status.
+- Legacy rows remain read-only; native rows may link into native workflow detail/actions.
+
 ## Future Enhancements (Out of Scope for v1)
 
 - Downloadable decision letters
