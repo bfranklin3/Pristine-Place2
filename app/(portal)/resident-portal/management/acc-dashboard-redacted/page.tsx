@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import { FileText, Shield } from "lucide-react"
 import { siteConfig } from "@/lib/site-config"
-import { requirePortalCapabilityPageAccess } from "@/lib/auth/portal-admin"
+import { requirePortalRolePageAccess } from "@/lib/auth/portal-admin"
 import { AccCombinedDashboardTable } from "@/components/portal/acc-combined-dashboard-table"
 
 export const metadata: Metadata = {
@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 }
 
 export default async function AccDashboardRedactedPage() {
-  await requirePortalCapabilityPageAccess(["acc.view"], "/resident-portal/management/acc-dashboard-redacted")
+  await requirePortalRolePageAccess(["admin"], "/resident-portal/management/acc-dashboard-redacted")
 
   return (
     <>

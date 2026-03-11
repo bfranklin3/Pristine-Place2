@@ -2,7 +2,7 @@ import type { Metadata } from "next"
 import { Shield, FileText } from "lucide-react"
 import { siteConfig } from "@/lib/site-config"
 import { AccQueueTable } from "@/components/portal/acc-queue-table"
-import { requirePortalCapabilityPageAccess } from "@/lib/auth/portal-admin"
+import { requirePortalRolePageAccess } from "@/lib/auth/portal-admin"
 
 export const metadata: Metadata = {
   title: `ACC Workflow Queue (Redacted) | ${siteConfig.name} Resident Portal`,
@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 }
 
 export default async function WpAccQueueRedactedPage() {
-  await requirePortalCapabilityPageAccess(["acc.view"], "/resident-portal/management/wp-acc-queue-redacted")
+  await requirePortalRolePageAccess(["admin"], "/resident-portal/management/wp-acc-queue-redacted")
 
   return (
     <>

@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 
 export default async function AccLinkReviewPage() {
   await requirePortalRolePageAccess(
-    ["admin", "acc"],
+    ["admin"],
     "/resident-portal/management/acc-link-review",
   )
 

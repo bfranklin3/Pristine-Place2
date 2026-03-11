@@ -67,7 +67,7 @@ const managementItems = [
     label: "ACC All Submissions (Redacted)",
     href: "/resident-portal/management/acc-dashboard-redacted",
     description: "Combined ACC dashboard with identity fields redacted",
-    allowed: ["admin", "acc", "board_of_directors"] as Array<CommitteeSlug | "admin">,
+    allowed: ["admin"] as Array<CommitteeSlug | "admin">,
   },
   {
     label: "ACC Workflow Queue",
@@ -91,7 +91,7 @@ const managementItems = [
     label: "ACC Link Review",
     href: "/resident-portal/management/acc-link-review",
     description: "Resolve unresolved/low-confidence ACC residency links",
-    allowed: ["admin", "acc"] as Array<CommitteeSlug | "admin">,
+    allowed: ["admin"] as Array<CommitteeSlug | "admin">,
   },
   {
     label: "ACC Workflow Queue Wordpress",
@@ -103,7 +103,7 @@ const managementItems = [
     label: "ACC Workflow Queue Wordpress (Redacted)",
     href: "/resident-portal/management/wp-acc-queue-redacted",
     description: "Review ACC applications with identity fields redacted",
-    allowed: ["admin", "acc"] as Array<CommitteeSlug | "admin">,
+    allowed: ["admin"] as Array<CommitteeSlug | "admin">,
   },
   {
     label: "Resident Access Management",
@@ -152,8 +152,16 @@ function categorizeManagementItems(items: ManagementItem[]) {
   const admin: ManagementItem[] = []
   const operations: ManagementItem[] = []
   const legacy: ManagementItem[] = []
+  const future: ManagementItem[] = []
 
   for (const item of items) {
+    if (
+      item.href === "/resident-portal/management/acc-dashboard-redacted" ||
+      item.href === "/resident-portal/management/wp-acc-queue-redacted"
+    ) {
+      future.push(item)
+      continue
+    }
     if (item.href.includes("/management/wp-")) {
       legacy.push(item)
       continue
@@ -192,9 +200,22 @@ function categorizeManagementItems(items: ManagementItem[]) {
     "/resident-portal/management/test-email",
   ])
 
+  const orderedFuture = orderByHref(future, [
+    "/resident-portal/management/acc-dashboard-redacted",
+    "/resident-portal/management/wp-acc-queue-redacted",
+  ])
+
   return [
     { key: "operations", title: "Operations", description: "Daily queues and resident operations", items: orderedOperations },
-    { key: "administration", title: "Administration", description: "Approvals, users, and platform controls", items: orderedAdmin },
+    {
+      key: "administration",
+      title: "Administration",
+      description: "Approvals, users, and platform controls",
+      items: orderedAdmin,
+      subSections: orderedFuture.length
+        ? [{ key: "future-capabilities", title: "Future Capabilities", items: orderedFuture }]
+        : [],
+    },
     { key: "legacy", title: "WordPress Legacy", description: "Temporary legacy tools during migration", items: legacy },
   ].filter((section) => section.items.length > 0)
 }
@@ -357,10 +378,12 @@ function PortalHeaderContent({
       <div className="grid grid-cols-3 gap-0">
         {sections.map((section, index) => (
           <div key={section.key} className={`p-4 ${index < sections.length - 1 ? "border-r border-pp-slate-100" : ""}`}>
-            <div className="text-[11px] uppercase tracking-[0.1em] font-semibold text-pp-slate-500 mb-1">
-              {section.title}
+            <div className="px-2.5">
+              <div className="text-[11px] uppercase tracking-[0.1em] font-semibold text-pp-slate-500 mb-1">
+                {section.title}
+              </div>
+              <div className="text-xs text-pp-slate-400 mb-2.5">{section.description}</div>
             </div>
-            <div className="text-xs text-pp-slate-400 mb-2.5">{section.description}</div>
             <div className="flex flex-col gap-1.5">
               {section.items.map((item, itemIndex) => (
                 <div key={item.label}>
@@ -383,6 +406,32 @@ function PortalHeaderContent({
                   </Link>
                 </div>
               ))}
+              {"subSections" in section && section.subSections?.length ? (
+                section.subSections.map((subSection) => (
+                  <div key={subSection.key} className="pt-3">
+                    <div className="px-2.5">
+                      <div className="border-t border-pp-slate-200 mb-2.5" />
+                      <div className="text-[10px] uppercase tracking-[0.1em] font-semibold text-pp-slate-500 mb-1.5">
+                        {subSection.title}
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      {subSection.items.map((item) => (
+                        <Link
+                          key={item.label}
+                          href={item.href}
+                          className="block rounded-md px-2.5 py-2 hover:bg-pp-slate-50 transition-colors"
+                          onClick={closeAll}
+                          role="menuitem"
+                        >
+                          <div className="text-sm font-semibold text-pp-navy-dark leading-tight">{item.label}</div>
+                          <div className="text-xs text-pp-slate-500 mt-0.5 leading-snug">{item.description}</div>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                ))
+              ) : null}
             </div>
           </div>
         ))}
@@ -412,6 +461,26 @@ function PortalHeaderContent({
                 <div className="text-sm font-semibold text-pp-navy-dark">{item.label}</div>
               </Link>
             ))}
+            {"subSections" in section && section.subSections?.length
+              ? section.subSections.map((subSection) => (
+                  <div key={subSection.key}>
+                    <div className="px-4 py-2 text-[11px] uppercase tracking-[0.1em] font-semibold text-pp-slate-500 bg-pp-slate-50 border-t border-pp-slate-100">
+                      {subSection.title}
+                    </div>
+                    {subSection.items.map((item) => (
+                      <Link
+                        key={item.label}
+                        href={item.href}
+                        className="block px-4 py-2.5 hover:bg-pp-slate-50 transition-colors"
+                        onClick={closeAll}
+                        role="menuitem"
+                      >
+                        <div className="text-sm font-semibold text-pp-navy-dark">{item.label}</div>
+                      </Link>
+                    ))}
+                  </div>
+                ))
+              : null}
           </div>
         ))}
       </div>
