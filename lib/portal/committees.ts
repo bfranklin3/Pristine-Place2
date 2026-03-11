@@ -10,8 +10,9 @@ export const COMMITTEE_OPTIONS = [
 
 export type CommitteeSlug = (typeof COMMITTEE_OPTIONS)[number]["slug"]
 export const COMMITTEE_CHAIR_OPTIONS = COMMITTEE_OPTIONS.filter(
-  (option) => option.slug === "access_control" || option.slug === "acc",
-) as Array<{ slug: "access_control" | "acc"; label: string }>
+  (option) =>
+    option.slug === "access_control" || option.slug === "acc" || option.slug === "board_of_directors",
+) as Array<{ slug: "access_control" | "acc" | "board_of_directors"; label: string }>
 export type CommitteeChairSlug = (typeof COMMITTEE_CHAIR_OPTIONS)[number]["slug"]
 
 const COMMITTEE_SLUG_SET = new Set<string>(COMMITTEE_OPTIONS.map((option) => option.slug))

@@ -109,7 +109,7 @@ const DEFAULT_ROLE_GRANTS: Record<string, CapabilityKey[]> = {
   "committee.access_control.chair": ["access.view", "access.edit"],
 }
 const CHAIR_ELIGIBLE_COMMITTEES = new Set<CommitteeSlug>(COMMITTEE_CHAIR_OPTIONS.map((option) => option.slug))
-type CommitteeRoleDraft = "none" | "member" | "chair"
+type CommitteeRoleDraft = "none" | "member" | "chair" | "president"
 
 const committeeRoleFilterOptions: Array<{ key: CommitteeRoleFilter; label: string }> = [
   { key: "all", label: "All Committee Roles" },
@@ -157,13 +157,14 @@ function summarizeCommitteeRole(row: PortalUserRow) {
   const primaryCommittee = COMMITTEE_OPTIONS.find((option) => option.slug === committees[0])
   const isChair = primaryCommittee ? row.committeeChairs.includes(primaryCommittee.slug as CommitteeChairSlug) : false
   const extraCount = committees.length - 1
+  const leadershipLabel = primaryCommittee?.slug === "board_of_directors" ? "President" : "Chair"
 
   if (isChair && extraCount > 0) {
-    return { primary: primaryCommittee?.label || committees[0], secondary: `Chair, +${extraCount} more` }
+    return { primary: primaryCommittee?.label || committees[0], secondary: `${leadershipLabel}, +${extraCount} more` }
   }
 
   if (isChair) {
-    return { primary: primaryCommittee?.label || committees[0], secondary: "Chair" }
+    return { primary: primaryCommittee?.label || committees[0], secondary: leadershipLabel }
   }
 
   if (extraCount > 0) {
@@ -500,7 +501,7 @@ export function ResidentDirectoryTable() {
     setCommitteeChairDrafts((current) => {
       const existing = current[userId] ?? []
       const nextValues =
-        role === "chair" && CHAIR_ELIGIBLE_COMMITTEES.has(slug)
+        (role === "chair" || role === "president") && CHAIR_ELIGIBLE_COMMITTEES.has(slug)
           ? [...existing, slug]
           : existing.filter((value) => value !== slug)
       const deduped = Array.from(new Set(nextValues))
@@ -516,7 +517,9 @@ export function ResidentDirectoryTable() {
     draftCommittees: CommitteeSlug[],
     draftCommitteeChairs: CommitteeChairSlug[],
   ): CommitteeRoleDraft {
-    if (draftCommitteeChairs.includes(slug as CommitteeChairSlug)) return "chair"
+    if (draftCommitteeChairs.includes(slug as CommitteeChairSlug)) {
+      return slug === "board_of_directors" ? "president" : "chair"
+    }
     if (draftCommittees.includes(slug)) return "member"
     return "none"
   }
@@ -1055,6 +1058,7 @@ export function ResidentDirectoryTable() {
           {COMMITTEE_OPTIONS.map((committee) => {
             const roleValue = getCommitteeRole(committee.slug, draftCommittees, draftCommitteeChairs)
             const canBeChair = CHAIR_ELIGIBLE_COMMITTEES.has(committee.slug)
+            const leadershipOptionLabel = committee.slug === "board_of_directors" ? "President" : "Chair"
             const roleChanged = hasCommitteeRoleChanged(
               row,
               committee.slug,
@@ -1100,7 +1104,11 @@ export function ResidentDirectoryTable() {
                 >
                   <option value="none">None</option>
                   <option value="member">Member</option>
-                  {canBeChair ? <option value="chair">Chair</option> : null}
+                  {canBeChair ? (
+                    <option value={committee.slug === "board_of_directors" ? "president" : "chair"}>
+                      {leadershipOptionLabel}
+                    </option>
+                  ) : null}
                 </select>
               </Fragment>
             )
