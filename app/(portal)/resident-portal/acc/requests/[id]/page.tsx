@@ -13,12 +13,26 @@ export const metadata: Metadata = {
 }
 
 function statusLabel(status: string) {
-  if (status === "initial_review") return "Initial Review"
+  if (status === "initial_review") return "Pending"
   if (status === "needs_more_info") return "Needs More Information"
   if (status === "committee_vote") return "Committee Vote"
   if (status === "approved") return "Approved"
   if (status === "rejected") return "Rejected"
   return status
+}
+
+function statusBadgeStyles(status: string) {
+  if (status === "approved") return { background: "#dcfce7", color: "#166534" }
+  if (status === "rejected") return { background: "#fee2e2", color: "#991b1b" }
+  if (status === "committee_vote") return { background: "#dbeafe", color: "#1d4ed8" }
+  if (status === "needs_more_info") return { background: "#ffedd5", color: "#9a3412" }
+  return { background: "#f3f4f6", color: "#334155" }
+}
+
+function formatDateOnly(value: string) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return "—"
+  return date.toLocaleDateString()
 }
 
 export default async function AccRequestDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -73,11 +87,26 @@ export default async function AccRequestDetailPage({ params }: { params: Promise
                 </div>
                 <div style={{ display: "grid", gap: "0.25rem" }}>
                   <strong style={{ color: "var(--pp-navy-dark)" }}>Status</strong>
-                  <span>{statusLabel(request.status)}</span>
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      width: "fit-content",
+                      minHeight: "2rem",
+                      padding: "0.35rem 0.75rem",
+                      borderRadius: "999px",
+                      fontWeight: 700,
+                      fontSize: "0.85rem",
+                      ...statusBadgeStyles(request.status),
+                    }}
+                  >
+                    {statusLabel(request.status)}
+                  </span>
                 </div>
                 <div style={{ display: "grid", gap: "0.25rem" }}>
                   <strong style={{ color: "var(--pp-navy-dark)" }}>Submitted</strong>
-                  <span>{new Date(request.submittedAt).toLocaleString()}</span>
+                  <span>{formatDateOnly(request.submittedAt)}</span>
                 </div>
                 <div style={{ display: "grid", gap: "0.25rem" }}>
                   <strong style={{ color: "var(--pp-navy-dark)" }}>Review Cycle</strong>
@@ -88,6 +117,13 @@ export default async function AccRequestDetailPage({ params }: { params: Promise
               {request.residentActionNote ? (
                 <div style={{ padding: "0.9rem 1rem", borderRadius: "var(--radius-md)", background: "#fff7ed", color: "#9a3412" }}>
                   <strong>Additional information requested:</strong> {request.residentActionNote}
+                  {request.canEdit ? (
+                    <div style={{ marginTop: "0.75rem", display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+                      <Link href={`/resident-portal/acc/requests/${request.id}/edit`} className="btn btn-primary">
+                        Update and Resubmit
+                      </Link>
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
 
@@ -141,9 +177,13 @@ export default async function AccRequestDetailPage({ params }: { params: Promise
 
               <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
                 {request.canEdit ? (
-                  <Link href={`/resident-portal/acc/requests/${request.id}/edit`}>Update and Resubmit</Link>
+                  <Link href={`/resident-portal/acc/requests/${request.id}/edit`} className="btn btn-primary">
+                    Update and Resubmit
+                  </Link>
                 ) : null}
-                <Link href="/resident-portal/acc/requests">Back to My ACC Requests</Link>
+                <Link href="/resident-portal/acc/requests" className="btn btn-secondary">
+                  Back to My ACC Requests
+                </Link>
               </div>
             </div>
           </div>

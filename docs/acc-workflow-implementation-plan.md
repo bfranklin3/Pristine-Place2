@@ -113,6 +113,7 @@ This document describes the target Neon workflow and phased implementation towar
   - Reject (final)
   - Request More Information
   - Send to Committee Vote
+- Allow chair/admin manual reject from `needs_more_info` when resident never responds.
 - Enforce required notes where applicable.
 - Allow resident resubmission on the same request record after missing details are provided.
 
@@ -131,6 +132,7 @@ This document describes the target Neon workflow and phased implementation towar
 - All four initial-review transitions are functional.
 - Approve/Reject finalizes and locks request.
 - Request More Information moves request to `needs_more_info` with required note.
+- Reject is also allowed from `needs_more_info` with a required note.
 - Resident resubmission returns the same request to `initial_review` and increments `review_cycle`.
 - Send-to-vote creates deadline and notifies committee.
 

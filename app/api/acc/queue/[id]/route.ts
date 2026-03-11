@@ -37,6 +37,7 @@ function parseVoteDeadline(value: string | null | undefined) {
 
 async function deliverFinalDecisionNotification(request: {
   id: string
+  requestNumber?: string | null
   title?: string | null
   residentName?: string | null
   residentEmail?: string | null
@@ -47,6 +48,7 @@ async function deliverFinalDecisionNotification(request: {
   if (!request.finalDecision) return undefined
   return sendAccWorkflowFinalDecisionNotification({
     requestId: request.id,
+    requestNumber: request.requestNumber,
     title: request.title,
     residentName: request.residentName,
     residentEmail: request.residentEmail,
@@ -124,6 +126,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
       if (result.kind === "ok") {
         notificationResult = await sendAccWorkflowMoreInfoNotification({
           requestId: result.request.id,
+          requestNumber: result.request.requestNumber,
           title: result.request.title,
           residentName: result.request.residentName,
           residentEmail: result.request.residentEmail,
@@ -178,6 +181,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
       if (result.kind === "ok") {
         notificationResult = await sendAccWorkflowSentToVoteNotification({
           requestId: result.request.id,
+          requestNumber: result.request.requestNumber,
           title: result.request.title,
           residentName: result.request.residentName,
           residentEmail: result.request.residentEmail,

@@ -40,6 +40,7 @@ export async function POST(req: NextRequest) {
     })
     const notificationResult = await sendAccWorkflowSubmittedNotifications({
       requestId: request.id,
+      requestNumber: request.requestNumber,
       title: request.title,
       residentName: request.residentName,
       residentEmail: request.residentEmail,

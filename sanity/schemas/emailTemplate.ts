@@ -40,7 +40,7 @@ export const emailTemplate = defineType({
       rows: 18,
       validation: (rule) => rule.required(),
       description:
-        "Available placeholders (by template): {{firstName}}, {{portalUrl}}, {{contactEmail}}, {{approvalSupportEmail}}, {{lastName}}, {{homeAddress}}, {{username}}, {{emailAddress}}, {{submittedAt}}, {{reviewUrl}}, {{resetUrl}}, {{signInUrl}}, {{requestId}}, {{requestTitle}}, {{residentName}}, {{residentEmail}}, {{residentAddress}}, {{residentActionNote}}, {{decisionNote}}, {{voteDeadlineAt}}, {{detailUrl}}, {{managementUrl}}",
+        "Available placeholders (by template): {{firstName}}, {{portalUrl}}, {{contactEmail}}, {{approvalSupportEmail}}, {{lastName}}, {{homeAddress}}, {{username}}, {{emailAddress}}, {{submittedAt}}, {{reviewUrl}}, {{resetUrl}}, {{signInUrl}}, {{requestId}}, {{requestNumber}}, {{requestTitle}}, {{residentName}}, {{residentEmail}}, {{residentAddress}}, {{residentActionNote}}, {{decisionNote}}, {{voteDeadlineAt}}, {{detailUrl}}, {{managementUrl}}",
     }),
     defineField({
       name: "textBody",
@@ -49,7 +49,7 @@ export const emailTemplate = defineType({
       rows: 14,
       validation: (rule) => rule.required(),
       description:
-        "Available placeholders (by template): {{firstName}}, {{portalUrl}}, {{contactEmail}}, {{approvalSupportEmail}}, {{lastName}}, {{homeAddress}}, {{username}}, {{emailAddress}}, {{submittedAt}}, {{reviewUrl}}, {{resetUrl}}, {{signInUrl}}, {{requestId}}, {{requestTitle}}, {{residentName}}, {{residentEmail}}, {{residentAddress}}, {{residentActionNote}}, {{decisionNote}}, {{voteDeadlineAt}}, {{detailUrl}}, {{managementUrl}}",
+        "Available placeholders (by template): {{firstName}}, {{portalUrl}}, {{contactEmail}}, {{approvalSupportEmail}}, {{lastName}}, {{homeAddress}}, {{username}}, {{emailAddress}}, {{submittedAt}}, {{reviewUrl}}, {{resetUrl}}, {{signInUrl}}, {{requestId}}, {{requestNumber}}, {{requestTitle}}, {{residentName}}, {{residentEmail}}, {{residentAddress}}, {{residentActionNote}}, {{decisionNote}}, {{voteDeadlineAt}}, {{detailUrl}}, {{managementUrl}}",
     }),
     defineField({
       name: "isActive",

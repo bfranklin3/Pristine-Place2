@@ -95,6 +95,7 @@ Convert the ACC workflow plan into a build checklist tied to the current codebas
   - `needs_more_info` -> `initial_review`
   - `initial_review` -> `approved`
   - `initial_review` -> `rejected`
+  - `needs_more_info` -> `rejected`
   - `initial_review` -> `committee_vote`
   - `committee_vote` -> final decision
 - [ ] Add helper enforcing same-request resubmission and `reviewCycle` increment.
@@ -129,6 +130,8 @@ Convert the ACC workflow plan into a build checklist tied to the current codebas
   - Include resident summary and action-needed state
 - [ ] Implement `POST /api/acc/review/initial/:id/approve`.
 - [ ] Implement `POST /api/acc/review/initial/:id/reject`.
+  - Allow reject from both `initial_review` and `needs_more_info`
+  - Require note
 - [ ] Implement `POST /api/acc/review/initial/:id/request-more-info`.
   - Requires note
   - Sets `residentActionNote`

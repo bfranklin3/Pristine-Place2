@@ -77,8 +77,20 @@ interface CleanupAuditPayload {
   failed: Array<{ userId: string; reason: string }>
 }
 
+type CommitteeRoleFilter =
+  | "all"
+  | "board_members"
+  | "acc_members"
+  | "acc_chairs"
+  | "access_control_members"
+  | "access_control_chairs"
+  | "communication_members"
+  | "clubhouse_rental_members"
+  | "social_committee_members"
+  | "clubhouse_members"
+
 function formatLastActive(lastActiveAt: string) {
-  return lastActiveAt ? new Date(lastActiveAt).toLocaleString() : "Never"
+  return lastActiveAt ? new Date(lastActiveAt).toLocaleDateString() : "Never"
 }
 
 const statusOptions: Array<{ key: DirectoryStatus; label: string }> = [
@@ -98,6 +110,19 @@ const DEFAULT_ROLE_GRANTS: Record<string, CapabilityKey[]> = {
 }
 const CHAIR_ELIGIBLE_COMMITTEES = new Set<CommitteeSlug>(COMMITTEE_CHAIR_OPTIONS.map((option) => option.slug))
 type CommitteeRoleDraft = "none" | "member" | "chair"
+
+const committeeRoleFilterOptions: Array<{ key: CommitteeRoleFilter; label: string }> = [
+  { key: "all", label: "All Committee Roles" },
+  { key: "board_members", label: "Board Members" },
+  { key: "acc_members", label: "ACC Members" },
+  { key: "acc_chairs", label: "ACC Chairs" },
+  { key: "access_control_members", label: "Access Control Members" },
+  { key: "access_control_chairs", label: "Access Control Chairs" },
+  { key: "communication_members", label: "Communications Members" },
+  { key: "clubhouse_rental_members", label: "Clubhouse Rental Members" },
+  { key: "social_committee_members", label: "Social Committee Members" },
+  { key: "clubhouse_members", label: "Clubhouse Members" },
+]
 
 function statusLabel(status: PortalUserRow["status"]) {
   if (status === "not_submitted") return "No registration submitted"
@@ -123,9 +148,35 @@ function workflowStatusMeta(status: PortalUserRow["status"]) {
   return { label: "No registration", detail: "No portal registration submitted", bg: "#f8fafc", color: "#475569", border: "#cbd5e1" }
 }
 
+function summarizeCommitteeRole(row: PortalUserRow) {
+  const committees = row.committees.filter(isCommitteeSlug)
+  if (committees.length === 0) {
+    return { primary: "—", secondary: "" }
+  }
+
+  const primaryCommittee = COMMITTEE_OPTIONS.find((option) => option.slug === committees[0])
+  const isChair = primaryCommittee ? row.committeeChairs.includes(primaryCommittee.slug as CommitteeChairSlug) : false
+  const extraCount = committees.length - 1
+
+  if (isChair && extraCount > 0) {
+    return { primary: primaryCommittee?.label || committees[0], secondary: `Chair, +${extraCount} more` }
+  }
+
+  if (isChair) {
+    return { primary: primaryCommittee?.label || committees[0], secondary: "Chair" }
+  }
+
+  if (extraCount > 0) {
+    return { primary: primaryCommittee?.label || committees[0], secondary: `+${extraCount} more` }
+  }
+
+  return { primary: primaryCommittee?.label || committees[0], secondary: "" }
+}
+
 export function ResidentDirectoryTable() {
   const [rows, setRows] = useState<PortalUserRow[]>([])
   const [status, setStatus] = useState<DirectoryStatus>("all")
+  const [committeeRoleFilter, setCommitteeRoleFilter] = useState<CommitteeRoleFilter>("all")
   const [searchInput, setSearchInput] = useState("")
   const [searchQuery, setSearchQuery] = useState("")
   const [statusCounts, setStatusCounts] = useState<DirectoryCounts>({
@@ -236,6 +287,22 @@ export function ResidentDirectoryTable() {
     const timer = window.setTimeout(() => setToastMessage(null), 2600)
     return () => window.clearTimeout(timer)
   }, [toastMessage])
+
+  function matchesCommitteeRoleFilter(row: PortalUserRow) {
+    if (committeeRoleFilter === "all") return true
+    if (committeeRoleFilter === "board_members") return row.committees.includes("board_of_directors")
+    if (committeeRoleFilter === "acc_members") return row.committees.includes("acc")
+    if (committeeRoleFilter === "acc_chairs") return row.committeeChairs.includes("acc")
+    if (committeeRoleFilter === "access_control_members") return row.committees.includes("access_control")
+    if (committeeRoleFilter === "access_control_chairs") return row.committeeChairs.includes("access_control")
+    if (committeeRoleFilter === "communication_members") return row.committees.includes("communication_committee")
+    if (committeeRoleFilter === "clubhouse_rental_members") return row.committees.includes("clubhouse_rental")
+    if (committeeRoleFilter === "social_committee_members") return row.committees.includes("social_committee")
+    if (committeeRoleFilter === "clubhouse_members") return row.committees.includes("clubhouse_maintenance")
+    return true
+  }
+
+  const filteredRows = rows.filter(matchesCommitteeRoleFilter)
 
   useEffect(() => {
     if (!openMoreMenuUserId) return
@@ -1646,16 +1713,34 @@ export function ResidentDirectoryTable() {
             }}
           />
         </div>
+        <select
+          value={committeeRoleFilter}
+          onChange={(event) => setCommitteeRoleFilter(event.target.value as CommitteeRoleFilter)}
+          style={{
+            minWidth: "15rem",
+            padding: "0.6rem 0.8rem",
+            borderRadius: "var(--radius-sm)",
+            border: "1.5px solid var(--pp-slate-200)",
+            background: "var(--pp-white)",
+          }}
+        >
+          {committeeRoleFilterOptions.map((option) => (
+            <option key={option.key} value={option.key}>
+              {option.label}
+            </option>
+          ))}
+        </select>
         <button type="submit" className="btn btn-secondary btn-sm" disabled={loading}>
           Search
         </button>
-        {searchInput || searchQuery ? (
+        {searchInput || searchQuery || committeeRoleFilter !== "all" ? (
           <button
             type="button"
             className="btn btn-outline btn-sm"
             onClick={() => {
               setSearchInput("")
               setSearchQuery("")
+              setCommitteeRoleFilter("all")
             }}
             disabled={loading}
           >
@@ -1671,6 +1756,12 @@ export function ResidentDirectoryTable() {
       {searchQuery ? (
         <p className="text-fluid-sm" style={{ color: "var(--pp-slate-600)" }}>
           Showing results for <strong>{searchQuery}</strong>
+        </p>
+      ) : null}
+
+      {committeeRoleFilter !== "all" ? (
+        <p className="text-fluid-sm" style={{ color: "var(--pp-slate-600)" }}>
+          Committee role filter: <strong>{committeeRoleFilterOptions.find((option) => option.key === committeeRoleFilter)?.label}</strong>
         </p>
       ) : null}
 
@@ -1970,17 +2061,18 @@ export function ResidentDirectoryTable() {
         <div className="card" style={{ padding: "var(--space-l)" }}>
           <p>Loading resident directory...</p>
         </div>
-      ) : rows.length === 0 ? (
+      ) : filteredRows.length === 0 ? (
         <div className="card" style={{ padding: "var(--space-l)" }}>
           <p>No records found for this filter.</p>
         </div>
       ) : isCompactLayout ? (
         <div className="stack" style={{ gap: "0.8rem" }}>
-          {rows.map((row) => {
+          {filteredRows.map((row) => {
             const busy = savingUserId === row.userId
             const expanded = expandedRows[row.userId] === true
             const primaryAction = primaryActionForStatus(row.status)
             const workflow = workflowStatusMeta(row.status)
+            const committeeSummary = summarizeCommitteeRole(row)
             const draftCommittees = getDraftCommittees(row)
             const draftCommitteeChairs = getDraftCommitteeChairs(row)
             const draftCapabilityOverrides = getDraftCapabilityOverrides(row)
@@ -1995,6 +2087,10 @@ export function ResidentDirectoryTable() {
                   <div style={{ fontWeight: 800, color: "var(--pp-navy-dark)", fontSize: "1.05rem" }}>{row.fullName || "Unknown"}</div>
                   <div style={{ marginTop: "0.2rem", color: "var(--pp-slate-700)", fontSize: "0.9rem" }}>
                     Username: {row.username || "N/A"}
+                  </div>
+                  <div style={{ marginTop: "0.35rem", color: "var(--pp-slate-700)", fontSize: "0.9rem" }}>
+                    <strong>Committee:</strong> {committeeSummary.primary}
+                    {committeeSummary.secondary ? ` • ${committeeSummary.secondary}` : ""}
                   </div>
                   <div style={{ marginTop: "0.35rem", display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
                     <span
@@ -2161,18 +2257,20 @@ export function ResidentDirectoryTable() {
               <tr>
                 <th style={{ textAlign: "left", padding: "0.75rem", fontSize: "0.78rem" }}>Resident</th>
                 <th style={{ textAlign: "left", padding: "0.75rem", fontSize: "0.78rem", width: "9.5rem" }}>Portal Status</th>
-                <th style={{ textAlign: "left", padding: "0.75rem", fontSize: "0.78rem", width: "13rem" }}>Last Active</th>
+                <th style={{ textAlign: "left", padding: "0.75rem", fontSize: "0.78rem", width: "10.5rem" }}>Committee</th>
+                <th style={{ textAlign: "left", padding: "0.75rem", fontSize: "0.78rem", width: "9rem" }}>Last Active</th>
                 <th style={{ textAlign: "left", padding: "0.75rem", fontSize: "0.78rem", width: "4.5rem" }}>Admin</th>
-                <th style={{ textAlign: "left", padding: "0.75rem", fontSize: "0.78rem", width: "23rem" }}>Actions</th>
+                <th style={{ textAlign: "left", padding: "0.75rem", fontSize: "0.78rem", width: "21rem" }}>Actions</th>
                 <th style={{ textAlign: "center", padding: "0.75rem", fontSize: "0.78rem", width: "3rem" }} aria-label="Expand" />
               </tr>
             </thead>
             <tbody>
-              {rows.map((row) => {
+              {filteredRows.map((row) => {
                 const busy = savingUserId === row.userId
                 const expanded = expandedRows[row.userId] === true
                 const primaryAction = primaryActionForStatus(row.status)
                 const workflow = workflowStatusMeta(row.status)
+                const committeeSummary = summarizeCommitteeRole(row)
                 const draftCommittees = getDraftCommittees(row)
                 const draftCommitteeChairs = getDraftCommitteeChairs(row)
                 const draftCapabilityOverrides = getDraftCapabilityOverrides(row)
@@ -2207,6 +2305,14 @@ export function ResidentDirectoryTable() {
                         <div style={{ color: "var(--pp-slate-500)", fontSize: "0.72rem", marginTop: "0.22rem" }}>
                           {workflow.detail}
                         </div>
+                      </td>
+                      <td style={{ padding: "0.75rem", verticalAlign: "top" }}>
+                        <div style={{ fontWeight: 700, color: "var(--pp-navy-dark)" }}>{committeeSummary.primary}</div>
+                        {committeeSummary.secondary ? (
+                          <div style={{ color: "var(--pp-slate-500)", fontSize: "0.72rem", marginTop: "0.22rem" }}>
+                            {committeeSummary.secondary}
+                          </div>
+                        ) : null}
                       </td>
                       <td style={{ padding: "0.75rem", verticalAlign: "top" }}>
                         {formatLastActive(row.lastActiveAt)}

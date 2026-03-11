@@ -35,6 +35,7 @@ export async function POST(_req: NextRequest, ctx: { params: Promise<{ id: strin
 
     const notificationResult = await sendAccWorkflowResubmittedNotification({
       requestId: result.request.id,
+      requestNumber: result.request.requestNumber,
       title: result.request.title,
       residentName: result.request.residentName,
       residentEmail: result.request.residentEmail,

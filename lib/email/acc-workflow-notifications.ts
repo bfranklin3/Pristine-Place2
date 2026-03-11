@@ -1,5 +1,5 @@
 import { clerkClient } from "@clerk/nextjs/server"
-import { client } from "@/lib/sanity/client"
+import { createClient } from "next-sanity"
 import { sendEmail } from "@/lib/email/service"
 import { siteConfig } from "@/lib/site-config"
 import { normalizeCommitteeChairSlugs, normalizeCommitteeSlugs } from "@/lib/portal/committees"
@@ -21,6 +21,7 @@ type SanityEmailTemplateDoc = {
 
 type AccWorkflowNotificationPayload = {
   requestId: string
+  requestNumber?: string | null
   title?: string | null
   residentName?: string | null
   residentEmail?: string | null
@@ -36,8 +37,26 @@ type AccWorkflowNotificationResult = {
   mode: "live" | "reroute" | "suppress"
   recipients: string[]
   effectiveRecipients: string[]
+  templateSource: "sanity" | "fallback"
   warning?: string
 }
+
+type RenderedTemplate = {
+  subject: string
+  html: string
+  text?: string
+}
+
+const sanityEmailTemplateClient =
+  process.env.NEXT_PUBLIC_SANITY_PROJECT_ID && process.env.NEXT_PUBLIC_SANITY_DATASET
+    ? createClient({
+        projectId: process.env.NEXT_PUBLIC_SANITY_PROJECT_ID,
+        dataset: process.env.NEXT_PUBLIC_SANITY_DATASET,
+        apiVersion: "2024-01-01",
+        token: process.env.SANITY_API_TOKEN,
+        useCdn: false,
+      })
+    : null
 
 function escapeHtml(value: string) {
   return value
@@ -80,15 +99,16 @@ function getPortalUrl(path: string) {
 async function getTemplateFromSanity(
   key: NotificationTemplateKey,
   replacements: Record<string, string>,
-) {
+): Promise<RenderedTemplate | null> {
   try {
+    if (!sanityEmailTemplateClient) return null
     const query = `*[_type == "emailTemplate" && key == $key && isActive == true][0]{
       subject,
       htmlBody,
       textBody
     }`
 
-    const template = await client.fetch<SanityEmailTemplateDoc | null>(query, { key })
+    const template = await sanityEmailTemplateClient.fetch<SanityEmailTemplateDoc | null>(query, { key })
     if (!template?.subject || !template?.htmlBody || !template?.textBody) return null
 
     return {
@@ -105,56 +125,78 @@ async function getTemplateFromSanity(
 function buildFallbackTemplate(
   key: NotificationTemplateKey,
   replacements: Record<string, string>,
-) {
+): RenderedTemplate {
   const title = replacements.requestTitle || "ACC Request"
+  const requestNumber = replacements.requestNumber || ""
   const detailUrl = replacements.detailUrl || replacements.managementUrl || siteConfig.url
   const note = replacements.decisionNote || replacements.residentActionNote || ""
+  const requestNumberHtml = requestNumber ? `<p><strong>Request Number:</strong> ${escapeHtml(requestNumber)}</p>` : ""
 
   if (key === "acc_workflow_submitted_resident") {
     return {
       subject: `ACC request received: ${title}`,
-      html: `<p>Your ACC request has been received.</p><p><strong>Request:</strong> ${escapeHtml(title)}</p><p><a href="${detailUrl}">View your request</a></p>`,
+      html: `<p>Your ACC request has been received.</p><p><strong>Request:</strong> ${escapeHtml(title)}</p>${requestNumberHtml}<p><a href="${detailUrl}">View your request</a></p>`,
     }
   }
 
   if (key === "acc_workflow_submitted_chair") {
     return {
       subject: `ACC review needed: ${title}`,
-      html: `<p>A new ACC request is ready for initial review.</p><p><strong>Resident:</strong> ${escapeHtml(replacements.residentName || "Resident")}</p><p><strong>Address:</strong> ${escapeHtml(replacements.residentAddress || "")}</p><p><a href="${replacements.managementUrl}">Open ACC workflow queue</a></p>`,
+      html: `<p>A new ACC request is ready for initial review.</p>${requestNumberHtml}<p><strong>Resident:</strong> ${escapeHtml(replacements.residentName || "Resident")}</p><p><strong>Address:</strong> ${escapeHtml(replacements.residentAddress || "")}</p><p><a href="${replacements.managementUrl}">Open ACC workflow queue</a></p>`,
     }
   }
 
   if (key === "acc_workflow_more_info_resident") {
     return {
       subject: `More information needed for your ACC request`,
-      html: `<p>Your ACC request needs more information before review can continue.</p><p><strong>Note:</strong> ${escapeHtml(note)}</p><p><a href="${detailUrl}">Open your request</a></p>`,
+      html: `<p>Your ACC request needs more information before review can continue.</p>${requestNumberHtml}<p><strong>Note:</strong> ${escapeHtml(note)}</p><p><a href="${detailUrl}">Open your request</a></p>`,
     }
   }
 
   if (key === "acc_workflow_resubmitted_chair") {
     return {
       subject: `ACC request resubmitted: ${title}`,
-      html: `<p>A resident has updated and resubmitted an ACC request.</p><p><strong>Resident:</strong> ${escapeHtml(replacements.residentName || "Resident")}</p><p><a href="${replacements.managementUrl}">Open ACC workflow queue</a></p>`,
+      html: `<p>A resident has updated and resubmitted an ACC request.</p>${requestNumberHtml}<p><strong>Resident:</strong> ${escapeHtml(replacements.residentName || "Resident")}</p><p><a href="${replacements.managementUrl}">Open ACC workflow queue</a></p>`,
     }
   }
 
   if (key === "acc_workflow_sent_to_vote_committee") {
     return {
       subject: `ACC vote requested: ${title}`,
-      html: `<p>An ACC request is ready for committee vote.</p><p><strong>Resident:</strong> ${escapeHtml(replacements.residentName || "Resident")}</p><p><strong>Deadline:</strong> ${escapeHtml(replacements.voteDeadlineAt || "")}</p><p><a href="${replacements.managementUrl}">Open ACC workflow queue</a></p>`,
+      html: `<p>An ACC request is ready for committee vote.</p>${requestNumberHtml}<p><strong>Resident:</strong> ${escapeHtml(replacements.residentName || "Resident")}</p><p><strong>Deadline:</strong> ${escapeHtml(replacements.voteDeadlineAt || "")}</p><p><a href="${replacements.managementUrl}">Open ACC workflow queue</a></p>`,
     }
   }
 
   if (key === "acc_workflow_approved_resident") {
     return {
       subject: `ACC request approved: ${title}`,
-      html: `<p>Your ACC request has been approved.</p>${note ? `<p><strong>Note:</strong> ${escapeHtml(note)}</p>` : ""}<p><a href="${detailUrl}">View your request</a></p>`,
+      html: `<p>Your ACC request has been approved.</p>${requestNumberHtml}${note ? `<p><strong>Note:</strong> ${escapeHtml(note)}</p>` : ""}<p><a href="${detailUrl}">View your request</a></p>`,
     }
   }
 
   return {
     subject: `ACC request decision: ${title}`,
-    html: `<p>Your ACC request has been rejected.</p>${note ? `<p><strong>Note:</strong> ${escapeHtml(note)}</p>` : ""}<p><a href="${detailUrl}">View your request</a></p>`,
+    html: `<p>Your ACC request has been rejected.</p>${requestNumberHtml}${note ? `<p><strong>Note:</strong> ${escapeHtml(note)}</p>` : ""}<p><a href="${detailUrl}">View your request</a></p>`,
+  }
+}
+
+function cleanupRenderedTemplate(template: RenderedTemplate): RenderedTemplate {
+  const html = template.html
+    .replace(/<p>\s*<strong>[^<]+:<\/strong>\s*<\/p>/g, "")
+    .replace(/<p>\s*<\/p>/g, "")
+    .replace(/\n{3,}/g, "\n\n")
+
+  const text = template.text
+    ? template.text
+        .replace(/^[A-Za-z][A-Za-z0-9 #/()&+-]*:\s*$/gm, "")
+        .replace(/\n{3,}/g, "\n\n")
+        .trim()
+    : template.text
+
+  return {
+    ...template,
+    html,
+    text,
   }
 }
 
@@ -169,6 +211,77 @@ function resolveRerouteRecipients() {
   return dedupeEmails((process.env.ACC_WORKFLOW_TEST_INBOX || "").split(","))
 }
 
+function isResidentFacingTemplate(key: NotificationTemplateKey) {
+  return (
+    key === "acc_workflow_submitted_resident" ||
+    key === "acc_workflow_more_info_resident" ||
+    key === "acc_workflow_approved_resident" ||
+    key === "acc_workflow_rejected_resident"
+  )
+}
+
+function buildRerouteHtmlNotice(
+  templateKey: NotificationTemplateKey,
+  recipients: string[],
+  replacements: Record<string, string>,
+) {
+  const residentGuidance = isResidentFacingTemplate(templateKey)
+    ? `<div style="margin:6px 0 0 0;"><strong>Resident-only link:</strong> open as the resident account.</div>`
+    : ""
+  const managementFallback = replacements.managementDetailUrl
+    ? `<div style="margin:6px 0 0 0;"><strong>Management fallback:</strong> <a href="${replacements.managementDetailUrl}" style="color:#92400e;text-decoration:underline;">Open this request in ACC workflow queue</a></div>`
+    : ""
+
+  return `<div style="margin:0 0 16px 0;padding:12px 14px;border:1px solid #f59e0b;border-radius:8px;background:#fffbeb;color:#92400e;">
+    <div style="font-weight:700;margin:0 0 6px 0;">ACC test email reroute</div>
+    <div style="margin:0 0 4px 0;"><strong>Delivery mode:</strong> reroute</div>
+    <div><strong>Original recipients:</strong> ${escapeHtml(recipients.join(", "))}</div>
+    ${residentGuidance}
+    ${managementFallback}
+  </div>`
+}
+
+function applyReroutePresentation(
+  templateKey: NotificationTemplateKey,
+  template: RenderedTemplate,
+  recipients: string[],
+  replacements: Record<string, string>,
+): RenderedTemplate {
+  return {
+    subject: `[ACC TEST] ${template.subject}`,
+    html: `${buildRerouteHtmlNotice(templateKey, recipients, replacements)}${template.html}`,
+    text: template.text,
+  }
+}
+
+function logAccWorkflowDelivery(input: {
+  templateKey: NotificationTemplateKey
+  requestId: string
+  mode: "live" | "reroute" | "suppress"
+  recipients: string[]
+  effectiveRecipients: string[]
+  templateSource: "sanity" | "fallback"
+  delivered: boolean
+  warning?: string
+}) {
+  const details = {
+    templateKey: input.templateKey,
+    requestId: input.requestId,
+    mode: input.mode,
+    recipients: input.recipients,
+    effectiveRecipients: input.effectiveRecipients,
+    templateSource: input.templateSource,
+    delivered: input.delivered,
+  }
+
+  if (input.warning) {
+    console.warn("ACC workflow email delivery warning:", { ...details, warning: input.warning })
+    return
+  }
+
+  console.info("ACC workflow email delivery:", details)
+}
+
 async function deliverAccWorkflowEmail(input: {
   to: string[]
   templateKey: NotificationTemplateKey
@@ -178,13 +291,25 @@ async function deliverAccWorkflowEmail(input: {
   const mode = resolveNotificationMode()
 
   if (recipients.length === 0) {
-    return {
+    const result = {
       delivered: false,
       mode,
       recipients: [],
       effectiveRecipients: [],
+      templateSource: "fallback" as const,
       warning: "No recipient email addresses were available.",
     }
+    logAccWorkflowDelivery({
+      templateKey: input.templateKey,
+      requestId: input.replacements.requestId || "",
+      mode: result.mode,
+      recipients: result.recipients,
+      effectiveRecipients: result.effectiveRecipients,
+      templateSource: "fallback",
+      delivered: result.delivered,
+      warning: result.warning,
+    })
+    return result
   }
 
   const effectiveRecipients =
@@ -195,20 +320,37 @@ async function deliverAccWorkflowEmail(input: {
         : []
 
   if (effectiveRecipients.length === 0) {
-    return {
+    const result = {
       delivered: false,
       mode,
       recipients,
       effectiveRecipients,
+      templateSource: "fallback" as const,
       warning: mode === "reroute"
         ? "ACC workflow email reroute mode is enabled, but ACC_WORKFLOW_TEST_INBOX is empty."
         : "ACC workflow email delivery is suppressed.",
     }
+    logAccWorkflowDelivery({
+      templateKey: input.templateKey,
+      requestId: input.replacements.requestId || "",
+      mode: result.mode,
+      recipients: result.recipients,
+      effectiveRecipients: result.effectiveRecipients,
+      templateSource: "fallback",
+      delivered: result.delivered,
+      warning: result.warning,
+    })
+    return result
   }
 
-  const template =
-    await getTemplateFromSanity(input.templateKey, input.replacements) ||
-    buildFallbackTemplate(input.templateKey, input.replacements)
+  const sanityTemplate = await getTemplateFromSanity(input.templateKey, input.replacements)
+  const templateSource = sanityTemplate ? "sanity" as const : "fallback" as const
+  const baseTemplate = cleanupRenderedTemplate(
+    sanityTemplate || buildFallbackTemplate(input.templateKey, input.replacements),
+  )
+  const template = mode === "reroute"
+    ? applyReroutePresentation(input.templateKey, baseTemplate, recipients, input.replacements)
+    : baseTemplate
 
   const result = await sendEmail({
     to: effectiveRecipients,
@@ -216,13 +358,25 @@ async function deliverAccWorkflowEmail(input: {
     html: template.html,
   })
 
-  return {
+  const notificationResult = {
     delivered: result.success,
     mode,
     recipients,
     effectiveRecipients,
+    templateSource,
     warning: result.success ? undefined : result.error || "Email delivery failed.",
   }
+  logAccWorkflowDelivery({
+    templateKey: input.templateKey,
+    requestId: input.replacements.requestId || "",
+    mode: notificationResult.mode,
+    recipients: notificationResult.recipients,
+    effectiveRecipients: notificationResult.effectiveRecipients,
+    templateSource: notificationResult.templateSource,
+    delivered: notificationResult.delivered,
+    warning: notificationResult.warning,
+  })
+  return notificationResult
 }
 
 async function fetchAccRecipients(kind: "chairs" | "committee") {
@@ -259,6 +413,7 @@ async function fetchAccRecipients(kind: "chairs" | "committee") {
 function buildCommonReplacements(payload: AccWorkflowNotificationPayload) {
   return {
     requestId: payload.requestId,
+    requestNumber: payload.requestNumber || "",
     requestTitle: payload.title || "ACC Request",
     residentName: payload.residentName || "Resident",
     residentEmail: payload.residentEmail || "",
@@ -267,6 +422,7 @@ function buildCommonReplacements(payload: AccWorkflowNotificationPayload) {
     decisionNote: payload.decisionNote || "",
     voteDeadlineAt: payload.voteDeadlineAt || "",
     detailUrl: getPortalUrl(`/resident-portal/acc/requests/${payload.requestId}`),
+    managementDetailUrl: getPortalUrl(`/resident-portal/management/acc-queue?selected=${payload.requestId}`),
     managementUrl: getPortalUrl("/resident-portal/management/acc-queue"),
     contactEmail: siteConfig.contact.email,
   }
@@ -294,8 +450,8 @@ export async function sendAccWorkflowSubmittedNotifications(payload: AccWorkflow
   } catch (error) {
     console.error("ACC workflow submitted notification failed:", error)
     return {
-      residentResult: { delivered: false, mode: resolveNotificationMode(), recipients: [], effectiveRecipients: [], warning: "Submission notification failed." },
-      chairResult: { delivered: false, mode: resolveNotificationMode(), recipients: [], effectiveRecipients: [], warning: "Chair notification failed." },
+      residentResult: { delivered: false, mode: resolveNotificationMode(), recipients: [], effectiveRecipients: [], templateSource: "fallback", warning: "Submission notification failed." },
+      chairResult: { delivered: false, mode: resolveNotificationMode(), recipients: [], effectiveRecipients: [], templateSource: "fallback", warning: "Chair notification failed." },
     }
   }
 }
@@ -309,7 +465,7 @@ export async function sendAccWorkflowMoreInfoNotification(payload: AccWorkflowNo
     })
   } catch (error) {
     console.error("ACC workflow more-info notification failed:", error)
-    return { delivered: false, mode: resolveNotificationMode(), recipients: [], effectiveRecipients: [], warning: "Resident notification failed." }
+    return { delivered: false, mode: resolveNotificationMode(), recipients: [], effectiveRecipients: [], templateSource: "fallback", warning: "Resident notification failed." }
   }
 }
 
@@ -322,7 +478,7 @@ export async function sendAccWorkflowResubmittedNotification(payload: AccWorkflo
     })
   } catch (error) {
     console.error("ACC workflow resubmitted notification failed:", error)
-    return { delivered: false, mode: resolveNotificationMode(), recipients: [], effectiveRecipients: [], warning: "Chair notification failed." }
+    return { delivered: false, mode: resolveNotificationMode(), recipients: [], effectiveRecipients: [], templateSource: "fallback", warning: "Chair notification failed." }
   }
 }
 
@@ -335,7 +491,7 @@ export async function sendAccWorkflowSentToVoteNotification(payload: AccWorkflow
     })
   } catch (error) {
     console.error("ACC workflow send-to-vote notification failed:", error)
-    return { delivered: false, mode: resolveNotificationMode(), recipients: [], effectiveRecipients: [], warning: "Committee notification failed." }
+    return { delivered: false, mode: resolveNotificationMode(), recipients: [], effectiveRecipients: [], templateSource: "fallback", warning: "Committee notification failed." }
   }
 }
 
@@ -350,6 +506,6 @@ export async function sendAccWorkflowFinalDecisionNotification(payload: AccWorkf
     })
   } catch (error) {
     console.error("ACC workflow final decision notification failed:", error)
-    return { delivered: false, mode: resolveNotificationMode(), recipients: [], effectiveRecipients: [], warning: "Resident decision notification failed." }
+    return { delivered: false, mode: resolveNotificationMode(), recipients: [], effectiveRecipients: [], templateSource: "fallback", warning: "Resident decision notification failed." }
   }
 }

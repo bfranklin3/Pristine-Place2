@@ -132,10 +132,10 @@ const STATUS_FILTERS: Array<{ key: WorkflowStatusFilter; label: string }> = [
 ]
 
 const SORT_OPTIONS: Array<{ key: WorkflowSort; label: string }> = [
-  { key: "submitted_desc", label: "Submitted: Newest First" },
-  { key: "submitted_asc", label: "Submitted: Oldest First" },
-  { key: "request_number_asc", label: "Submit ID: A-Z" },
-  { key: "request_number_desc", label: "Submit ID: Z-A" },
+  { key: "submitted_desc", label: "Newest Submitted" },
+  { key: "submitted_asc", label: "Oldest Submitted" },
+  { key: "request_number_asc", label: "Submit ID A-Z" },
+  { key: "request_number_desc", label: "Submit ID Z-A" },
 ]
 
 function statusLabel(status: WorkflowStatus) {
@@ -202,6 +202,34 @@ function EventLabel({ eventType }: { eventType: string }) {
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ")
   return <span>{label}</span>
+}
+
+function detailActionHint(detail: WorkflowDetail) {
+  if (detail.status === "initial_review") {
+    return "Use the note when requesting more information or rejecting. Approve, reject, or send the request to committee vote from this panel."
+  }
+
+  if (detail.status === "needs_more_info") {
+    return "Resident follow-up is still pending. Keep the request open in Needs More Info, or reject it with a note if it should be closed."
+  }
+
+  if (detail.status === "committee_vote" && detail.lockedAt) {
+    return "Committee voting is complete for this review cycle."
+  }
+
+  if (detail.status === "committee_vote" && detail.voteSummary.hasCurrentUserVoted) {
+    return "Your vote is recorded. Wait for the remaining committee votes, or use chair override if needed."
+  }
+
+  if (detail.status === "committee_vote") {
+    return "Cast one vote for this review cycle. Chair users may also use override to finalize the request early."
+  }
+
+  if (detail.status === "approved" && !detail.isVerified) {
+    return "The request is approved. Mark it verified after completion only when that follow-up is needed."
+  }
+
+  return "This request is finalized. Review the audit trail and attachments below."
 }
 
 type Props = {
@@ -717,9 +745,15 @@ export function AccQueueNeonTable(props: Props) {
 
                 {props.canControlWorkflow && detail.status === "initial_review" ? (
                   <p style={{ margin: "0 0 0.75rem 0" }}>
-                    <Link href={`/resident-portal/management/acc-queue/${detail.id}/edit`}>Open full edit form</Link>
+                    <Link href={`/resident-portal/management/acc-queue/${detail.id}/edit`} className="btn btn-secondary">
+                      Open Full Edit Form
+                    </Link>
                   </p>
                 ) : null}
+
+                <div style={{ marginBottom: "0.75rem", padding: "0.75rem 0.85rem", borderRadius: "var(--radius-sm)", background: "#f8fafc", color: "var(--pp-slate-700)" }}>
+                  {detailActionHint(detail)}
+                </div>
 
                 <textarea
                   value={actionNote}
@@ -747,6 +781,14 @@ export function AccQueueNeonTable(props: Props) {
                         <button type="button" className="btn btn-secondary" disabled={saving} onClick={() => runAction("send_to_vote")}>Send to Vote</button>
                       </div>
                     </>
+                  ) : null}
+
+                  {props.canControlWorkflow && detail.status === "needs_more_info" ? (
+                    <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                      <button type="button" className="btn btn-secondary" disabled={saving} onClick={() => runAction("reject")}>
+                        Reject
+                      </button>
+                    </div>
                   ) : null}
 
                   {props.canVote && detail.status === "committee_vote" && !detail.lockedAt ? (

@@ -1069,10 +1069,13 @@ async function finalizeInitialReview(input: {
   const result = await prisma.$transaction(async (tx) => {
     const existing = await fetchManagementDetailById(tx, input.requestId)
     if (!existing) return { kind: "not_found" as const }
-    if (existing.status !== "initial_review") return { kind: "invalid_state" as const, status: existing.status }
+    if (!["initial_review", "needs_more_info"].includes(existing.status)) {
+      return { kind: "invalid_state" as const, status: existing.status }
+    }
 
     const finalizedAt = new Date()
     const nextStatus: AccWorkflowRequestStatus = input.decision === "approve" ? "approved" : "rejected"
+    const finalizeSource = existing.status === "needs_more_info" ? "needs_more_info" : "initial_review"
 
     await tx.accWorkflowRequest.update({
       where: { id: existing.id },
@@ -1106,7 +1109,7 @@ async function finalizeInitialReview(input: {
           actorRole: input.actorRole,
           note: trimmedNote || null,
           metadataJson: {
-            source: "initial_review",
+            source: finalizeSource,
             finalDecision: input.decision,
           },
         },

@@ -12,12 +12,26 @@ export const metadata: Metadata = {
 }
 
 function statusLabel(status: string) {
-  if (status === "initial_review") return "Initial Review"
+  if (status === "initial_review") return "Pending"
   if (status === "needs_more_info") return "Needs More Information"
   if (status === "committee_vote") return "Committee Vote"
   if (status === "approved") return "Approved"
   if (status === "rejected") return "Rejected"
   return status
+}
+
+function statusBadgeStyles(status: string) {
+  if (status === "approved") return { background: "#dcfce7", color: "#166534" }
+  if (status === "rejected") return { background: "#fee2e2", color: "#991b1b" }
+  if (status === "committee_vote") return { background: "#dbeafe", color: "#1d4ed8" }
+  if (status === "needs_more_info") return { background: "#ffedd5", color: "#9a3412" }
+  return { background: "#f3f4f6", color: "#334155" }
+}
+
+function formatDateOnly(value: string) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return "—"
+  return date.toLocaleDateString()
 }
 
 export default async function MyAccRequestsPage() {
@@ -67,11 +81,7 @@ export default async function MyAccRequestsPage() {
             ) : (
               <div style={{ display: "grid", gap: "1rem" }}>
                 {requests.map((request) => (
-                  <article
-                    key={request.id}
-                    className="card"
-                    style={{ padding: "var(--space-l)", background: "#fffef9", border: "1px solid #e5efe8" }}
-                  >
+                  <article key={request.id} className="card" style={{ padding: "var(--space-l)", background: "#fffef9", border: "1px solid #e5efe8" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
                       <div style={{ display: "grid", gap: "0.35rem" }}>
                         <h3 style={{ margin: 0, color: "var(--pp-navy-dark)" }}>{request.title || "ACC Request"}</h3>
@@ -80,23 +90,35 @@ export default async function MyAccRequestsPage() {
                         </p>
                         <p style={{ margin: 0, color: "var(--pp-slate-700)" }}>{request.residentAddress || "Address unavailable"}</p>
                         <p style={{ margin: 0, color: "var(--pp-slate-500)", fontSize: "0.95rem" }}>
-                          Submitted {new Date(request.submittedAt).toLocaleString()}
+                          Submitted {formatDateOnly(request.submittedAt)}
                         </p>
                       </div>
                       <div style={{ display: "grid", gap: "0.5rem", justifyItems: "end" }}>
                         <span
                           style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            minHeight: "2rem",
                             padding: "0.35rem 0.75rem",
                             borderRadius: "999px",
-                            background: request.status === "needs_more_info" ? "#fff7ed" : "#eef7f0",
-                            color: request.status === "needs_more_info" ? "#9a3412" : "var(--pp-navy-dark)",
+                            ...statusBadgeStyles(request.status),
                             fontWeight: 700,
                             fontSize: "0.85rem",
                           }}
                         >
                           {statusLabel(request.status)}
                         </span>
-                        <Link href={`/resident-portal/acc/requests/${request.id}`}>View request</Link>
+                        <div style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap", justifyContent: "flex-end" }}>
+                          {request.canEdit ? (
+                            <Link href={`/resident-portal/acc/requests/${request.id}/edit`} className="btn btn-primary">
+                              Update Now
+                            </Link>
+                          ) : null}
+                          <Link href={`/resident-portal/acc/requests/${request.id}`} className="btn btn-secondary">
+                            View Request
+                          </Link>
+                        </div>
                       </div>
                     </div>
 
@@ -107,9 +129,9 @@ export default async function MyAccRequestsPage() {
                     ) : null}
 
                     {request.residentActionNote ? (
-                      <p style={{ margin: "0.9rem 0 0 0", color: "#9a3412" }}>
+                      <div style={{ marginTop: "0.9rem", padding: "0.85rem 0.95rem", borderRadius: "var(--radius-md)", background: "#fff7ed", color: "#9a3412" }}>
                         <strong>Action required:</strong> {request.residentActionNote}
-                      </p>
+                      </div>
                     ) : null}
                   </article>
                 ))}

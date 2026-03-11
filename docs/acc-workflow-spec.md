@@ -84,6 +84,8 @@ Chair actions:
 
 - Resident may update request fields and add attachments while the request is in `needs_more_info`.
 - Resident resubmits the same request record; this is not treated as a new ACC request.
+- If the resident never responds, the request may remain in `needs_more_info` until an ACC chair or admin manually rejects it.
+- Chair/admin rejection from `needs_more_info` requires a rejection note and ends the workflow as `rejected`.
 - On resubmission:
   - status returns to `initial_review`
   - `review_cycle` increments
