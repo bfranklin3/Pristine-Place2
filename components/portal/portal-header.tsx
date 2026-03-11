@@ -106,7 +106,7 @@ const managementItems = [
     allowed: ["admin"] as Array<CommitteeSlug | "admin">,
   },
   {
-    label: "Resident Access Management",
+    label: "Access Control Management",
     href: "/resident-portal/management/access",
     description: "Manage gate access (Access Control committee)",
     allowed: ["admin", "access_control"] as Array<CommitteeSlug | "admin">,
@@ -118,13 +118,13 @@ const managementItems = [
     allowed: ["admin", "acc", "access_control", "board_of_directors"] as Array<CommitteeSlug | "admin">,
   },
   {
-    label: "Resident Access Management Wordpress",
+    label: "Access Control Management Wordpress",
     href: "/resident-portal/management/wp-access",
-    description: "Temporary WordPress-based gate access management",
+    description: "Manage gate access (Access Control committee)",
     allowed: ["admin", "access_control"] as Array<CommitteeSlug | "admin">,
   },
   {
-    label: "Resident Approval Queue",
+    label: "Portal Approval Queue",
     href: "/resident-portal/management/resident-approvals",
     description: "Approve or reject resident portal requests",
     allowed: ["admin"] as Array<CommitteeSlug | "admin">,
