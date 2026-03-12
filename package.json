@@ -6,7 +6,7 @@
     "node": "22.x"
   },
   "scripts": {
-    "build": "next build",
+    "build": "prisma generate && next build",
     "dev": "next dev",
     "import:wp:basic-faqs:pasted": "node scripts/import-basic-hoa-faqs-from-pasted-json.mjs",
     "import:wp:basic-faqs": "node scripts/import-wp-basic-hoa-faqs.mjs",
