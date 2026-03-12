@@ -24,6 +24,12 @@ export const emailTemplate = defineType({
             { title: "ACC Workflow Sent To Vote (Committee)", value: "acc_workflow_sent_to_vote_committee" },
             { title: "ACC Workflow Approved (Resident)", value: "acc_workflow_approved_resident" },
             { title: "ACC Workflow Rejected (Resident)", value: "acc_workflow_rejected_resident" },
+            { title: "Clubhouse Rental Submitted (Resident)", value: "clubhouse_rental_submitted_resident" },
+            { title: "Clubhouse Rental Submitted (Admin)", value: "clubhouse_rental_submitted_admin" },
+            { title: "Clubhouse Rental More Info (Resident)", value: "clubhouse_rental_more_info_resident" },
+            { title: "Clubhouse Rental Resubmitted (Admin)", value: "clubhouse_rental_resubmitted_admin" },
+            { title: "Clubhouse Rental Approved (Resident)", value: "clubhouse_rental_approved_resident" },
+            { title: "Clubhouse Rental Rejected (Resident)", value: "clubhouse_rental_rejected_resident" },
           ],
         },
     }),
@@ -40,7 +46,7 @@ export const emailTemplate = defineType({
       rows: 18,
       validation: (rule) => rule.required(),
       description:
-        "Available placeholders (by template): {{firstName}}, {{portalUrl}}, {{contactEmail}}, {{approvalSupportEmail}}, {{lastName}}, {{homeAddress}}, {{username}}, {{emailAddress}}, {{submittedAt}}, {{reviewUrl}}, {{resetUrl}}, {{signInUrl}}, {{requestId}}, {{requestNumber}}, {{requestTitle}}, {{residentName}}, {{residentEmail}}, {{residentAddress}}, {{residentActionNote}}, {{decisionNote}}, {{voteDeadlineAt}}, {{detailUrl}}, {{managementUrl}}",
+        "Available placeholders (by template): {{firstName}}, {{portalUrl}}, {{contactEmail}}, {{approvalSupportEmail}}, {{lastName}}, {{homeAddress}}, {{username}}, {{emailAddress}}, {{submittedAt}}, {{reviewUrl}}, {{resetUrl}}, {{signInUrl}}, {{requestId}}, {{requestNumber}}, {{requestTitle}}, {{residentName}}, {{residentEmail}}, {{residentAddress}}, {{residentActionNote}}, {{decisionNote}}, {{voteDeadlineAt}}, {{detailUrl}}, {{managementUrl}}, {{reservationDate}}, {{reservationTime}}",
     }),
     defineField({
       name: "textBody",
@@ -49,7 +55,7 @@ export const emailTemplate = defineType({
       rows: 14,
       validation: (rule) => rule.required(),
       description:
-        "Available placeholders (by template): {{firstName}}, {{portalUrl}}, {{contactEmail}}, {{approvalSupportEmail}}, {{lastName}}, {{homeAddress}}, {{username}}, {{emailAddress}}, {{submittedAt}}, {{reviewUrl}}, {{resetUrl}}, {{signInUrl}}, {{requestId}}, {{requestNumber}}, {{requestTitle}}, {{residentName}}, {{residentEmail}}, {{residentAddress}}, {{residentActionNote}}, {{decisionNote}}, {{voteDeadlineAt}}, {{detailUrl}}, {{managementUrl}}",
+        "Available placeholders (by template): {{firstName}}, {{portalUrl}}, {{contactEmail}}, {{approvalSupportEmail}}, {{lastName}}, {{homeAddress}}, {{username}}, {{emailAddress}}, {{submittedAt}}, {{reviewUrl}}, {{resetUrl}}, {{signInUrl}}, {{requestId}}, {{requestNumber}}, {{requestTitle}}, {{residentName}}, {{residentEmail}}, {{residentAddress}}, {{residentActionNote}}, {{decisionNote}}, {{voteDeadlineAt}}, {{detailUrl}}, {{managementUrl}}, {{reservationDate}}, {{reservationTime}}",
     }),
     defineField({
       name: "isActive",

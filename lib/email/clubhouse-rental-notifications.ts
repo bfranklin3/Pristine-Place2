@@ -2,16 +2,14 @@ import { clerkClient } from "@clerk/nextjs/server"
 import { createClient } from "next-sanity"
 import { sendEmail } from "@/lib/email/service"
 import { siteConfig } from "@/lib/site-config"
-import { normalizeCommitteeChairSlugs, normalizeCommitteeSlugs } from "@/lib/portal/committees"
 
 type NotificationTemplateKey =
-  | "acc_workflow_submitted_resident"
-  | "acc_workflow_submitted_chair"
-  | "acc_workflow_more_info_resident"
-  | "acc_workflow_resubmitted_chair"
-  | "acc_workflow_sent_to_vote_committee"
-  | "acc_workflow_approved_resident"
-  | "acc_workflow_rejected_resident"
+  | "clubhouse_rental_submitted_resident"
+  | "clubhouse_rental_submitted_admin"
+  | "clubhouse_rental_more_info_resident"
+  | "clubhouse_rental_resubmitted_admin"
+  | "clubhouse_rental_approved_resident"
+  | "clubhouse_rental_rejected_resident"
 
 type SanityEmailTemplateDoc = {
   subject?: string
@@ -19,20 +17,21 @@ type SanityEmailTemplateDoc = {
   textBody?: string
 }
 
-type AccWorkflowNotificationPayload = {
+type ClubhouseRentalNotificationPayload = {
   requestId: string
   requestNumber?: string | null
-  title?: string | null
   residentName?: string | null
   residentEmail?: string | null
   residentAddress?: string | null
-  status?: string | null
-  decisionNote?: string | null
+  eventType?: string | null
+  reservationDate?: string | null
+  reservationStartLabel?: string | null
+  reservationEndLabel?: string | null
   residentActionNote?: string | null
-  voteDeadlineAt?: string | null
+  decisionNote?: string | null
 }
 
-type AccWorkflowNotificationResult = {
+type ClubhouseRentalNotificationResult = {
   delivered: boolean
   mode: "live" | "reroute" | "suppress"
   recipients: string[]
@@ -67,11 +66,7 @@ function escapeHtml(value: string) {
     .replace(/'/g, "&#39;")
 }
 
-function replaceTemplatePlaceholders(
-  template: string,
-  replacements: Record<string, string>,
-  escapeValues: boolean,
-) {
+function replaceTemplatePlaceholders(template: string, replacements: Record<string, string>, escapeValues: boolean) {
   return template.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_, key: string) => {
     const value = replacements[key] ?? ""
     return escapeValues ? escapeHtml(value) : value
@@ -102,14 +97,18 @@ function dedupeEmails(values: Array<string | null | undefined>) {
   return emails
 }
 
+function parseCsvList(value?: string) {
+  return (value || "")
+    .split(",")
+    .map((entry) => normalizeEmail(entry))
+    .filter(Boolean)
+}
+
 function getPortalUrl(path: string) {
   return `${siteConfig.url.replace(/\/$/, "")}${path}`
 }
 
-async function getTemplateFromSanity(
-  key: NotificationTemplateKey,
-  replacements: Record<string, string>,
-): Promise<RenderedTemplate | null> {
+async function getTemplateFromSanity(key: NotificationTemplateKey, replacements: Record<string, string>) {
   try {
     if (!sanityEmailTemplateClient) return null
     const query = `*[_type == "emailTemplate" && key == $key && isActive == true][0]{
@@ -125,68 +124,59 @@ async function getTemplateFromSanity(
       subject: replaceTemplatePlaceholders(template.subject, replacements, false),
       html: replaceTemplatePlaceholders(template.htmlBody, replacements, true),
       text: replaceTemplatePlaceholders(template.textBody, replacements, false),
-    }
+    } satisfies RenderedTemplate
   } catch (error) {
-    console.error(`Failed to load ACC workflow email template from Sanity for key ${key}:`, error)
+    console.error(`Failed to load clubhouse rental email template from Sanity for key ${key}:`, error)
     return null
   }
 }
 
-function buildFallbackTemplate(
-  key: NotificationTemplateKey,
-  replacements: Record<string, string>,
-): RenderedTemplate {
-  const title = replacements.requestTitle || "ACC Request"
+function buildFallbackTemplate(key: NotificationTemplateKey, replacements: Record<string, string>): RenderedTemplate {
+  const requestTitle = replacements.requestTitle || "Clubhouse Rental Request"
   const requestNumber = replacements.requestNumber || ""
-  const detailUrl = replacements.detailUrl || replacements.managementUrl || siteConfig.url
-  const note = replacements.decisionNote || replacements.residentActionNote || ""
   const requestNumberHtml = requestNumber ? `<p><strong>Request Number:</strong> ${escapeHtml(requestNumber)}</p>` : ""
+  const reservationHtml = replacements.reservationDate
+    ? `<p><strong>Reservation:</strong> ${escapeHtml(replacements.reservationDate)}${replacements.reservationTime ? ` · ${escapeHtml(replacements.reservationTime)}` : ""}</p>`
+    : ""
 
-  if (key === "acc_workflow_submitted_resident") {
+  if (key === "clubhouse_rental_submitted_resident") {
     return {
-      subject: `ACC request received: ${title}`,
-      html: `<p>Your ACC request has been received.</p><p><strong>Request:</strong> ${escapeHtml(title)}</p>${requestNumberHtml}<p><a href="${detailUrl}">View your request</a></p>`,
+      subject: `Clubhouse rental request received: ${requestTitle}`,
+      html: `<p>Your clubhouse rental request has been received.</p>${requestNumberHtml}${reservationHtml}<p><a href="${replacements.detailUrl}">View your request</a></p>`,
     }
   }
 
-  if (key === "acc_workflow_submitted_chair") {
+  if (key === "clubhouse_rental_submitted_admin") {
     return {
-      subject: `ACC review needed: ${title}`,
-      html: `<p>A new ACC request is ready for initial review.</p>${requestNumberHtml}<p><strong>Resident:</strong> ${escapeHtml(replacements.residentName || "Resident")}</p><p><strong>Address:</strong> ${escapeHtml(replacements.residentAddress || "")}</p><p><a href="${replacements.managementUrl}">Open ACC workflow queue</a></p>`,
+      subject: `Clubhouse rental review needed: ${requestTitle}`,
+      html: `<p>A new clubhouse rental request is ready for review.</p>${requestNumberHtml}<p><strong>Resident:</strong> ${escapeHtml(replacements.residentName || "Resident")}</p><p><strong>Address:</strong> ${escapeHtml(replacements.residentAddress || "")}</p>${reservationHtml}<p><a href="${replacements.managementUrl}">Open clubhouse rental queue</a></p>`,
     }
   }
 
-  if (key === "acc_workflow_more_info_resident") {
+  if (key === "clubhouse_rental_more_info_resident") {
     return {
-      subject: `More information needed for your ACC request`,
-      html: `<p>Your ACC request needs more information before review can continue.</p>${requestNumberHtml}<p><strong>Note:</strong> ${escapeHtml(note)}</p><p><a href="${detailUrl}">Open your request</a></p>`,
+      subject: `More information needed for your clubhouse rental request`,
+      html: `<p>Your clubhouse rental request needs more information before review can continue.</p>${requestNumberHtml}${reservationHtml}<p><strong>Note:</strong> ${escapeHtml(replacements.residentActionNote || "")}</p><p><a href="${replacements.detailUrl}">Open your request</a></p>`,
     }
   }
 
-  if (key === "acc_workflow_resubmitted_chair") {
+  if (key === "clubhouse_rental_resubmitted_admin") {
     return {
-      subject: `ACC request resubmitted: ${title}`,
-      html: `<p>A resident has updated and resubmitted an ACC request.</p>${requestNumberHtml}<p><strong>Resident:</strong> ${escapeHtml(replacements.residentName || "Resident")}</p><p><a href="${replacements.managementUrl}">Open ACC workflow queue</a></p>`,
+      subject: `Clubhouse rental request resubmitted: ${requestTitle}`,
+      html: `<p>A resident has updated and resubmitted a clubhouse rental request.</p>${requestNumberHtml}<p><strong>Resident:</strong> ${escapeHtml(replacements.residentName || "Resident")}</p>${reservationHtml}<p><a href="${replacements.managementUrl}">Open clubhouse rental queue</a></p>`,
     }
   }
 
-  if (key === "acc_workflow_sent_to_vote_committee") {
+  if (key === "clubhouse_rental_approved_resident") {
     return {
-      subject: `ACC vote requested: ${title}`,
-      html: `<p>An ACC request is ready for committee vote.</p>${requestNumberHtml}<p><strong>Resident:</strong> ${escapeHtml(replacements.residentName || "Resident")}</p><p><strong>Deadline:</strong> ${escapeHtml(replacements.voteDeadlineAt || "")}</p><p><a href="${replacements.managementUrl}">Open ACC workflow queue</a></p>`,
-    }
-  }
-
-  if (key === "acc_workflow_approved_resident") {
-    return {
-      subject: `ACC request approved: ${title}`,
-      html: `<p>Your ACC request has been approved.</p>${requestNumberHtml}${note ? `<p><strong>Note:</strong> ${escapeHtml(note)}</p>` : ""}<p><a href="${detailUrl}">View your request</a></p>`,
+      subject: `Clubhouse rental request approved: ${requestTitle}`,
+      html: `<p>Your clubhouse rental request has been approved.</p>${requestNumberHtml}${reservationHtml}${replacements.decisionNote ? `<p><strong>Note:</strong> ${escapeHtml(replacements.decisionNote)}</p>` : ""}<p><a href="${replacements.detailUrl}">View your request</a></p>`,
     }
   }
 
   return {
-    subject: `ACC request decision: ${title}`,
-    html: `<p>Your ACC request has been rejected.</p>${requestNumberHtml}${note ? `<p><strong>Note:</strong> ${escapeHtml(note)}</p>` : ""}<p><a href="${detailUrl}">View your request</a></p>`,
+    subject: `Clubhouse rental request decision: ${requestTitle}`,
+    html: `<p>Your clubhouse rental request has been rejected.</p>${requestNumberHtml}${reservationHtml}${replacements.decisionNote ? `<p><strong>Note:</strong> ${escapeHtml(replacements.decisionNote)}</p>` : ""}<p><a href="${replacements.detailUrl}">View your request</a></p>`,
   }
 }
 
@@ -203,30 +193,26 @@ function cleanupRenderedTemplate(template: RenderedTemplate): RenderedTemplate {
         .trim()
     : template.text
 
-  return {
-    ...template,
-    html,
-    text,
-  }
+  return { ...template, html, text }
 }
 
 function resolveNotificationMode() {
-  const raw = (process.env.ACC_WORKFLOW_EMAIL_MODE || "live").trim().toLowerCase()
+  const raw = (process.env.CLUBHOUSE_RENTAL_EMAIL_MODE || "live").trim().toLowerCase()
   if (raw === "suppress") return "suppress" as const
   if (raw === "reroute") return "reroute" as const
   return "live" as const
 }
 
 function resolveRerouteRecipients() {
-  return dedupeEmails((process.env.ACC_WORKFLOW_TEST_INBOX || "").split(","))
+  return dedupeEmails((process.env.CLUBHOUSE_RENTAL_TEST_INBOX || "").split(","))
 }
 
 function isResidentFacingTemplate(key: NotificationTemplateKey) {
   return (
-    key === "acc_workflow_submitted_resident" ||
-    key === "acc_workflow_more_info_resident" ||
-    key === "acc_workflow_approved_resident" ||
-    key === "acc_workflow_rejected_resident"
+    key === "clubhouse_rental_submitted_resident" ||
+    key === "clubhouse_rental_more_info_resident" ||
+    key === "clubhouse_rental_approved_resident" ||
+    key === "clubhouse_rental_rejected_resident"
   )
 }
 
@@ -239,11 +225,11 @@ function buildRerouteHtmlNotice(
     ? `<div style="margin:6px 0 0 0;"><strong>Resident-only link:</strong> open as the resident account.</div>`
     : ""
   const managementFallback = replacements.managementDetailUrl
-    ? `<div style="margin:6px 0 0 0;"><strong>Management fallback:</strong> <a href="${replacements.managementDetailUrl}" style="color:#92400e;text-decoration:underline;">Open this request in ACC workflow queue</a></div>`
+    ? `<div style="margin:6px 0 0 0;"><strong>Management fallback:</strong> <a href="${replacements.managementDetailUrl}" style="color:#92400e;text-decoration:underline;">Open this request in clubhouse rental queue</a></div>`
     : ""
 
   return `<div style="margin:0 0 16px 0;padding:12px 14px;border:1px solid #f59e0b;border-radius:8px;background:#fffbeb;color:#92400e;">
-    <div style="font-weight:700;margin:0 0 6px 0;">ACC test email reroute</div>
+    <div style="font-weight:700;margin:0 0 6px 0;">Clubhouse rental test email reroute</div>
     <div style="margin:0 0 4px 0;"><strong>Delivery mode:</strong> reroute</div>
     <div><strong>Original recipients:</strong> ${escapeHtml(recipients.join(", "))}</div>
     ${residentGuidance}
@@ -258,13 +244,13 @@ function applyReroutePresentation(
   replacements: Record<string, string>,
 ): RenderedTemplate {
   return {
-    subject: `[ACC TEST] ${template.subject}`,
+    subject: `[CLUBHOUSE TEST] ${template.subject}`,
     html: `${buildRerouteHtmlNotice(templateKey, recipients, replacements)}${template.html}`,
     text: template.text,
   }
 }
 
-function logAccWorkflowDelivery(input: {
+function logClubhouseRentalDelivery(input: {
   templateKey: NotificationTemplateKey
   requestId: string
   mode: "live" | "reroute" | "suppress"
@@ -285,18 +271,18 @@ function logAccWorkflowDelivery(input: {
   }
 
   if (input.warning) {
-    console.warn("ACC workflow email delivery warning:", { ...details, warning: input.warning })
+    console.warn("Clubhouse rental email delivery warning:", { ...details, warning: input.warning })
     return
   }
 
-  console.info("ACC workflow email delivery:", details)
+  console.info("Clubhouse rental email delivery:", details)
 }
 
-async function deliverAccWorkflowEmail(input: {
+async function deliverClubhouseRentalEmail(input: {
   to: string[]
   templateKey: NotificationTemplateKey
   replacements: Record<string, string>
-}) : Promise<AccWorkflowNotificationResult> {
+}): Promise<ClubhouseRentalNotificationResult> {
   const recipients = dedupeEmails(input.to)
   const mode = resolveNotificationMode()
 
@@ -309,7 +295,7 @@ async function deliverAccWorkflowEmail(input: {
       templateSource: "fallback" as const,
       warning: "No recipient email addresses were available.",
     }
-    logAccWorkflowDelivery({
+    logClubhouseRentalDelivery({
       templateKey: input.templateKey,
       requestId: input.replacements.requestId || "",
       mode: result.mode,
@@ -336,11 +322,12 @@ async function deliverAccWorkflowEmail(input: {
       recipients,
       effectiveRecipients,
       templateSource: "fallback" as const,
-      warning: mode === "reroute"
-        ? "ACC workflow email reroute mode is enabled, but ACC_WORKFLOW_TEST_INBOX is empty."
-        : "ACC workflow email delivery is suppressed.",
+      warning:
+        mode === "reroute"
+          ? "Clubhouse rental email reroute mode is enabled, but CLUBHOUSE_RENTAL_TEST_INBOX is empty."
+          : "Clubhouse rental email delivery is suppressed.",
     }
-    logAccWorkflowDelivery({
+    logClubhouseRentalDelivery({
       templateKey: input.templateKey,
       requestId: input.replacements.requestId || "",
       mode: result.mode,
@@ -376,7 +363,8 @@ async function deliverAccWorkflowEmail(input: {
     templateSource,
     warning: result.success ? undefined : result.error || "Email delivery failed.",
   }
-  logAccWorkflowDelivery({
+
+  logClubhouseRentalDelivery({
     templateKey: input.templateKey,
     requestId: input.replacements.requestId || "",
     mode: notificationResult.mode,
@@ -386,31 +374,36 @@ async function deliverAccWorkflowEmail(input: {
     delivered: notificationResult.delivered,
     warning: notificationResult.warning,
   })
+
   return notificationResult
 }
 
-async function fetchAccRecipients(kind: "chairs" | "committee") {
+async function fetchClubhouseRentalAdminRecipients() {
+  const envAdminEmails = dedupeEmails([
+    ...parseCsvList(process.env.PORTAL_ADMIN_EMAILS),
+    ...parseCsvList(process.env.PORTAL_APPROVER_EMAILS),
+  ])
+  const envAdminUsernames = new Set(parseCsvList(process.env.PORTAL_ADMIN_USERNAMES))
+
   const client = await clerkClient()
   const pageSize = 100
   let offset = 0
-  const recipients: string[] = []
+  const recipients = [...envAdminEmails]
 
   while (true) {
     const page = await client.users.getUserList({ limit: pageSize, offset })
 
     for (const user of page.data) {
       const publicMetadata = (user.publicMetadata || {}) as Record<string, unknown>
-      const committees = normalizeCommitteeSlugs(publicMetadata.committees)
-      const committeeChairs = normalizeCommitteeChairSlugs(publicMetadata.committeeChairs)
-      const include =
-        kind === "chairs"
-          ? committeeChairs.includes("acc")
-          : committeeChairs.includes("acc") || committees.includes("acc")
-
-      if (!include) continue
-
       const email = user.emailAddresses.find((entry) => entry.id === user.primaryEmailAddressId)?.emailAddress || ""
-      if (email) recipients.push(email)
+      const normalizedEmail = email.trim().toLowerCase()
+      const normalizedUsername = (user.username || "").trim().toLowerCase()
+      const include =
+        publicMetadata.portalAdmin === true ||
+        envAdminEmails.includes(normalizedEmail) ||
+        envAdminUsernames.has(normalizedUsername)
+
+      if (include && normalizedEmail) recipients.push(normalizedEmail)
     }
 
     if (page.data.length < pageSize) break
@@ -420,102 +413,98 @@ async function fetchAccRecipients(kind: "chairs" | "committee") {
   return dedupeEmails(recipients)
 }
 
-function buildCommonReplacements(payload: AccWorkflowNotificationPayload) {
+function buildCommonReplacements(payload: ClubhouseRentalNotificationPayload) {
+  const reservationTime =
+    payload.reservationStartLabel && payload.reservationEndLabel
+      ? `${payload.reservationStartLabel} - ${payload.reservationEndLabel}`
+      : ""
+
   return {
     requestId: payload.requestId,
     requestNumber: payload.requestNumber || "",
-    requestTitle: payload.title || "ACC Request",
+    requestTitle: payload.eventType || "Clubhouse Rental Request",
     residentName: payload.residentName || "Resident",
     residentEmail: payload.residentEmail || "",
     residentAddress: payload.residentAddress || "",
     residentActionNote: payload.residentActionNote || "",
     decisionNote: payload.decisionNote || "",
-    voteDeadlineAt: payload.voteDeadlineAt || "",
-    detailUrl: getPortalUrl(`/resident-portal/acc/requests/${payload.requestId}`),
-    managementDetailUrl: getPortalUrl(`/resident-portal/management/acc-queue?selected=${payload.requestId}`),
-    managementUrl: getPortalUrl("/resident-portal/management/acc-queue"),
-    contactEmail: siteConfig.contact.email,
+    reservationDate: payload.reservationDate || "",
+    reservationTime,
+    detailUrl: getPortalUrl(`/resident-portal/clubhouse/rental/requests/${payload.requestId}`),
+    managementDetailUrl: getPortalUrl(`/resident-portal/management/clubhouse-rental-queue?selected=${payload.requestId}`),
+    managementUrl: getPortalUrl("/resident-portal/management/clubhouse-rental-queue"),
+    contactEmail: "clubhouserentals@pristineplace.us",
   }
 }
 
-export async function sendAccWorkflowSubmittedNotifications(payload: AccWorkflowNotificationPayload) {
+export async function sendClubhouseRentalSubmittedNotifications(payload: ClubhouseRentalNotificationPayload) {
   try {
     const replacements = buildCommonReplacements(payload)
-    const [residentResult, chairRecipients] = await Promise.all([
-      deliverAccWorkflowEmail({
+    const [residentResult, adminRecipients] = await Promise.all([
+      deliverClubhouseRentalEmail({
         to: dedupeEmails([payload.residentEmail]),
-        templateKey: "acc_workflow_submitted_resident",
+        templateKey: "clubhouse_rental_submitted_resident",
         replacements,
       }),
-      fetchAccRecipients("chairs"),
+      fetchClubhouseRentalAdminRecipients(),
     ])
 
-    const chairResult = await deliverAccWorkflowEmail({
-      to: chairRecipients,
-      templateKey: "acc_workflow_submitted_chair",
+    const adminResult = await deliverClubhouseRentalEmail({
+      to: adminRecipients,
+      templateKey: "clubhouse_rental_submitted_admin",
       replacements,
     })
 
-    return { residentResult, chairResult }
+    return { residentResult, adminResult }
   } catch (error) {
-    console.error("ACC workflow submitted notification failed:", error)
+    console.error("Clubhouse rental submitted notification failed:", error)
     return {
       residentResult: { delivered: false, mode: resolveNotificationMode(), recipients: [], effectiveRecipients: [], templateSource: "fallback", warning: "Submission notification failed." },
-      chairResult: { delivered: false, mode: resolveNotificationMode(), recipients: [], effectiveRecipients: [], templateSource: "fallback", warning: "Chair notification failed." },
+      adminResult: { delivered: false, mode: resolveNotificationMode(), recipients: [], effectiveRecipients: [], templateSource: "fallback", warning: "Admin notification failed." },
     }
   }
 }
 
-export async function sendAccWorkflowMoreInfoNotification(payload: AccWorkflowNotificationPayload) {
+export async function sendClubhouseRentalMoreInfoNotification(payload: ClubhouseRentalNotificationPayload) {
   try {
-    return await deliverAccWorkflowEmail({
+    return await deliverClubhouseRentalEmail({
       to: dedupeEmails([payload.residentEmail]),
-      templateKey: "acc_workflow_more_info_resident",
+      templateKey: "clubhouse_rental_more_info_resident",
       replacements: buildCommonReplacements(payload),
     })
   } catch (error) {
-    console.error("ACC workflow more-info notification failed:", error)
+    console.error("Clubhouse rental more-info notification failed:", error)
     return { delivered: false, mode: resolveNotificationMode(), recipients: [], effectiveRecipients: [], templateSource: "fallback", warning: "Resident notification failed." }
   }
 }
 
-export async function sendAccWorkflowResubmittedNotification(payload: AccWorkflowNotificationPayload) {
+export async function sendClubhouseRentalResubmittedNotification(payload: ClubhouseRentalNotificationPayload) {
   try {
-    return await deliverAccWorkflowEmail({
-      to: await fetchAccRecipients("chairs"),
-      templateKey: "acc_workflow_resubmitted_chair",
+    return await deliverClubhouseRentalEmail({
+      to: await fetchClubhouseRentalAdminRecipients(),
+      templateKey: "clubhouse_rental_resubmitted_admin",
       replacements: buildCommonReplacements(payload),
     })
   } catch (error) {
-    console.error("ACC workflow resubmitted notification failed:", error)
-    return { delivered: false, mode: resolveNotificationMode(), recipients: [], effectiveRecipients: [], templateSource: "fallback", warning: "Chair notification failed." }
+    console.error("Clubhouse rental resubmitted notification failed:", error)
+    return { delivered: false, mode: resolveNotificationMode(), recipients: [], effectiveRecipients: [], templateSource: "fallback", warning: "Admin notification failed." }
   }
 }
 
-export async function sendAccWorkflowSentToVoteNotification(payload: AccWorkflowNotificationPayload) {
+export async function sendClubhouseRentalFinalDecisionNotification(
+  payload: ClubhouseRentalNotificationPayload & { decision: "approve" | "reject" },
+) {
   try {
-    return await deliverAccWorkflowEmail({
-      to: await fetchAccRecipients("committee"),
-      templateKey: "acc_workflow_sent_to_vote_committee",
-      replacements: buildCommonReplacements(payload),
-    })
-  } catch (error) {
-    console.error("ACC workflow send-to-vote notification failed:", error)
-    return { delivered: false, mode: resolveNotificationMode(), recipients: [], effectiveRecipients: [], templateSource: "fallback", warning: "Committee notification failed." }
-  }
-}
-
-export async function sendAccWorkflowFinalDecisionNotification(payload: AccWorkflowNotificationPayload & {
-  decision: "approve" | "reject"
-}) {
-  try {
-    return await deliverAccWorkflowEmail({
+    return await deliverClubhouseRentalEmail({
       to: dedupeEmails([payload.residentEmail]),
-      templateKey: payload.decision === "approve" ? "acc_workflow_approved_resident" : "acc_workflow_rejected_resident",
+      templateKey:
+        payload.decision === "approve"
+          ? "clubhouse_rental_approved_resident"
+          : "clubhouse_rental_rejected_resident",
       replacements: buildCommonReplacements(payload),
     })
   } catch (error) {
-    console.error("ACC workflow final decision notification failed:", error)
+    console.error("Clubhouse rental final decision notification failed:", error)
     return { delivered: false, mode: resolveNotificationMode(), recipients: [], effectiveRecipients: [], templateSource: "fallback", warning: "Resident decision notification failed." }
   }
 }

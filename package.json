@@ -32,8 +32,10 @@
     "reconcile:households:address": "tsx scripts/reconcile-households-by-address.ts",
     "sanity:set-about-faq-categories": "node scripts/set-faq-about-categories.mjs",
     "sanity:upsert:acc-email-templates": "node scripts/upsert-acc-workflow-email-templates.mjs",
+    "sanity:upsert:clubhouse-rental-email-templates": "node scripts/upsert-clubhouse-rental-email-templates.mjs",
     "test:acc-workflow:ui-smoke": "node scripts/acc-workflow-ui-smoke.mjs",
     "test:acc-email:reroute-smoke": "node scripts/acc-workflow-email-reroute-smoke.mjs",
+    "test:clubhouse-rental-email:reroute-smoke": "node scripts/clubhouse-rental-email-reroute-smoke.mjs",
     "test:acc-dashboard:ui-smoke": "node scripts/acc-dashboard-ui-smoke.mjs",
     "lint": "eslint .",
     "start": "next start"

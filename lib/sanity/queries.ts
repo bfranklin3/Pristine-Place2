@@ -163,6 +163,36 @@ export async function getEvents(site: "public" | "portal"): Promise<SanityEvent[
 }
 
 /**
+ * Fetch all published events regardless of portal/public visibility.
+ * Used for internal operational views such as facility availability.
+ */
+export async function getAllPublishedEvents(): Promise<SanityEvent[]> {
+  const query = `*[
+    _type == "event"
+    && published == true
+  ] | order(eventDate asc) {
+    _id,
+    title,
+    slug,
+    eventDate,
+    endDate,
+    isRecurring,
+    recurrence,
+    location,
+    description,
+    featuredImage,
+    imageLayout,
+    category,
+    rsvpRequired,
+    rsvpEmail,
+    published,
+    visibility
+  }`
+
+  return await client.fetch(query)
+}
+
+/**
  * Fetch upcoming events (for homepage/portal dashboard)
  * This function now expands recurring events into individual occurrences
  */

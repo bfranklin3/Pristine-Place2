@@ -128,6 +128,41 @@ enum AccWorkflowEventType {
   attachment_deleted
 }
 
+enum ClubhouseRentalRequestStatus {
+  submitted
+  needs_more_info
+  approved
+  rejected
+}
+
+enum ClubhouseRentalDecision {
+  approve
+  reject
+}
+
+enum ClubhouseRentalActorRole {
+  resident
+  member
+  admin
+  system
+}
+
+enum ClubhouseRentalAttachmentScope {
+  resident
+  internal
+}
+
+enum ClubhouseRentalEventType {
+  request_submitted
+  more_info_requested
+  resident_resubmitted
+  request_approved
+  request_rejected
+  request_finalized
+  attachment_added
+  attachment_deleted
+}
+
 enum CapabilityEffect {
   allow
   deny
@@ -172,39 +207,41 @@ enum LinkAuditEntityType {
 }
 
 model Household {
-  id                  String               @id @default(cuid())
-  addressRaw          String?
-  addressCanonical    String
-  addressKey          String               @unique
-  lotNumber           String?
-  phase               String?
-  residentProfiles    ResidentProfile[]
-  residencies         Residency[]
-  accRequests         AccRequest[]
-  accWorkflowRequests AccWorkflowRequest[]
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @updatedAt
+  id                      String                   @id @default(cuid())
+  addressRaw              String?
+  addressCanonical        String
+  addressKey              String                   @unique
+  lotNumber               String?
+  phase                   String?
+  residentProfiles        ResidentProfile[]
+  residencies             Residency[]
+  accRequests             AccRequest[]
+  accWorkflowRequests     AccWorkflowRequest[]
+  clubhouseRentalRequests ClubhouseRentalRequest[]
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
 
   @@index([addressCanonical])
   @@index([lotNumber])
 }
 
 model Residency {
-  id                  String               @id @default(cuid())
-  householdId         String
-  household           Household            @relation(fields: [householdId], references: [id], onDelete: Restrict)
-  clerkUserId         String?
-  residentType        ResidencyType        @default(unknown)
-  startDate           DateTime?
-  endDate             DateTime?
-  isCurrent           Boolean              @default(true)
-  sourceSystem        String?
-  sourceRecordId      String?
-  residentProfiles    ResidentProfile[]
-  accRequests         AccRequest[]
-  accWorkflowRequests AccWorkflowRequest[]
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @updatedAt
+  id                      String                   @id @default(cuid())
+  householdId             String
+  household               Household                @relation(fields: [householdId], references: [id], onDelete: Restrict)
+  clerkUserId             String?
+  residentType            ResidencyType            @default(unknown)
+  startDate               DateTime?
+  endDate                 DateTime?
+  isCurrent               Boolean                  @default(true)
+  sourceSystem            String?
+  sourceRecordId          String?
+  residentProfiles        ResidentProfile[]
+  accRequests             AccRequest[]
+  accWorkflowRequests     AccWorkflowRequest[]
+  clubhouseRentalRequests ClubhouseRentalRequest[]
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
 
   @@index([householdId, isCurrent])
   @@index([clerkUserId, isCurrent])
@@ -490,6 +527,111 @@ model AccWorkflowEvent {
   note         String?
   metadataJson Json?
   createdAt    DateTime             @default(now())
+
+  @@index([requestId, createdAt])
+  @@index([requestId, reviewCycle, createdAt])
+  @@index([eventType, createdAt])
+}
+
+model ClubhouseRentalRequest {
+  id                                  String                       @id @default(cuid())
+  requestNumber                       String                       @unique
+  residentClerkUserId                 String
+  householdId                         String?
+  household                           Household?                   @relation(fields: [householdId], references: [id], onDelete: SetNull)
+  residencyId                         String?
+  residency                           Residency?                   @relation(fields: [residencyId], references: [id], onDelete: SetNull)
+  residentNameSnapshot                String
+  residentEmailSnapshot               String
+  residentPhoneSnapshot               String?
+  residentAddressSnapshot             String?
+  addressCanonical                    String?
+  addressKey                          String?
+  eventType                           String
+  reservationDate                     DateTime
+  reservationStartLabel               String
+  reservationEndLabel                 String
+  guestCount                          Int
+  requestedSpace                      String
+  eventDescription                    String
+  specialRequests                     String?
+  vendorsInvolved                     Boolean
+  vendorDetails                       String?
+  insuranceCompany                    String
+  policyNumber                        String
+  typedConfirmationName               String
+  clubhouseAgreementInitials          String
+  insuranceInitials                   String
+  decorationInitials                  String
+  acknowledgeRentalRules              Boolean
+  acknowledgeDepositResponsibility    Boolean
+  acknowledgeAttendanceResponsibility Boolean
+  acknowledgeCapacitySafety           Boolean
+  formDataJson                        Json?
+  status                              ClubhouseRentalRequestStatus @default(submitted)
+  reviewCycle                         Int                          @default(1)
+  residentActionNote                  String?
+  finalDecision                       ClubhouseRentalDecision?
+  finalDecisionAt                     DateTime?
+  finalDecisionByUserId               String?
+  finalDecisionByRole                 ClubhouseRentalActorRole?
+  decisionNote                        String?
+  lockedAt                            DateTime?
+  submittedAt                         DateTime                     @default(now())
+  createdAt                           DateTime                     @default(now())
+  updatedAt                           DateTime                     @updatedAt
+  attachments                         ClubhouseRentalAttachment[]
+  events                              ClubhouseRentalEvent[]
+
+  @@index([residentClerkUserId, createdAt])
+  @@index([householdId, createdAt])
+  @@index([residencyId, createdAt])
+  @@index([status, createdAt])
+  @@index([reservationDate, status])
+  @@index([addressKey])
+}
+
+model ClubhouseRentalRequestNumberSequence {
+  year       Int      @id
+  nextNumber Int      @default(1)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model ClubhouseRentalAttachment {
+  id               String                         @id @default(cuid())
+  requestId        String
+  request          ClubhouseRentalRequest         @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  uploadedByUserId String?
+  uploadedByRole   ClubhouseRentalActorRole
+  scope            ClubhouseRentalAttachmentScope
+  originalFilename String
+  storageProvider  String
+  storageKey       String
+  storageBucket    String?
+  mimeType         String
+  fileSizeBytes    Int
+  note             String?
+  deletedAt        DateTime?
+  deletedByUserId  String?
+  createdAt        DateTime                       @default(now())
+  updatedAt        DateTime                       @updatedAt
+
+  @@index([requestId, scope, createdAt])
+  @@index([requestId, deletedAt])
+}
+
+model ClubhouseRentalEvent {
+  id           String                   @id @default(cuid())
+  requestId    String
+  request      ClubhouseRentalRequest   @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  reviewCycle  Int
+  eventType    ClubhouseRentalEventType
+  actorUserId  String?
+  actorRole    ClubhouseRentalActorRole
+  note         String?
+  metadataJson Json?
+  createdAt    DateTime                 @default(now())
 
   @@index([requestId, createdAt])
   @@index([requestId, reviewCycle, createdAt])

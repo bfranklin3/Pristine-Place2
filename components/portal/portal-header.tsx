@@ -38,6 +38,7 @@ const serviceItems = [
   { label: "Submit ACC Request",        href: "/resident-portal/acc/submit",       description: "Apply for architectural modifications" },
   { label: "My ACC Requests",           href: "/resident-portal/acc/requests",     description: "Review your submitted ACC requests" },
   { label: "Clubhouse Rental Request",  href: "/resident-portal/clubhouse/rental", description: "Reserve the clubhouse for an event" },
+  { label: "My Clubhouse Rental Requests", href: "/resident-portal/clubhouse/rental/requests", description: "Review your submitted clubhouse rental requests" },
   { label: "Pay HOA Fees",              href: "/resident-portal/pay-fees",          description: "Make an assessment payment online" },
   { label: "Report an Issue",           href: "/resident-portal/report-issue",      description: "Report a common area maintenance issue" },
   { label: "Contact the Board",         href: "/resident-portal/contact-board",     description: "Send a message to board members" },
@@ -106,6 +107,24 @@ const managementItems = [
     allowed: ["admin"] as Array<CommitteeSlug | "admin">,
   },
   {
+    label: "Clubhouse Availability",
+    href: "/resident-portal/management/clubhouse-rental-availability",
+    description: "View blocking clubhouse dates from rentals and HOA events",
+    allowed: ["admin"] as Array<CommitteeSlug | "admin">,
+  },
+  {
+    label: "Clubhouse Rental Queue",
+    href: "/resident-portal/management/clubhouse-rental-queue",
+    description: "Review clubhouse rental submissions and workflow status",
+    allowed: ["admin"] as Array<CommitteeSlug | "admin">,
+  },
+  {
+    label: "Clubhouse Rental Online",
+    href: "/resident-portal/management/clubhouse-rental-online",
+    description: "Starting point for the future online clubhouse rental capability",
+    allowed: ["admin"] as Array<CommitteeSlug | "admin">,
+  },
+  {
     label: "Access Control Management",
     href: "/resident-portal/management/access",
     description: "Manage gate access (Access Control committee)",
@@ -157,7 +176,10 @@ function categorizeManagementItems(items: ManagementItem[]) {
   for (const item of items) {
     if (
       item.href === "/resident-portal/management/acc-dashboard-redacted" ||
-      item.href === "/resident-portal/management/wp-acc-queue-redacted"
+      item.href === "/resident-portal/management/wp-acc-queue-redacted" ||
+      item.href === "/resident-portal/management/clubhouse-rental-availability" ||
+      item.href === "/resident-portal/management/clubhouse-rental-queue" ||
+      item.href === "/resident-portal/management/clubhouse-rental-online"
     ) {
       future.push(item)
       continue
@@ -203,6 +225,9 @@ function categorizeManagementItems(items: ManagementItem[]) {
   const orderedFuture = orderByHref(future, [
     "/resident-portal/management/acc-dashboard-redacted",
     "/resident-portal/management/wp-acc-queue-redacted",
+    "/resident-portal/management/clubhouse-rental-availability",
+    "/resident-portal/management/clubhouse-rental-queue",
+    "/resident-portal/management/clubhouse-rental-online",
   ])
 
   return [
