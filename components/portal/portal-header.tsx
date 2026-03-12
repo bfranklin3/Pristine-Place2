@@ -39,6 +39,12 @@ const serviceItems = [
   { label: "My ACC Requests",           href: "/resident-portal/acc/requests",     description: "Review your submitted ACC requests" },
   { label: "Clubhouse Rental Request",  href: "/resident-portal/clubhouse/rental", description: "Reserve the clubhouse for an event" },
   { label: "My Clubhouse Rental Requests", href: "/resident-portal/clubhouse/rental/requests", description: "Review your submitted clubhouse rental requests" },
+  {
+    label: "Clubhouse Rental Online",
+    href: "/resident-portal/management/clubhouse-rental-online",
+    description: "Starting point for the future online clubhouse rental capability - has restricted access.",
+    allowed: ["admin", "board_of_directors", "clubhouse_maintenance"] as Array<CommitteeSlug | "admin">,
+  },
   { label: "Pay HOA Fees",              href: "/resident-portal/pay-fees",          description: "Make an assessment payment online" },
   { label: "Report an Issue",           href: "/resident-portal/report-issue",      description: "Report a common area maintenance issue" },
   { label: "Contact the Board",         href: "/resident-portal/contact-board",     description: "Send a message to board members" },
@@ -116,13 +122,7 @@ const managementItems = [
     label: "Clubhouse Rental Queue",
     href: "/resident-portal/management/clubhouse-rental-queue",
     description: "Review clubhouse rental submissions and workflow status",
-    allowed: ["admin"] as Array<CommitteeSlug | "admin">,
-  },
-  {
-    label: "Clubhouse Rental Online",
-    href: "/resident-portal/management/clubhouse-rental-online",
-    description: "Starting point for the future online clubhouse rental capability",
-    allowed: ["admin"] as Array<CommitteeSlug | "admin">,
+    allowed: ["admin", "board_of_directors", "clubhouse_maintenance"] as Array<CommitteeSlug | "admin">,
   },
   {
     label: "Access Control Management",
@@ -166,6 +166,7 @@ const managementItems = [
 const USE_MANAGEMENT_MEGA_MENU = true
 
 type ManagementItem = (typeof managementItems)[number]
+type ServiceItem = (typeof serviceItems)[number]
 
 function categorizeManagementItems(items: ManagementItem[]) {
   const admin: ManagementItem[] = []
@@ -242,7 +243,22 @@ function categorizeManagementItems(items: ManagementItem[]) {
         : [],
     },
     { key: "legacy", title: "WordPress Legacy", description: "Temporary legacy tools during migration", items: legacy },
-  ].filter((section) => section.items.length > 0)
+  ].filter((section) => section.items.length > 0 || section.subSections?.some((subSection) => subSection.items.length > 0))
+}
+
+function isItemVisible(
+  item: { allowed?: Array<CommitteeSlug | "admin"> },
+  isAdmin: boolean,
+  committees: CommitteeSlug[],
+) {
+  if (!item.allowed?.length) {
+    return true
+  }
+
+  return (
+    (item.allowed.includes("admin") && isAdmin) ||
+    item.allowed.some((role) => role !== "admin" && committees.includes(role))
+  )
 }
 
 /* ── Types ───────────────────────────────────────────────────────── */
@@ -280,9 +296,8 @@ function PortalHeaderContent({
   pathname: string
   onSignOut: () => Promise<void> | void
 }) {
-  const visibleManagementItems = managementItems.filter(
-    (item) => item.allowed.includes("admin") && isAdmin || item.allowed.some((role) => role !== "admin" && committees.includes(role)),
-  )
+  const visibleServiceItems = serviceItems.filter((item) => isItemVisible(item, isAdmin, committees))
+  const visibleManagementItems = managementItems.filter((item) => isItemVisible(item, isAdmin, committees))
   const useManagementMegaMenu = USE_MANAGEMENT_MEGA_MENU && isAdmin
   const managementSections = categorizeManagementItems(visibleManagementItems)
   const hasVisibleManagementItems = visibleManagementItems.length > 0
@@ -369,7 +384,7 @@ function PortalHeaderContent({
     }`
 
   /* ── Reusable desktop dropdown panel ── */
-  const DropdownPanel = ({ items }: { items: typeof communityItems }) => (
+  const DropdownPanel = ({ items }: { items: typeof communityItems | ServiceItem[] | typeof resourceItems }) => (
     <div
       className="absolute left-0 top-full mt-1 w-72 bg-white border border-pp-slate-200 rounded-lg shadow-xl overflow-hidden z-50"
       role="menu"
@@ -403,12 +418,14 @@ function PortalHeaderContent({
       <div className="grid grid-cols-3 gap-0">
         {sections.map((section, index) => (
           <div key={section.key} className={`p-4 ${index < sections.length - 1 ? "border-r border-pp-slate-100" : ""}`}>
-            <div className="px-2.5">
-              <div className="text-[11px] uppercase tracking-[0.1em] font-semibold text-pp-slate-500 mb-1">
-                {section.title}
+            {section.items.length > 0 ? (
+              <div className="px-2.5">
+                <div className="text-[11px] uppercase tracking-[0.1em] font-semibold text-pp-slate-500 mb-1">
+                  {section.title}
+                </div>
+                <div className="text-xs text-pp-slate-400 mb-2.5">{section.description}</div>
               </div>
-              <div className="text-xs text-pp-slate-400 mb-2.5">{section.description}</div>
-            </div>
+            ) : null}
             <div className="flex flex-col gap-1.5">
               {section.items.map((item, itemIndex) => (
                 <div key={item.label}>
@@ -472,9 +489,11 @@ function PortalHeaderContent({
       <div className="py-1.5">
         {sections.map((section) => (
           <div key={section.key} className="border-b border-pp-slate-100 last:border-0">
-            <div className="px-4 py-2 text-[11px] uppercase tracking-[0.1em] font-semibold text-pp-slate-500 bg-pp-slate-50">
-              {section.title}
-            </div>
+            {section.items.length > 0 ? (
+              <div className="px-4 py-2 text-[11px] uppercase tracking-[0.1em] font-semibold text-pp-slate-500 bg-pp-slate-50">
+                {section.title}
+              </div>
+            ) : null}
             {section.items.map((item) => (
               <Link
                 key={item.label}
@@ -663,7 +682,7 @@ function PortalHeaderContent({
                 Services
                 <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${openDropdown === "services" ? "rotate-180" : ""}`} />
               </button>
-              {openDropdown === "services" && <DropdownPanel items={serviceItems} />}
+              {openDropdown === "services" && <DropdownPanel items={visibleServiceItems} />}
             </div>
 
               {hasVisibleManagementItems && (
@@ -860,7 +879,7 @@ function PortalHeaderContent({
               {/* Services */}
               <MobileSection
                 label="Services"
-                items={serviceItems}
+                items={visibleServiceItems}
                 isOpen={mobileServices}
                 toggle={() => setMobileServices(!mobileServices)}
               />
@@ -884,9 +903,11 @@ function PortalHeaderContent({
                       {useManagementMegaMenu ? (
                         managementSections.map((section) => (
                           <div key={section.key} className="border-b border-white/10 last:border-0">
-                            <div className="px-4 py-2 text-[11px] uppercase tracking-[0.1em] font-semibold text-white/50 bg-white/5">
-                              {section.title}
-                            </div>
+                            {section.items.length > 0 ? (
+                              <div className="px-4 py-2 text-[11px] uppercase tracking-[0.1em] font-semibold text-white/50 bg-white/5">
+                                {section.title}
+                              </div>
+                            ) : null}
                             {section.items.map((item) => (
                               <Link
                                 key={item.label}
@@ -898,14 +919,36 @@ function PortalHeaderContent({
                                 <div className="text-xs text-white/50 mt-0.5">{item.description}</div>
                               </Link>
                             ))}
+                            {"subSections" in section && section.subSections?.length
+                              ? section.subSections.map((subSection) => (
+                                  <div key={subSection.key}>
+                                    <div className="px-4 py-2 text-[11px] uppercase tracking-[0.1em] font-semibold text-white/50 bg-white/5 border-t border-white/10">
+                                      {subSection.title}
+                                    </div>
+                                    {subSection.items.map((item) => (
+                                      <Link
+                                        key={item.label}
+                                        href={item.href}
+                                        className="block px-4 py-2.5 text-sm text-white/80 hover:text-pp-gold-light hover:bg-white/10 transition-colors"
+                                        onClick={() => setMobileOpen(false)}
+                                      >
+                                        <div className="font-medium">{item.label}</div>
+                                        <div className="text-xs text-white/50 mt-0.5">{item.description}</div>
+                                      </Link>
+                                    ))}
+                                  </div>
+                                ))
+                              : null}
                           </div>
                         ))
                       ) : (
                         managementSections.map((section) => (
                           <div key={section.key} className="border-b border-white/10 last:border-0">
-                            <div className="px-4 py-2 text-[11px] uppercase tracking-[0.1em] font-semibold text-white/50 bg-white/5">
-                              {section.title}
-                            </div>
+                            {section.items.length > 0 ? (
+                              <div className="px-4 py-2 text-[11px] uppercase tracking-[0.1em] font-semibold text-white/50 bg-white/5">
+                                {section.title}
+                              </div>
+                            ) : null}
                             {section.items.map((item) => (
                               <Link
                                 key={item.label}
@@ -916,6 +959,25 @@ function PortalHeaderContent({
                                 <div className="font-medium">{item.label}</div>
                               </Link>
                             ))}
+                            {"subSections" in section && section.subSections?.length
+                              ? section.subSections.map((subSection) => (
+                                  <div key={subSection.key}>
+                                    <div className="px-4 py-2 text-[11px] uppercase tracking-[0.1em] font-semibold text-white/50 bg-white/5 border-t border-white/10">
+                                      {subSection.title}
+                                    </div>
+                                    {subSection.items.map((item) => (
+                                      <Link
+                                        key={item.label}
+                                        href={item.href}
+                                        className="block px-4 py-2.5 text-sm text-white/80 hover:text-pp-gold-light hover:bg-white/10 transition-colors"
+                                        onClick={() => setMobileOpen(false)}
+                                      >
+                                        <div className="font-medium">{item.label}</div>
+                                      </Link>
+                                    ))}
+                                  </div>
+                                ))
+                              : null}
                           </div>
                         ))
                       )}

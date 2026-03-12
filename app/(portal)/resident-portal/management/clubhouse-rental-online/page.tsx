@@ -11,23 +11,17 @@ import {
   User,
   Phone,
   Mail,
+  CalendarDays,
 } from "lucide-react"
 import { ClubhouseRentalOnlineForm } from "@/components/portal/clubhouse-rental-online-form"
-import { requirePortalAdminPageAccess } from "@/lib/auth/portal-admin"
+import { requirePortalRolePageAccess } from "@/lib/auth/portal-admin"
 import { siteConfig } from "@/lib/site-config"
 
 export const metadata: Metadata = {
   title: `Clubhouse Rental Online | ${siteConfig.name} Resident Portal`,
   description:
-    "Admin-only starting point for the future online clubhouse rental capability.",
+    "Restricted-access preview of the future online clubhouse rental capability.",
 }
-
-const bookingSteps = [
-  "Check the clubhouse availability calendar before finalizing your event plans.",
-  "Complete the online rental request with event details, insurance information, and acknowledgements.",
-  "Upload the required insurance materials and any supporting documents.",
-  "Wait for review and final confirmation before treating the reservation as approved.",
-]
 
 const rentalRules = [
   "Reservations must be made at least 7 days in advance.",
@@ -39,7 +33,10 @@ const rentalRules = [
 ]
 
 export default async function ClubhouseRentalOnlinePage() {
-  await requirePortalAdminPageAccess("/resident-portal/management/clubhouse-rental-online")
+  await requirePortalRolePageAccess(
+    ["admin", "board_of_directors", "clubhouse_maintenance"],
+    "/resident-portal/management/clubhouse-rental-online",
+  )
 
   return (
     <>
@@ -60,12 +57,12 @@ export default async function ClubhouseRentalOnlinePage() {
           </div>
           <h1 className="hero-title">Clubhouse Rental Online</h1>
           <p className="hero-subtitle" style={{ maxWidth: "60ch" }}>
-            First-draft online version of the clubhouse rental request. This admin-only page is the working
-            prototype for the future resident workflow, including structured acknowledgements and cleaner event details.
+            Restricted-access preview of the future online clubhouse rental request workflow for admins, Board members,
+            and Clubhouse committee reviewers while the experience is reviewed and tested.
           </p>
           <div style={{ marginTop: "var(--space-s)" }}>
             <Link
-              href="/resident-portal/management/admin-hub"
+              href="/resident-portal/clubhouse"
               className="text-fluid-sm"
               style={{
                 color: "rgba(255,255,255,0.65)",
@@ -75,7 +72,7 @@ export default async function ClubhouseRentalOnlinePage() {
                 gap: "0.375rem",
               }}
             >
-              ← Management
+              ← Clubhouse
             </Link>
           </div>
         </div>
@@ -269,8 +266,42 @@ export default async function ClubhouseRentalOnlinePage() {
                 How the Online Request Should Work
               </h3>
               <ol style={{ listStyle: "none", paddingLeft: 0, margin: 0, display: "flex", flexDirection: "column", gap: "var(--space-s)" }}>
-                {bookingSteps.map((step, i) => (
-                  <li key={i} style={{ display: "flex", alignItems: "flex-start", gap: "0.75rem" }}>
+                <li style={{ display: "flex", alignItems: "flex-start", gap: "0.75rem" }}>
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      width: "1.625rem",
+                      height: "1.625rem",
+                      borderRadius: "50%",
+                      background: "var(--pp-navy-dark)",
+                      color: "var(--pp-white)",
+                      fontSize: "0.75rem",
+                      fontWeight: 700,
+                      flexShrink: 0,
+                      marginTop: "0.1rem",
+                    }}
+                  >
+                    1
+                  </span>
+                  <p className="text-fluid-sm" style={{ color: "var(--pp-slate-700)", lineHeight: 1.6, margin: 0 }}>
+                    Check the{" "}
+                    <Link
+                      href="/resident-portal/management/clubhouse-rental-availability"
+                      style={{ color: "var(--pp-navy-dark)", fontWeight: 800, textDecoration: "underline" }}
+                    >
+                      clubhouse availability calendar
+                    </Link>{" "}
+                    before finalizing your event plans.
+                  </p>
+                </li>
+                {[
+                  "Complete the online rental request with event details, insurance information, and acknowledgements.",
+                  "Upload the required insurance materials and any supporting documents.",
+                  "Wait for review and final confirmation before treating the reservation as approved.",
+                ].map((step, index) => (
+                  <li key={step} style={{ display: "flex", alignItems: "flex-start", gap: "0.75rem" }}>
                     <span
                       style={{
                         display: "inline-flex",
@@ -287,9 +318,9 @@ export default async function ClubhouseRentalOnlinePage() {
                         marginTop: "0.1rem",
                       }}
                     >
-                      {i + 1}
+                      {index + 2}
                     </span>
-                    <p className="text-fluid-sm" style={{ color: "var(--pp-slate-700)", lineHeight: 1.6 }}>
+                    <p className="text-fluid-sm" style={{ color: "var(--pp-slate-700)", lineHeight: 1.6, margin: 0 }}>
                       {step}
                     </p>
                   </li>
@@ -298,19 +329,59 @@ export default async function ClubhouseRentalOnlinePage() {
 
               <div
                 style={{
-                  padding: "var(--space-s) var(--space-m)",
+                  padding: "var(--space-m) var(--space-l)",
                   borderRadius: "var(--radius-md)",
-                  background: "var(--pp-slate-100)",
-                  borderLeft: "3px solid var(--pp-slate-300)",
+                  background: "#f3f8f3",
+                  borderLeft: "4px solid var(--pp-navy-dark)",
+                  display: "grid",
+                  gap: "0.85rem",
                 }}
               >
-                <p className="text-fluid-sm" style={{ color: "var(--pp-slate-600)", lineHeight: 1.6, fontStyle: "italic", margin: 0 }}>
-                  An initial admin availability view is now available. Full conflict checking inside the form is still
-                  planned next.
-                </p>
-                <p style={{ margin: "0.5rem 0 0 0" }}>
-                  <Link href="/resident-portal/management/clubhouse-rental-availability">Open Clubhouse Availability</Link>
-                </p>
+                <div style={{ display: "flex", alignItems: "flex-start", gap: "0.75rem" }}>
+                  <div
+                    style={{
+                      width: "2.5rem",
+                      height: "2.5rem",
+                      borderRadius: "var(--radius-md)",
+                      background: "var(--pp-navy-dark)",
+                      color: "var(--pp-gold-light)",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <CalendarDays style={{ width: "1.1rem", height: "1.1rem" }} />
+                  </div>
+                  <div>
+                    <p className="text-fluid-base font-semibold" style={{ color: "var(--pp-navy-dark)", margin: 0 }}>
+                      Check Availability
+                    </p>
+                    <p className="text-fluid-sm" style={{ color: "var(--pp-slate-600)", lineHeight: 1.6, margin: "0.3rem 0 0 0" }}>
+                      Review the monthly clubhouse availability calendar before submitting or testing a rental request.
+                      It combines HOA clubhouse events, approved rentals, and tentative requests in one view.
+                    </p>
+                  </div>
+                </div>
+                <div>
+                  <Link
+                    href="/resident-portal/management/clubhouse-rental-availability"
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "0.45rem",
+                      padding: "0.65rem 1.1rem",
+                      borderRadius: "var(--radius-md)",
+                      background: "var(--pp-navy-dark)",
+                      color: "var(--pp-white)",
+                      fontWeight: 700,
+                      textDecoration: "none",
+                    }}
+                  >
+                    <CalendarDays style={{ width: "0.95rem", height: "0.95rem" }} />
+                    Open Clubhouse Availability
+                  </Link>
+                </div>
               </div>
             </div>
 

@@ -368,22 +368,28 @@ export function ClubhouseRentalOnlineForm({
             className="card"
             style={{
               padding: "var(--space-l)",
-              background: "#f8fafc",
-              border: "1px solid var(--pp-slate-200)",
+              background: mode === "edit" ? "#f8fafc" : "#f3f8f3",
+              border: mode === "edit" ? "1px solid var(--pp-slate-200)" : "1px solid #dbe8df",
               display: "grid",
               gap: "0.9rem",
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
-              <AlertCircle style={{ width: "1.1rem", height: "1.1rem", color: "#9a3412" }} />
+              <AlertCircle
+                style={{
+                  width: "1.1rem",
+                  height: "1.1rem",
+                  color: mode === "edit" ? "#9a3412" : "var(--pp-navy-dark)",
+                }}
+              />
               <h2 style={{ margin: 0, color: "var(--pp-navy-dark)" }}>
-                {mode === "edit" ? "Resident Update" : "Prototype Status"}
+                {mode === "edit" ? "Resident Update" : "Experimental Online Form"}
               </h2>
             </div>
             <p style={{ margin: 0, color: "var(--pp-slate-700)", maxWidth: "68ch" }}>
               {mode === "edit"
                 ? "Use this page to update the same clubhouse rental request after more information has been requested."
-                : "This first-draft online form now creates a real clubhouse rental request record. Availability checks, resident-facing request history, and the future needs-more-information loopback are still planned."}
+                : "This is an early online version of the clubhouse rental request. Use it to test the future digital workflow while review steps, notifications, and resident-facing improvements continue to evolve."}
             </p>
             {residentActionNote ? (
               <div style={{ padding: "0.9rem 1rem", borderRadius: "var(--radius-md)", background: "#fff7ed", color: "#9a3412" }}>

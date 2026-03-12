@@ -26,7 +26,7 @@ function parseSort(value: string | null): ClubhouseRentalManagementSort {
 }
 
 export async function GET(req: NextRequest) {
-  const access = await requireManagementApiAccess(["admin"])
+  const access = await requireManagementApiAccess(["admin", "board_of_directors", "clubhouse_maintenance"])
   if (!access.ok) return access.response
 
   const { searchParams } = new URL(req.url)

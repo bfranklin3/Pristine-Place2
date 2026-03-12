@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/db/prisma"
 import { getAllPublishedEvents, type SanityEvent } from "@/lib/sanity/queries"
 import { getUpcomingEvents as expandRecurringEvents } from "@/lib/sanity/recurring-events"
+import { getMonthRange } from "@/lib/calendar/month"
+import type { PortalCalendarItem } from "@/lib/calendar/types"
 
 export type ClubhouseAvailabilitySource = "rental" | "hoa_event"
 export type ClubhouseAvailabilityScope = "clubhouse" | "ballroom"
@@ -267,6 +269,27 @@ export async function getClubhouseAvailability(input?: {
       entries: sortEntries(entries),
     })),
   }
+}
+
+export async function getClubhouseAvailabilityCalendarItems(monthDate: Date): Promise<PortalCalendarItem[]> {
+  const { start, endExclusive } = getMonthRange(monthDate)
+  const entries = await getClubhouseAvailabilityEntriesInternal({
+    startDate: start,
+    endDate: endExclusive,
+  })
+
+  return entries.map((entry) => ({
+    id: entry.id,
+    title: entry.title,
+    start: entry.startAt.toISOString(),
+    end: entry.endAt ? entry.endAt.toISOString() : null,
+    allDay: !entry.endAt,
+    source: entry.source === "hoa_event" ? "hoa_event" : "clubhouse_rental",
+    status: entry.source === "hoa_event" ? "blocked" : entry.isBlocking ? "approved" : "tentative",
+    location: entry.locationLabel,
+    href: entry.href,
+    isBlocking: entry.isBlocking,
+  }))
 }
 
 export async function getClubhouseAvailabilityConflicts(input: {

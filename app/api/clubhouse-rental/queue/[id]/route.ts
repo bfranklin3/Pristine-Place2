@@ -15,7 +15,7 @@ import {
 type QueueAction = "request_more_info" | "approve" | "reject"
 
 export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
-  const access = await requireManagementApiAccess(["admin"])
+  const access = await requireManagementApiAccess(["admin", "board_of_directors", "clubhouse_maintenance"])
   if (!access.ok) return access.response
 
   const { id } = await ctx.params
@@ -41,7 +41,7 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
 }
 
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
-  const access = await requireManagementApiAccess(["admin"])
+  const access = await requireManagementApiAccess(["admin", "board_of_directors", "clubhouse_maintenance"])
   if (!access.ok) return access.response
 
   const { id } = await ctx.params

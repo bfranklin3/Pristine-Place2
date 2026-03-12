@@ -1,9 +1,14 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { CalendarDays, Shield } from "lucide-react"
+import { CalendarMonth } from "@/components/portal/calendar-month"
 import { requirePortalAdminPageAccess } from "@/lib/auth/portal-admin"
+import { getMonthRange, parseMonthParam } from "@/lib/calendar/month"
 import { siteConfig } from "@/lib/site-config"
-import { getClubhouseAvailability } from "@/lib/clubhouse-rental/availability"
+import {
+  getClubhouseAvailability,
+  getClubhouseAvailabilityCalendarItems,
+} from "@/lib/clubhouse-rental/availability"
 
 export const metadata: Metadata = {
   title: `Clubhouse Availability | ${siteConfig.name} Resident Portal`,
@@ -27,9 +32,20 @@ function badgeStyles(isBlocking: boolean) {
     : { background: "#ffedd5", color: "#9a3412" }
 }
 
-export default async function ClubhouseRentalAvailabilityPage() {
+export default async function ClubhouseRentalAvailabilityPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ month?: string | string[] | undefined }>
+}) {
   await requirePortalAdminPageAccess("/resident-portal/management/clubhouse-rental-availability")
-  const availability = await getClubhouseAvailability()
+  const resolvedSearchParams = searchParams ? await searchParams : undefined
+  const monthDate = parseMonthParam(resolvedSearchParams?.month)
+  const { start, endExclusive } = getMonthRange(monthDate)
+  const monthEndInclusive = new Date(endExclusive.getTime() - 1)
+  const [availability, calendarItems] = await Promise.all([
+    getClubhouseAvailability({ startDate: start, endDate: monthEndInclusive }),
+    getClubhouseAvailabilityCalendarItems(monthDate),
+  ])
 
   return (
     <>
@@ -110,10 +126,106 @@ export default async function ClubhouseRentalAvailabilityPage() {
                 color: "var(--pp-slate-700)",
               }}
             >
-              This first pass is a timeline-style admin view, not a full monthly calendar yet. It uses approved clubhouse
-              rental requests plus published Sanity events with locations set to <strong>Clubhouse</strong> or{" "}
-              <strong>Clubhouse Ballroom</strong>.
+              The month calendar below combines approved rentals, tentative rental requests, and published Sanity events
+              with locations set to <strong>Clubhouse</strong> or <strong>Clubhouse Ballroom</strong>. A detailed daily
+              list remains below the calendar for operational review.
             </div>
+
+            <div
+              className="card"
+              style={{
+                padding: "1rem 1.1rem",
+                display: "flex",
+                flexWrap: "wrap",
+                gap: "0.85rem 1rem",
+                alignItems: "center",
+              }}
+            >
+              <span style={{ fontWeight: 800, color: "var(--pp-navy-dark)" }}>Legend</span>
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                  color: "var(--pp-slate-700)",
+                  fontWeight: 700,
+                  padding: "0.45rem 0.8rem",
+                  borderRadius: "999px",
+                  background: "#f8fbf8",
+                  border: "1px solid #dbe8df",
+                }}
+              >
+                <span
+                  style={{
+                    width: "1rem",
+                    height: "1rem",
+                    borderRadius: "999px",
+                    background: "#f3f8f3",
+                    border: "1px solid #dbe8df",
+                    display: "inline-block",
+                  }}
+                />
+                HOA Event
+              </span>
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                  color: "var(--pp-slate-700)",
+                  fontWeight: 700,
+                  padding: "0.45rem 0.8rem",
+                  borderRadius: "999px",
+                  background: "#fffaf5",
+                  border: "1px solid #fed7aa",
+                }}
+              >
+                <span
+                  style={{
+                    width: "1rem",
+                    height: "1rem",
+                    borderRadius: "999px",
+                    background: "#fff7ed",
+                    border: "1px solid #fed7aa",
+                    display: "inline-block",
+                  }}
+                />
+                Tentative Rental
+              </span>
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                  color: "var(--pp-slate-700)",
+                  fontWeight: 700,
+                  padding: "0.45rem 0.8rem",
+                  borderRadius: "999px",
+                  background: "#fff6f6",
+                  border: "1px solid #fecaca",
+                }}
+              >
+                <span
+                  style={{
+                    width: "1rem",
+                    height: "1rem",
+                    borderRadius: "999px",
+                    background: "#fef2f2",
+                    border: "1px solid #fecaca",
+                    display: "inline-block",
+                  }}
+                />
+                Blocking Rental
+              </span>
+            </div>
+
+            <CalendarMonth
+              monthDate={monthDate}
+              items={calendarItems}
+              basePath="/resident-portal/management/clubhouse-rental-availability"
+              description="Approved rentals, tentative rental requests, and blocking clubhouse HOA events in HOA local time."
+              embedded
+            />
 
             <div className="stack" style={{ gap: "var(--space-m)" }}>
               {availability.groupedDays.length === 0 ? (

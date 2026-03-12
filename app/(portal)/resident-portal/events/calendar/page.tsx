@@ -1,8 +1,7 @@
-// app/(portal)/resident-portal/events/calendar/page.tsx
-
 import type { Metadata } from "next"
-import Link from "next/link"
-import { ArrowLeft, CalendarDays } from "lucide-react"
+import { CalendarDays, Shield } from "lucide-react"
+import { PortalEventsCalendarServer } from "@/components/portal/portal-events-calendar-server"
+import { parseMonthParam } from "@/lib/calendar/month"
 import { siteConfig } from "@/lib/site-config"
 
 export const metadata: Metadata = {
@@ -10,133 +9,52 @@ export const metadata: Metadata = {
   description: `View ${siteConfig.name} HOA community events in a monthly calendar format.`,
 }
 
-export default function EventsCalendarPage() {
+export default async function EventsCalendarPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ month?: string | string[] | undefined }>
+}) {
+  const resolvedSearchParams = searchParams ? await searchParams : undefined
+  const monthDate = parseMonthParam(resolvedSearchParams?.month)
+
   return (
     <>
-
-      {/* ── Header bar ── */}
-      <div
-        style={{
-          background: "var(--pp-white)",
-          borderBottom: "1px solid var(--pp-slate-200)",
-          paddingBlock: "var(--space-s)",
-        }}
-      >
+      <section className="hero-section" style={{ background: "var(--pp-navy-dark)" }}>
         <div
-          className="container"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            flexWrap: "wrap",
-            gap: "var(--space-s)",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-s)" }}>
-            <Link
-              href="/resident-portal/events"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "0.375rem",
-                color: "var(--pp-navy-dark)",
-                fontWeight: 600,
-                fontSize: "0.875rem",
-                textDecoration: "none",
-              }}
+          className="hero-overlay"
+          style={{ background: "linear-gradient(135deg, #1b2e1b 0%, #3A5A40 60%, #2c4a32 100%)" }}
+        />
+        <div className="hero-content stack" style={{ gap: "var(--space-s)" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem" }}>
+            <Shield style={{ width: "1.25rem", height: "1.25rem", color: "var(--pp-gold-light)" }} />
+            <span
+              className="text-fluid-sm font-semibold"
+              style={{ color: "var(--pp-gold-light)", textTransform: "uppercase", letterSpacing: "0.1em" }}
             >
-              <ArrowLeft style={{ width: "1rem", height: "1rem" }} />
-              Back to Events
-            </Link>
-            <span style={{ color: "var(--pp-slate-300)" }}>|</span>
-            <h1
-              className="text-step-1 font-bold"
-              style={{ color: "var(--pp-navy-dark)" }}
-            >
-              Monthly Calendar
-            </h1>
+              Resident Portal
+            </span>
           </div>
-        </div>
-      </div>
-
-      {/* ── Calendar placeholder ── */}
-      <section className="section" style={{ background: "var(--pp-slate-50)" }}>
-        <div className="container" style={{ maxWidth: "52rem" }}>
+          <h1 className="hero-title">Monthly Calendar</h1>
+          <p className="hero-subtitle">
+            View HOA meetings, social events, and community activities in a monthly calendar view.
+          </p>
           <div
-            className="card"
             style={{
-              textAlign: "center",
-              padding: "var(--space-xl)",
-              display: "flex",
-              flexDirection: "column",
+              display: "inline-flex",
               alignItems: "center",
-              gap: "var(--space-m)",
+              justifyContent: "center",
+              gap: "0.5rem",
+              color: "var(--pp-gold-light)",
+              fontWeight: 700,
             }}
           >
-            {/* Icon */}
-            <div
-              style={{
-                width: "5rem",
-                height: "5rem",
-                borderRadius: "50%",
-                background: "var(--pp-slate-100)",
-                border: "3px solid var(--pp-navy-dark)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <CalendarDays
-                style={{ width: "2.25rem", height: "2.25rem", color: "var(--pp-navy-dark)" }}
-              />
-            </div>
-
-            {/* Text */}
-            <div className="stack-xs" style={{ gap: "var(--space-s)" }}>
-              <h2
-                className="text-step-2 font-bold"
-                style={{ color: "var(--pp-navy-dark)" }}
-              >
-                Monthly Calendar Coming Soon
-              </h2>
-              <p
-                className="text-fluid-base"
-                style={{
-                  color: "var(--pp-slate-500)",
-                  maxWidth: "42ch",
-                  marginInline: "auto",
-                  lineHeight: 1.6,
-                }}
-              >
-                An interactive monthly calendar view is in development. In the
-                meantime, use the Events list to browse all upcoming community
-                events.
-              </p>
-            </div>
-
-            {/* Back button */}
-            <Link
-              href="/resident-portal/events"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "0.4rem",
-                padding: "0.6rem 1.25rem",
-                borderRadius: "var(--radius-md)",
-                background: "var(--pp-navy-dark)",
-                color: "var(--pp-white)",
-                fontWeight: 600,
-                textDecoration: "none",
-                marginTop: "var(--space-xs)",
-              }}
-            >
-              <ArrowLeft style={{ width: "0.875rem", height: "0.875rem" }} />
-              View Events List
-            </Link>
+            <CalendarDays style={{ width: "1rem", height: "1rem" }} />
+            HOA Local Time
           </div>
         </div>
       </section>
 
+      <PortalEventsCalendarServer monthDate={monthDate} />
     </>
   )
 }

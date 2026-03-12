@@ -1,16 +1,19 @@
 import type { Metadata } from "next"
 import { FileText, Shield } from "lucide-react"
-import { requirePortalAdminPageAccess } from "@/lib/auth/portal-admin"
+import { requirePortalRolePageAccess } from "@/lib/auth/portal-admin"
 import { siteConfig } from "@/lib/site-config"
 import { ClubhouseRentalQueueTable } from "@/components/portal/clubhouse-rental-queue-table"
 
 export const metadata: Metadata = {
   title: `Clubhouse Rental Queue | ${siteConfig.name} Resident Portal`,
-  description: "Admin review queue for clubhouse rental requests.",
+  description: "Restricted clubhouse rental review queue for admins, Board members, and Clubhouse committee reviewers.",
 }
 
 export default async function ClubhouseRentalQueuePage() {
-  await requirePortalAdminPageAccess("/resident-portal/management/clubhouse-rental-queue")
+  await requirePortalRolePageAccess(
+    ["admin", "board_of_directors", "clubhouse_maintenance"],
+    "/resident-portal/management/clubhouse-rental-queue",
+  )
 
   return (
     <>
@@ -31,8 +34,9 @@ export default async function ClubhouseRentalQueuePage() {
           </div>
           <h1 className="hero-title">Clubhouse Rental Queue</h1>
           <p className="hero-subtitle" style={{ maxWidth: "58ch" }}>
-            Admin review queue for online clubhouse rental submissions. This first pass supports request review,
-            request-more-info, approve, and reject actions.
+            Restricted-access review queue for online clubhouse rental submissions. This first pass supports request
+            review, request-more-info, approve, and reject actions for admins, Board members, and Clubhouse committee
+            reviewers.
           </p>
         </div>
       </section>
