@@ -1,0 +1,218 @@
+function escapeHtml(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
+}
+
+export function renderBoardAgendaPdfHtml(agenda) {
+  const title = escapeHtml(agenda.normalizedTitle || agenda.title || "Board Meeting Agenda")
+  const meetingDate = escapeHtml(agenda.meetingDateLabel || "Meeting date to be confirmed")
+  const meetingTime = escapeHtml(agenda.meetingTimeLabel || "Time not specified")
+  const sourceLink = agenda.link ? escapeHtml(agenda.link) : null
+
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>${title}</title>
+    <style>
+      @page {
+        size: Letter;
+        margin: 0.6in 0.7in 0.7in;
+      }
+
+      :root {
+        --pp-navy: #1f3524;
+        --pp-green: #3a5a40;
+        --pp-gold: #d4b86a;
+        --pp-slate: #4b5b53;
+        --pp-border: #d7e0da;
+        --pp-paper: #ffffff;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Georgia", "Times New Roman", serif;
+        color: #172016;
+        background: var(--pp-paper);
+        line-height: 1.5;
+        font-size: 11pt;
+      }
+
+      header {
+        border-bottom: 2px solid var(--pp-green);
+        padding-bottom: 0.22in;
+        margin-bottom: 0.28in;
+      }
+
+      .eyebrow {
+        color: var(--pp-green);
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        font-weight: 700;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 9pt;
+        margin-bottom: 0.08in;
+      }
+
+      h1 {
+        margin: 0;
+        color: var(--pp-navy);
+        font-size: 22pt;
+        line-height: 1.12;
+      }
+
+      .subtitle {
+        margin-top: 0.08in;
+        color: var(--pp-slate);
+        font-size: 11pt;
+      }
+
+      .meta-panel {
+        margin-top: 0.2in;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.14in;
+      }
+
+      .meta-card {
+        border: 1px solid var(--pp-border);
+        border-radius: 10px;
+        padding: 0.12in 0.14in;
+        background: #f9fbf9;
+      }
+
+      .meta-label {
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 8.5pt;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--pp-slate);
+        font-weight: 700;
+        margin-bottom: 0.02in;
+      }
+
+      .meta-value {
+        color: var(--pp-navy);
+        font-weight: 700;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 10pt;
+      }
+
+      main {
+        display: block;
+      }
+
+      .agenda-content {
+        color: #1f2a1d;
+      }
+
+      .agenda-content p,
+      .agenda-content ul,
+      .agenda-content ol,
+      .agenda-content blockquote,
+      .agenda-content table,
+      .agenda-content h1,
+      .agenda-content h2,
+      .agenda-content h3,
+      .agenda-content h4,
+      .agenda-content h5,
+      .agenda-content h6 {
+        margin-top: 0;
+        margin-bottom: 0.14in;
+      }
+
+      .agenda-content h1,
+      .agenda-content h2,
+      .agenda-content h3,
+      .agenda-content h4,
+      .agenda-content h5,
+      .agenda-content h6 {
+        color: var(--pp-navy);
+        line-height: 1.2;
+        page-break-after: avoid;
+      }
+
+      .agenda-content h1 { font-size: 18pt; }
+      .agenda-content h2 { font-size: 16pt; }
+      .agenda-content h3 { font-size: 14pt; }
+      .agenda-content h4 { font-size: 12pt; }
+
+      .agenda-content ul,
+      .agenda-content ol {
+        padding-left: 0.28in;
+      }
+
+      .agenda-content li + li {
+        margin-top: 0.05in;
+      }
+
+      .agenda-content table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 10.5pt;
+      }
+
+      .agenda-content th,
+      .agenda-content td {
+        border: 1px solid var(--pp-border);
+        padding: 0.08in 0.09in;
+        vertical-align: top;
+      }
+
+      .agenda-content th {
+        background: #f4f8f4;
+        color: var(--pp-navy);
+        text-align: left;
+      }
+
+      footer {
+        margin-top: 0.28in;
+        padding-top: 0.16in;
+        border-top: 1px solid var(--pp-border);
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 8.5pt;
+        color: #5f6e66;
+      }
+
+      .source-link {
+        word-break: break-all;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="eyebrow">Pristine Place HOA</div>
+      <h1>${title}</h1>
+      <div class="meta-panel">
+        <div class="meta-card">
+          <div class="meta-label">Meeting Date</div>
+          <div class="meta-value">${meetingDate}</div>
+        </div>
+        <div class="meta-card">
+          <div class="meta-label">Meeting Time</div>
+          <div class="meta-value">${meetingTime}</div>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section class="agenda-content">
+        ${agenda.html || "<p>No agenda content was available.</p>"}
+      </section>
+    </main>
+
+    <footer>
+      <div>Generated from WordPress Board agenda archive content for review.</div>
+      ${sourceLink ? `<div class="source-link">Source: ${sourceLink}</div>` : ""}
+    </footer>
+  </body>
+</html>`
+}

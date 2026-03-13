@@ -1,6 +1,8 @@
 import type { Metadata } from "next"
 import DocumentsBrowser from "@/components/portal/documents-browser"
 import { getDocuments, type SanityDocument } from "@/lib/sanity/documents"
+import { getUpcomingEvents, type SanityEvent } from "@/lib/sanity/queries"
+import { getTimePartsInZone, HOA_TIME_ZONE, formatTimeInHoaTimeZone } from "@/lib/timezone"
 import { siteConfig } from "@/lib/site-config"
 
 export const metadata: Metadata = {
@@ -9,6 +11,7 @@ export const metadata: Metadata = {
 }
 
 type DocType = "governing" | "policy" | "financial" | "archive"
+type BoardRecordCategory = "agenda" | "minutes"
 
 interface DisplayDoc {
   id: string
@@ -19,6 +22,31 @@ interface DisplayDoc {
   docType: DocType
   hasContentOnly: boolean
   effectiveDate?: string
+  meetingDate?: string
+  meetingTime?: string
+  meetingKind?: string
+  boardRecordCategory?: BoardRecordCategory
+  relatedEvent?: {
+    _id: string
+    title: string
+    slug?: string
+    eventDate: string
+  }
+}
+
+interface UpcomingBoardEvent {
+  title: string
+  slug?: string
+  eventDate: string
+  timeLabel: string
+}
+
+interface BoardMeetingGroups {
+  upcomingAgendaDoc?: DisplayDoc
+  upcomingAgendaEvent?: UpcomingBoardEvent | null
+  upcomingAgendaMessage?: string
+  agendaArchive: DisplayDoc[]
+  minutesArchive: DisplayDoc[]
 }
 
 interface DocSection {
@@ -27,6 +55,7 @@ interface DocSection {
   intro: string
   note?: string
   docs: DisplayDoc[]
+  boardMeetingGroups?: BoardMeetingGroups
 }
 
 interface DocFilters {
@@ -38,9 +67,79 @@ function normalize(value?: string | null) {
   return (value || "").trim().toLowerCase()
 }
 
+function pad2(value: number) {
+  return String(value).padStart(2, "0")
+}
+
+function toHoaIsoDate(value?: string | null) {
+  if (!value) return undefined
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return undefined
+  const parts = getTimePartsInZone(parsed, HOA_TIME_ZONE)
+  return `${parts.year}-${pad2(parts.month)}-${pad2(parts.day)}`
+}
+
+function inferMeetingDateFromTitle(title: string) {
+  const normalized = title.replace(/[–—]/g, "-")
+
+  const named = normalized.match(
+    /(january|jan|february|feb|march|mar|april|apr|may|june|jun|july|jul|august|aug|september|sept|sep|october|oct|november|nov|december|dec)(?:,)?\s+(\d{1,2})(?:st|nd|rd|th)?(?:,)?\s+(20\d{2})/i,
+  )
+  if (named) {
+    const monthLookup: Record<string, string> = {
+      january: "01",
+      jan: "01",
+      february: "02",
+      feb: "02",
+      march: "03",
+      mar: "03",
+      april: "04",
+      apr: "04",
+      may: "05",
+      june: "06",
+      jun: "06",
+      july: "07",
+      jul: "07",
+      august: "08",
+      aug: "08",
+      september: "09",
+      sept: "09",
+      sep: "09",
+      october: "10",
+      oct: "10",
+      november: "11",
+      nov: "11",
+      december: "12",
+      dec: "12",
+    }
+
+    const month = monthLookup[named[1].toLowerCase()]
+    const day = pad2(Number.parseInt(named[2], 10))
+    return `${named[3]}-${month}-${day}`
+  }
+
+  const numeric = normalized.match(/(\d{1,2})-(\d{1,2})-(20\d{2}|\d{2})/)
+  if (numeric) {
+    const year = numeric[3].length === 2 ? `20${numeric[3]}` : numeric[3]
+    return `${year}-${pad2(Number.parseInt(numeric[1], 10))}-${pad2(Number.parseInt(numeric[2], 10))}`
+  }
+
+  return undefined
+}
+
+function getDisplayDocMeetingDate(doc: DisplayDoc) {
+  return doc.meetingDate || inferMeetingDateFromTitle(doc.title) || doc.effectiveDate
+}
+
+function getSanityDocSortDate(doc: SanityDocument) {
+  return doc.meetingDate || inferMeetingDateFromTitle(doc.title) || doc.effectiveDate
+}
+
 function sortByDateThenTitle(a: SanityDocument, b: SanityDocument) {
-  const aTime = a.effectiveDate ? new Date(a.effectiveDate).getTime() : 0
-  const bTime = b.effectiveDate ? new Date(b.effectiveDate).getTime() : 0
+  const aDate = getSanityDocSortDate(a)
+  const bDate = getSanityDocSortDate(b)
+  const aTime = aDate ? new Date(aDate).getTime() : 0
+  const bTime = bDate ? new Date(bDate).getTime() : 0
   if (aTime !== bTime) return bTime - aTime
   return a.title.localeCompare(b.title)
 }
@@ -57,6 +156,9 @@ function docText(doc: SanityDocument) {
 function toDisplayDoc(doc: SanityDocument, fallbackType: DocType): DisplayDoc {
   const href = doc.file?.asset?.url || doc.externalFileUrl || undefined
   const hasContentOnly = !href && Array.isArray(doc.content) && doc.content.length > 0
+  const category = normalize(doc.category)
+  const boardRecordCategory =
+    category === "agendas" ? "agenda" : category === "minutes" ? "minutes" : undefined
 
   return {
     id: doc._id,
@@ -67,6 +169,18 @@ function toDisplayDoc(doc: SanityDocument, fallbackType: DocType): DisplayDoc {
     docType: fallbackType,
     hasContentOnly,
     effectiveDate: doc.effectiveDate,
+    meetingDate: doc.meetingDate,
+    meetingTime: doc.meetingTime,
+    meetingKind: doc.meetingKind,
+    boardRecordCategory,
+    relatedEvent: doc.relatedEvent
+      ? {
+          _id: doc.relatedEvent._id,
+          title: doc.relatedEvent.title,
+          slug: doc.relatedEvent.slug?.current,
+          eventDate: doc.relatedEvent.eventDate,
+        }
+      : undefined,
   }
 }
 
@@ -79,6 +193,14 @@ function filterDocs(
 }
 
 function getDocYear(doc: DisplayDoc): string {
+  const meetingDate = getDisplayDocMeetingDate(doc)
+  if (meetingDate) {
+    const parsed = new Date(meetingDate)
+    if (!Number.isNaN(parsed.getTime())) return String(parsed.getFullYear())
+    const yearMatch = meetingDate.match(/\b(20\d{2})\b/)
+    if (yearMatch) return yearMatch[1]
+  }
+
   const titleYears = Array.from(doc.title.matchAll(/\b(20\d{2})\b/g)).map((m) => m[1])
   if (titleYears.length > 0) return titleYears[titleYears.length - 1]
 
@@ -90,7 +212,54 @@ function getDocYear(doc: DisplayDoc): string {
   return "Unknown"
 }
 
-function buildSections(docs: SanityDocument[]): DocSection[] {
+function isBoardEvent(event: SanityEvent) {
+  return ["bod-meeting", "special-meeting"].includes(event.category)
+}
+
+function toUpcomingBoardEvent(event: SanityEvent): UpcomingBoardEvent {
+  return {
+    title: event.title,
+    slug: event.slug?.current,
+    eventDate: event.eventDate,
+    timeLabel: formatTimeInHoaTimeZone(new Date(event.eventDate)),
+  }
+}
+
+function findUpcomingAgendaDoc(agendas: DisplayDoc[], nextBoardEvent: UpcomingBoardEvent | null) {
+  if (!nextBoardEvent) return undefined
+
+  const eventDateIso = toHoaIsoDate(nextBoardEvent.eventDate)
+  if (!eventDateIso) return undefined
+
+  return agendas.find((doc) => {
+    if (doc.relatedEvent?.eventDate && toHoaIsoDate(doc.relatedEvent.eventDate) === eventDateIso) return true
+    return getDisplayDocMeetingDate(doc) === eventDateIso
+  })
+}
+
+function buildBoardMeetingGroups(meetingDocs: DisplayDoc[], nextBoardEvent: UpcomingBoardEvent | null): BoardMeetingGroups {
+  const agendas = meetingDocs.filter((doc) => doc.boardRecordCategory === "agenda")
+  const minutes = meetingDocs.filter((doc) => doc.boardRecordCategory === "minutes")
+  const upcomingAgendaDoc = findUpcomingAgendaDoc(agendas, nextBoardEvent)
+  const agendaArchive = agendas.filter((doc) => doc.id !== upcomingAgendaDoc?.id)
+
+  let upcomingAgendaMessage: string | undefined
+  if (!upcomingAgendaDoc) {
+    upcomingAgendaMessage = nextBoardEvent
+      ? "The agenda for the next Board meeting will be posted a few days before the meeting."
+      : "No upcoming Board meeting is currently scheduled."
+  }
+
+  return {
+    upcomingAgendaDoc,
+    upcomingAgendaEvent: nextBoardEvent,
+    upcomingAgendaMessage,
+    agendaArchive,
+    minutesArchive: minutes,
+  }
+}
+
+function buildSections(docs: SanityDocument[], nextBoardEvent: UpcomingBoardEvent | null): DocSection[] {
   const isCovenant = (d: SanityDocument) => {
     const text = docText(d)
     return hasKeyword(text, ["covenant", "cc&r", "ccrs"])
@@ -169,6 +338,8 @@ function buildSections(docs: SanityDocument[]): DocSection[] {
     "archive"
   )
 
+  const boardMeetingGroups = buildBoardMeetingGroups(meetingRecords, nextBoardEvent)
+
   const financials = filterDocs(docs, (d) => isFinancial(d), "financial")
   const meetingIds = new Set(meetingRecords.map((d) => d.id))
   const financialIds = new Set(financials.map((d) => d.id))
@@ -211,8 +382,9 @@ function buildSections(docs: SanityDocument[]): DocSection[] {
       id: "meeting-records",
       title: "Board Meeting Records",
       intro:
-        "Board of Directors meetings are open to all residents. Agendas and approved minutes are published here as part of ongoing transparency.",
+        "Board of Directors meetings are open to all residents. Upcoming agendas and meeting minutes are published here as part of ongoing transparency.",
       docs: meetingRecords,
+      boardMeetingGroups,
     },
     {
       id: "financials",
@@ -241,6 +413,30 @@ function applyDocFilters(docs: DisplayDoc[], filters: DocFilters): DisplayDoc[] 
   })
 }
 
+function applyBoardMeetingFilters(groups: BoardMeetingGroups | undefined, filters: DocFilters): BoardMeetingGroups | undefined {
+  if (!groups) return groups
+
+  const visibleUpcomingAgendaDoc =
+    groups.upcomingAgendaDoc && applyDocFilters([groups.upcomingAgendaDoc], filters).length > 0
+      ? groups.upcomingAgendaDoc
+      : undefined
+
+  const upcomingAgendaMessage =
+    visibleUpcomingAgendaDoc || groups.upcomingAgendaMessage
+      ? groups.upcomingAgendaMessage
+      : groups.upcomingAgendaEvent
+        ? "The agenda for the next Board meeting will be posted a few days before the meeting."
+        : "No upcoming Board meeting is currently scheduled."
+
+  return {
+    ...groups,
+    upcomingAgendaDoc: visibleUpcomingAgendaDoc,
+    upcomingAgendaMessage,
+    agendaArchive: applyDocFilters(groups.agendaArchive, filters),
+    minutesArchive: applyDocFilters(groups.minutesArchive, filters),
+  }
+}
+
 function firstParam(value?: string | string[]) {
   return Array.isArray(value) ? value[0] : value
 }
@@ -250,8 +446,13 @@ export default async function DocumentsPage({
 }: {
   searchParams?: Promise<{ [key: string]: string | string[] | undefined }>
 }) {
-  const docs = await getDocuments("portal")
-  const baseSections = buildSections(docs)
+  const [docs, upcomingEvents] = await Promise.all([
+    getDocuments("portal"),
+    getUpcomingEvents("portal", 20),
+  ])
+
+  const nextBoardEvent = upcomingEvents.filter(isBoardEvent)[0]
+  const baseSections = buildSections(docs, nextBoardEvent ? toUpcomingBoardEvent(nextBoardEvent) : null)
   const resolvedSearchParams = searchParams ? await searchParams : undefined
 
   const rawType = firstParam(resolvedSearchParams?.docType) || "all"
@@ -269,6 +470,7 @@ export default async function DocumentsPage({
   const sections = baseSections.map((section) => ({
     ...section,
     docs: applyDocFilters(section.docs, filters),
+    boardMeetingGroups: applyBoardMeetingFilters(section.boardMeetingGroups, filters),
   }))
 
   const allDocsCount = baseSections.reduce((sum, section) => sum + section.docs.length, 0)

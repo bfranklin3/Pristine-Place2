@@ -30,6 +30,8 @@
     "report:acc:link-manual-review": "tsx scripts/report-acc-link-manual-review.ts",
     "apply:acc:link-review": "tsx scripts/apply-reviewed-acc-link-csv.ts",
     "reconcile:households:address": "tsx scripts/reconcile-households-by-address.ts",
+    "report:wp:board-agendas": "node scripts/report-wp-board-agendas.mjs",
+    "generate:wp:board-agenda-pdfs": "node scripts/generate-wp-board-agenda-pdfs.mjs",
     "sanity:set-about-faq-categories": "node scripts/set-faq-about-categories.mjs",
     "sanity:upsert:acc-email-templates": "node scripts/upsert-acc-workflow-email-templates.mjs",
     "sanity:upsert:clubhouse-rental-email-templates": "node scripts/upsert-clubhouse-rental-email-templates.mjs",

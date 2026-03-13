@@ -8,7 +8,7 @@ export interface SanityDocument {
   title: string
   slug: { current: string }
   description?: string
-  content?: any[]
+  content?: unknown[]
   file?: {
     asset: {
       _ref: string
@@ -22,6 +22,15 @@ export interface SanityDocument {
   categoryChild?: string
   version?: string
   effectiveDate?: string
+  meetingDate?: string
+  meetingTime?: string
+  meetingKind?: string
+  relatedEvent?: {
+    _id: string
+    title: string
+    slug?: { current: string }
+    eventDate: string
+  }
   published: boolean
   visibility: "portal" | "public" | "both"
 }
@@ -51,6 +60,15 @@ export async function getDocumentBySlug(
     categoryChild,
     version,
     effectiveDate,
+    meetingDate,
+    meetingTime,
+    meetingKind,
+    relatedEvent->{
+      _id,
+      title,
+      slug,
+      eventDate
+    },
     published,
     visibility
   }`
@@ -89,6 +107,15 @@ export async function getDocuments(
     categoryChild,
     version,
     effectiveDate,
+    meetingDate,
+    meetingTime,
+    meetingKind,
+    relatedEvent->{
+      _id,
+      title,
+      slug,
+      eventDate
+    },
     visibility
   }`
 

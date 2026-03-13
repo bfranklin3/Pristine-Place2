@@ -1,5 +1,9 @@
 import { defineType, defineField } from "sanity"
 
+function isBoardMeetingRecordCategory(category?: string) {
+  return category === "agendas" || category === "minutes"
+}
+
 export const hoaDocument = defineType({
   name: "hoaDocument",
   title: "Documents & Forms",
@@ -179,6 +183,55 @@ export const hoaDocument = defineType({
       title: "Effective Date",
       type: "date",
       description: "When this document takes effect or was last updated",
+    }),
+    defineField({
+      name: "meetingDate",
+      title: "Meeting Date",
+      type: "date",
+      description: "Meeting date for Board agendas or minutes.",
+      hidden: ({ parent }) => !isBoardMeetingRecordCategory(parent?.category),
+      validation: (Rule) =>
+        Rule.custom((value, context) => {
+          const parent = context.parent as { category?: string } | undefined
+          if (isBoardMeetingRecordCategory(parent?.category) && !value) {
+            return "Meeting Date is required for Meeting Agendas and Meeting Minutes."
+          }
+          return true
+        }),
+    }),
+    defineField({
+      name: "meetingTime",
+      title: "Meeting Time",
+      type: "string",
+      description: "Optional meeting time display value, typically used for agendas.",
+      placeholder: "7:00 PM",
+      hidden: ({ parent }) => parent?.category !== "agendas",
+    }),
+    defineField({
+      name: "meetingKind",
+      title: "Meeting Kind",
+      type: "string",
+      options: {
+        list: [
+          { title: "Board Meeting", value: "board" },
+          { title: "Annual Meeting", value: "annual" },
+          { title: "Organizational Meeting", value: "organizational" },
+          { title: "Special Meeting", value: "special" },
+          { title: "Emergency Meeting", value: "emergency" },
+          { title: "Membership Meeting", value: "membership" },
+        ],
+        layout: "dropdown",
+      },
+      hidden: ({ parent }) => !isBoardMeetingRecordCategory(parent?.category),
+      description: "Optional meeting classification for agendas or minutes.",
+    }),
+    defineField({
+      name: "relatedEvent",
+      title: "Related Event",
+      type: "reference",
+      to: [{ type: "event" }],
+      hidden: ({ parent }) => !isBoardMeetingRecordCategory(parent?.category),
+      description: "Optional reference to the related Board meeting event.",
     }),
     defineField({
       name: "expiryDate",

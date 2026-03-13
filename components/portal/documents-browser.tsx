@@ -25,6 +25,31 @@ interface DisplayDoc {
   docType: DocType
   hasContentOnly: boolean
   effectiveDate?: string
+  meetingDate?: string
+  meetingTime?: string
+  meetingKind?: string
+  boardRecordCategory?: "agenda" | "minutes"
+  relatedEvent?: {
+    _id: string
+    title: string
+    slug?: string
+    eventDate: string
+  }
+}
+
+interface UpcomingBoardEvent {
+  title: string
+  slug?: string
+  eventDate: string
+  timeLabel: string
+}
+
+interface BoardMeetingGroups {
+  upcomingAgendaDoc?: DisplayDoc
+  upcomingAgendaEvent?: UpcomingBoardEvent | null
+  upcomingAgendaMessage?: string
+  agendaArchive: DisplayDoc[]
+  minutesArchive: DisplayDoc[]
 }
 
 interface DocSection {
@@ -33,6 +58,7 @@ interface DocSection {
   intro: string
   note?: string
   docs: DisplayDoc[]
+  boardMeetingGroups?: BoardMeetingGroups
 }
 
 interface DocFilters {
@@ -64,7 +90,7 @@ const DOC_TYPE_STYLE: Record<DocType, React.CSSProperties> = {
 }
 
 const sectionBg = ["var(--pp-white)", "var(--pp-slate-50)"]
-const YEAR_GROUP_SECTION_IDS = new Set(["meeting-records", "financials"])
+const YEAR_GROUP_SECTION_IDS = new Set(["financials"])
 
 function getDocYear(doc: DisplayDoc): string {
   const titleYears = Array.from(doc.title.matchAll(/\b(20\d{2})\b/g)).map((m) => m[1])
@@ -97,8 +123,8 @@ function groupDocsByYear(docs: DisplayDoc[]): Array<{ year: string; docs: Displa
     .map(([year, docsForYear]) => ({ year, docs: docsForYear }))
 }
 
-function yearKey(sectionId: string, year: string) {
-  return `${sectionId}::${year}`
+function yearKey(groupId: string, year: string) {
+  return `${groupId}::${year}`
 }
 
 function parseCsvParam(value: string | null): Set<string> {
@@ -222,6 +248,185 @@ function DocRow({ doc }: { doc: DisplayDoc }) {
   )
 }
 
+function YearGroupedDocList({
+  groupId,
+  docs,
+  openYearIds,
+  setOpenYearIds,
+}: {
+  groupId: string
+  docs: DisplayDoc[]
+  openYearIds: Set<string>
+  setOpenYearIds: React.Dispatch<React.SetStateAction<Set<string>>>
+}) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-s)" }}>
+      {groupDocsByYear(docs).map((group) => {
+        const groupKey = yearKey(groupId, group.year)
+        const isGroupOpen = openYearIds.has(groupKey)
+        return (
+          <details
+            key={group.year}
+            className="card"
+            open={isGroupOpen}
+            style={{ padding: "var(--space-s) var(--space-m)" }}
+            onToggle={(event) => {
+              const nextOpen = (event.currentTarget as HTMLDetailsElement).open
+              setOpenYearIds((prev) => {
+                const next = new Set(prev)
+                if (nextOpen) next.add(groupKey)
+                else next.delete(groupKey)
+                return next
+              })
+            }}
+          >
+            <summary
+              style={{
+                cursor: "pointer",
+                listStyle: "none",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: "var(--space-m)",
+              }}
+            >
+              <span className="text-fluid-base font-semibold" style={{ color: "var(--pp-slate-900)" }}>
+                {group.year}
+              </span>
+              <span className="text-fluid-sm" style={{ color: "var(--pp-slate-500)" }}>
+                {group.docs.length} document{group.docs.length === 1 ? "" : "s"}
+              </span>
+            </summary>
+            <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-m)", marginTop: "var(--space-s)" }}>
+              {group.docs.map((doc) => (
+                <DocRow key={doc.id} doc={doc} />
+              ))}
+            </div>
+          </details>
+        )
+      })}
+    </div>
+  )
+}
+
+function BoardMeetingRecordsPanel({
+  groups,
+  openYearIds,
+  setOpenYearIds,
+}: {
+  groups: BoardMeetingGroups
+  openYearIds: Set<string>
+  setOpenYearIds: React.Dispatch<React.SetStateAction<Set<string>>>
+}) {
+  const cardStyle: React.CSSProperties = {
+    padding: "var(--space-m)",
+    display: "flex",
+    flexDirection: "column",
+    gap: "var(--space-s)",
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-l)" }}>
+      <div className="stack-s">
+        <div className="stack-xs">
+          <h3 className="text-step-1 font-bold" style={{ color: "var(--pp-navy-dark)" }}>
+            Upcoming Board Meeting Agenda
+          </h3>
+          <p className="text-fluid-sm" style={{ color: "var(--pp-slate-500)", lineHeight: 1.6 }}>
+            The next agenda will appear here as soon as it is posted.
+          </p>
+        </div>
+        {groups.upcomingAgendaDoc ? (
+          <div className="card" style={cardStyle}>
+            {groups.upcomingAgendaEvent ? (
+              <p className="text-fluid-sm font-semibold" style={{ color: "var(--pp-slate-500)" }}>
+                Next Board meeting: {new Date(groups.upcomingAgendaEvent.eventDate).toLocaleDateString("en-US", {
+                  weekday: "long",
+                  month: "long",
+                  day: "numeric",
+                  year: "numeric",
+                  timeZone: "America/New_York",
+                })} at {groups.upcomingAgendaEvent.timeLabel}
+              </p>
+            ) : null}
+            <DocRow doc={groups.upcomingAgendaDoc} />
+          </div>
+        ) : (
+          <div
+            className="card"
+            style={{
+              ...cardStyle,
+              background: "var(--pp-slate-50)",
+              borderLeft: "4px solid var(--pp-gold)",
+            }}
+          >
+            <p className="text-fluid-base" style={{ color: "var(--pp-slate-700)", lineHeight: 1.6 }}>
+              {groups.upcomingAgendaMessage}
+            </p>
+            {groups.upcomingAgendaEvent ? (
+              <p className="text-fluid-sm" style={{ color: "var(--pp-slate-500)" }}>
+                Next Board meeting: {new Date(groups.upcomingAgendaEvent.eventDate).toLocaleDateString("en-US", {
+                  weekday: "long",
+                  month: "long",
+                  day: "numeric",
+                  year: "numeric",
+                  timeZone: "America/New_York",
+                })} at {groups.upcomingAgendaEvent.timeLabel}
+              </p>
+            ) : null}
+          </div>
+        )}
+      </div>
+
+      <div className="stack-s">
+        <div className="stack-xs">
+          <h3 className="text-step-1 font-bold" style={{ color: "var(--pp-navy-dark)" }}>
+            Agenda Archive
+          </h3>
+          <p className="text-fluid-sm" style={{ color: "var(--pp-slate-500)", lineHeight: 1.6 }}>
+            Past Board meeting agendas grouped by year.
+          </p>
+        </div>
+        {groups.agendaArchive.length > 0 ? (
+          <YearGroupedDocList
+            groupId="meeting-records-agendas"
+            docs={groups.agendaArchive}
+            openYearIds={openYearIds}
+            setOpenYearIds={setOpenYearIds}
+          />
+        ) : (
+          <div className="card" style={{ padding: "var(--space-m)", color: "var(--pp-slate-500)" }}>
+            No agenda archive documents match the current filters.
+          </div>
+        )}
+      </div>
+
+        <div className="stack-s">
+          <div className="stack-xs">
+            <h3 className="text-step-1 font-bold" style={{ color: "var(--pp-navy-dark)" }}>
+              Meeting Minutes
+            </h3>
+            <p className="text-fluid-sm" style={{ color: "var(--pp-slate-500)", lineHeight: 1.6 }}>
+              Board meeting minutes grouped by year.
+            </p>
+          </div>
+        {groups.minutesArchive.length > 0 ? (
+          <YearGroupedDocList
+            groupId="meeting-records-minutes"
+            docs={groups.minutesArchive}
+            openYearIds={openYearIds}
+            setOpenYearIds={setOpenYearIds}
+          />
+        ) : (
+          <div className="card" style={{ padding: "var(--space-m)", color: "var(--pp-slate-500)" }}>
+            No approved meeting minutes match the current filters.
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export default function DocumentsBrowser({
   sections,
   filters,
@@ -259,6 +464,15 @@ export default function DocumentsBrowser({
     } else if (hasActiveFilters) {
       const allYearKeys = new Set<string>()
       for (const section of visibleSections) {
+        if (section.boardMeetingGroups) {
+          for (const group of groupDocsByYear(section.boardMeetingGroups.agendaArchive)) {
+            allYearKeys.add(yearKey("meeting-records-agendas", group.year))
+          }
+          for (const group of groupDocsByYear(section.boardMeetingGroups.minutesArchive)) {
+            allYearKeys.add(yearKey("meeting-records-minutes", group.year))
+          }
+          continue
+        }
         if (!YEAR_GROUP_SECTION_IDS.has(section.id)) continue
         const groups = groupDocsByYear(section.docs)
         for (const group of groups) allYearKeys.add(yearKey(section.id, group.year))
@@ -338,6 +552,15 @@ export default function DocumentsBrowser({
     const allYearKeys = new Set<string>()
 
     for (const section of visibleSections) {
+      if (section.boardMeetingGroups) {
+        for (const group of groupDocsByYear(section.boardMeetingGroups.agendaArchive)) {
+          allYearKeys.add(yearKey("meeting-records-agendas", group.year))
+        }
+        for (const group of groupDocsByYear(section.boardMeetingGroups.minutesArchive)) {
+          allYearKeys.add(yearKey("meeting-records-minutes", group.year))
+        }
+        continue
+      }
       if (!YEAR_GROUP_SECTION_IDS.has(section.id)) continue
       const groups = groupDocsByYear(section.docs)
       for (const group of groups) allYearKeys.add(yearKey(section.id, group.year))
@@ -596,7 +819,13 @@ export default function DocumentsBrowser({
                 </summary>
 
                 <div style={{ marginTop: "var(--space-m)" }}>
-                  {section.docs.length === 0 ? (
+                  {section.boardMeetingGroups ? (
+                    <BoardMeetingRecordsPanel
+                      groups={section.boardMeetingGroups}
+                      openYearIds={openYearIds}
+                      setOpenYearIds={setOpenYearIds}
+                    />
+                  ) : section.docs.length === 0 ? (
                     <div
                       className="card"
                       style={{
