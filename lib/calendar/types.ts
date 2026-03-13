@@ -5,6 +5,7 @@ export type PortalCalendarItemStatus = "scheduled" | "tentative" | "approved" | 
 export interface PortalCalendarItem {
   id: string
   title: string
+  referenceNumber?: string | null
   start: string
   end?: string | null
   allDay: boolean

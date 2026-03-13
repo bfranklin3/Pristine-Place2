@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import { FileText, Shield } from "lucide-react"
-import { requirePortalRolePageAccess } from "@/lib/auth/portal-admin"
+import { getPortalSession } from "@/lib/auth/portal-session"
+import { isPortalAdmin, requirePortalRolePageAccess } from "@/lib/auth/portal-admin"
 import { siteConfig } from "@/lib/site-config"
 import { ClubhouseRentalQueueTable } from "@/components/portal/clubhouse-rental-queue-table"
 
@@ -14,6 +15,8 @@ export default async function ClubhouseRentalQueuePage() {
     ["admin", "board_of_directors", "clubhouse_maintenance"],
     "/resident-portal/management/clubhouse-rental-queue",
   )
+  const { user } = await getPortalSession()
+  const canPurge = isPortalAdmin(user)
 
   return (
     <>
@@ -49,7 +52,7 @@ export default async function ClubhouseRentalQueuePage() {
               <h2 style={{ color: "var(--pp-navy-dark)" }}>Clubhouse Rental Requests</h2>
             </div>
 
-            <ClubhouseRentalQueueTable />
+            <ClubhouseRentalQueueTable canPurge={canPurge} />
           </div>
         </div>
       </section>

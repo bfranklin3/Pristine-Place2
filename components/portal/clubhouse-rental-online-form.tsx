@@ -142,6 +142,7 @@ export function ClubhouseRentalOnlineForm({
     tentativeConflicts: [],
   })
   const [conflictsLoading, setConflictsLoading] = useState(false)
+  const hasAvailabilityInputs = Boolean(form.reservationDate && form.startTime && form.endTime)
 
   function updateField<K extends keyof ClubhouseRentalFormData>(key: K, value: ClubhouseRentalFormData[K]) {
     setForm((current) => ({ ...current, [key]: value }))
@@ -203,8 +204,9 @@ export function ClubhouseRentalOnlineForm({
   }
 
   useEffect(() => {
-    if (!form.reservationDate || !form.startTime || !form.endTime) {
+    if (!hasAvailabilityInputs) {
       setConflicts({ blockingConflicts: [], tentativeConflicts: [] })
+      setConflictsLoading(false)
       return
     }
 
@@ -216,7 +218,12 @@ export function ClubhouseRentalOnlineForm({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            formData: form,
+            formData: {
+              reservationDate: form.reservationDate,
+              startTime: form.startTime,
+              endTime: form.endTime,
+              requestedSpace: form.requestedSpace,
+            },
             excludeRequestId: mode === "edit" ? requestId : null,
           }),
           signal: controller.signal,
@@ -245,7 +252,7 @@ export function ClubhouseRentalOnlineForm({
       controller.abort()
       window.clearTimeout(timeoutId)
     }
-  }, [form, mode, requestId])
+  }, [form.reservationDate, form.startTime, form.endTime, form.requestedSpace, hasAvailabilityInputs, mode, requestId])
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -433,46 +440,61 @@ export function ClubhouseRentalOnlineForm({
               description="This step captures the rental slot and basic event information. Availability checks will be added later."
               icon={CalendarDays}
             >
-              {conflicts.blockingConflicts.length > 0 || conflicts.tentativeConflicts.length > 0 ? (
-                <div
-                  style={{
-                    padding: "0.9rem 1rem",
-                    borderRadius: "var(--radius-md)",
-                    background: "#fff7ed",
-                    border: "1px solid #fed7aa",
-                    color: "#9a3412",
-                    display: "grid",
-                    gap: "0.6rem",
-                  }}
-                >
-                  <strong>Availability warning</strong>
-                  {conflicts.blockingConflicts.length > 0 ? (
-                    <div className="stack-xs">
-                      <span>Blocking conflicts:</span>
-                      {conflicts.blockingConflicts.map((conflict) => (
-                        <span key={conflict.id}>
-                          {conflict.startLabel} - {conflict.endLabel} · {conflict.title}
-                        </span>
-                      ))}
-                    </div>
-                  ) : null}
-                  {conflicts.tentativeConflicts.length > 0 ? (
-                    <div className="stack-xs">
-                      <span>Tentative overlaps:</span>
-                      {conflicts.tentativeConflicts.map((conflict) => (
-                        <span key={conflict.id}>
-                          {conflict.startLabel} - {conflict.endLabel} · {conflict.title}
-                        </span>
-                      ))}
-                    </div>
-                  ) : null}
-                  <span style={{ fontSize: "0.9rem" }}>
-                    You can still submit this request, but the overlap should be reviewed before approval.
-                  </span>
-                </div>
-              ) : conflictsLoading ? (
-                <div style={{ color: "var(--pp-slate-500)", fontSize: "0.9rem" }}>Checking availability...</div>
-              ) : null}
+              <div
+                aria-live="polite"
+                style={{
+                  minHeight: hasAvailabilityInputs ? "4rem" : 0,
+                  display: "grid",
+                  alignContent: "start",
+                }}
+              >
+                {conflicts.blockingConflicts.length > 0 || conflicts.tentativeConflicts.length > 0 ? (
+                  <div
+                    style={{
+                      padding: "0.9rem 1rem",
+                      borderRadius: "var(--radius-md)",
+                      background: "#fff7ed",
+                      border: "1px solid #fed7aa",
+                      color: "#9a3412",
+                      display: "grid",
+                      gap: "0.6rem",
+                    }}
+                  >
+                    <strong>Availability warning</strong>
+                    {conflicts.blockingConflicts.length > 0 ? (
+                      <div className="stack-xs">
+                        <span>Booked conflicts:</span>
+                        {conflicts.blockingConflicts.map((conflict) => (
+                          <span key={conflict.id}>
+                            {conflict.startLabel} - {conflict.endLabel} · {conflict.title}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
+                    {conflicts.tentativeConflicts.length > 0 ? (
+                      <div className="stack-xs">
+                        <span>Tentative overlaps:</span>
+                        {conflicts.tentativeConflicts.map((conflict) => (
+                          <span key={conflict.id}>
+                            {conflict.startLabel} - {conflict.endLabel} · {conflict.title}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
+                    <span style={{ fontSize: "0.9rem" }}>
+                      You can still submit this request, but the overlap should be reviewed before approval.
+                    </span>
+                  </div>
+                ) : conflictsLoading ? (
+                  <div style={{ color: "var(--pp-slate-500)", fontSize: "0.9rem", padding: "0.35rem 0" }}>
+                    Checking availability...
+                  </div>
+                ) : hasAvailabilityInputs ? (
+                  <div style={{ color: "var(--pp-slate-500)", fontSize: "0.9rem", padding: "0.35rem 0" }}>
+                    No current conflicts found for this time slot.
+                  </div>
+                ) : null}
+              </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 14rem), 1fr))", gap: "1rem" }}>
                 <label style={{ display: "grid", gap: "0.35rem" }}>

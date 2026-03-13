@@ -991,4 +991,27 @@ export async function rejectClubhouseRentalRequest(input: {
   })
 }
 
+export async function purgeClubhouseRentalRequestForAdmin(input: {
+  requestId: string
+  actorUserId: string
+  confirmText: string
+}) {
+  if (input.confirmText.trim().toUpperCase() !== "PURGE") {
+    return { kind: "validation_error" as const, errors: ["Type PURGE to confirm permanent deletion."] }
+  }
+
+  const existing = await prisma.clubhouseRentalRequest.findUnique({
+    where: { id: input.requestId },
+    select: { id: true },
+  })
+
+  if (!existing) return { kind: "not_found" as const }
+
+  await prisma.clubhouseRentalRequest.delete({
+    where: { id: input.requestId },
+  })
+
+  return { kind: "ok" as const, deletedRequestId: input.requestId }
+}
+
 export { EMPTY_CLUBHOUSE_RENTAL_FORM_DATA }

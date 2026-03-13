@@ -820,18 +820,32 @@ export function AccQueueNeonTable(props: Props) {
                   ) : null}
 
                   {props.canPurge ? (
-                    <div style={{ marginTop: "0.5rem", paddingTop: "0.75rem", borderTop: "1px solid var(--pp-slate-200)" }}>
-                      <div className="text-fluid-sm" style={{ color: "#991b1b", marginBottom: "0.45rem" }}>
-                        Admin purge permanently deletes this native workflow request and all related records.
-                      </div>
-                      <div style={{ display: "grid", gap: "0.5rem", gridTemplateColumns: "1fr auto" }}>
+                    <div
+                      style={{
+                        display: "grid",
+                        marginTop: "0.75rem",
+                        padding: "1rem 1rem 1.1rem",
+                        borderRadius: "var(--radius-md)",
+                        border: "1px solid #fecaca",
+                        background: "#fff7f7",
+                        gap: "0.95rem",
+                      }}
+                    >
+                      <h4 style={{ margin: 0, color: "#7f1d1d", lineHeight: 1.15 }}>Admin Purge</h4>
+                      <p style={{ margin: 0, color: "var(--pp-slate-700)", fontSize: "0.9rem", lineHeight: 1.65 }}>
+                        Permanently delete this native workflow request and all related records. Type <strong>PURGE</strong> to confirm.
+                      </p>
+                      <div style={{ paddingTop: "0.1rem" }}>
                         <input
                           value={purgeConfirm}
                           onChange={(event) => setPurgeConfirm(event.target.value)}
-                          placeholder='Type "PURGE" to confirm'
-                          style={{ width: "100%", border: "1.5px solid #fecaca", borderRadius: "var(--radius-sm)", padding: "0.7rem 0.8rem" }}
+                          placeholder="Type PURGE to confirm"
+                          className="form-input"
+                          style={{ width: "100%" }}
                         />
-                        <button type="button" className="btn btn-secondary" disabled={saving || purgeConfirm.trim().toUpperCase() !== "PURGE"} onClick={() => runAction("purge")}>
+                      </div>
+                      <div style={{ paddingTop: "0.15rem" }}>
+                        <button type="button" className="btn btn-secondary" disabled={saving || purgeConfirm.trim().toUpperCase() !== "PURGE"} onClick={() => runAction("purge")} style={{ background: "#7f1d1d", borderColor: "#7f1d1d", color: "#fff" }}>
                           <Trash2 style={{ width: "0.9rem", height: "0.9rem" }} />
                           Purge
                         </button>

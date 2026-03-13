@@ -7,7 +7,7 @@ import { AlertCircle, FileText, Loader2 } from "lucide-react"
 type RentalStatus = "submitted" | "needs_more_info" | "approved" | "rejected"
 type RentalStatusFilter = "all" | RentalStatus
 type RentalSort = "submitted_desc" | "submitted_asc" | "request_number_asc" | "request_number_desc"
-type QueueAction = "request_more_info" | "approve" | "reject"
+type QueueAction = "request_more_info" | "approve" | "reject" | "purge"
 
 type QueueEntry = {
   id: string
@@ -182,7 +182,7 @@ function EventLabel({ eventType }: { eventType: string }) {
   return <span>{label}</span>
 }
 
-export function ClubhouseRentalQueueTable() {
+export function ClubhouseRentalQueueTable({ canPurge = false }: { canPurge?: boolean }) {
   const searchParams = useSearchParams()
   const requestedSelectedId = searchParams.get("selected")
   const [entries, setEntries] = useState<QueueEntry[]>([])
@@ -206,6 +206,7 @@ export function ClubhouseRentalQueueTable() {
   const [detailLoading, setDetailLoading] = useState(false)
   const [detailError, setDetailError] = useState<string | null>(null)
   const [actionNote, setActionNote] = useState("")
+  const [purgeConfirm, setPurgeConfirm] = useState("")
   const [saving, setSaving] = useState(false)
   const [statusMessage, setStatusMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
 
@@ -304,29 +305,41 @@ export function ClubhouseRentalQueueTable() {
       const res = await fetch(`/api/clubhouse-rental/queue/${selectedId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action, note: actionNote }),
+        body: JSON.stringify({ action, note: actionNote, confirmText: purgeConfirm }),
       })
       const body = (await res.json().catch(() => ({}))) as {
         request?: QueueDetail
+        deletedRequestId?: string
         error?: string
         detail?: string
         validationErrors?: string[]
       }
-      if (!res.ok || !body.request) {
+      if (!res.ok || (!body.request && !body.deletedRequestId)) {
         throw new Error(body.validationErrors?.[0] || body.error || body.detail || "Failed to update request.")
       }
 
-      setDetail(body.request)
-      setEntries((current) => current.map((entry) => (entry.id === body.request?.id ? body.request : entry)))
-      setStatusMessage({
-        type: "success",
-        text:
-          action === "request_more_info"
-            ? "Request moved to Needs More Info."
-            : action === "approve"
-              ? "Request approved."
-              : "Request rejected.",
-      })
+      if (body.deletedRequestId) {
+        setDetail(null)
+        setActionNote("")
+        setPurgeConfirm("")
+        setEntries((current) => current.filter((entry) => entry.id !== body.deletedRequestId))
+        setStatusMessage({
+          type: "success",
+          text: "Request permanently deleted.",
+        })
+      } else if (body.request) {
+        setDetail(body.request)
+        setEntries((current) => current.map((entry) => (entry.id === body.request?.id ? body.request : entry)))
+        setStatusMessage({
+          type: "success",
+          text:
+            action === "request_more_info"
+              ? "Request moved to Needs More Info."
+              : action === "approve"
+                ? "Request approved."
+                : "Request rejected.",
+        })
+      }
       await fetchEntries()
     } catch (err) {
       setStatusMessage({
@@ -605,7 +618,7 @@ export function ClubhouseRentalQueueTable() {
 
                   {conflicts.blockingConflicts.length > 0 ? (
                     <div className="stack-xs">
-                      <strong>Blocking conflicts</strong>
+                      <strong>Booked conflicts</strong>
                       {conflicts.blockingConflicts.map((conflict) => (
                         <div key={conflict.id} style={{ color: "#7c2d12" }}>
                           {formatDateOnly(conflict.date)} · {conflict.startLabel} - {conflict.endLabel} · {conflict.title}
@@ -720,7 +733,7 @@ export function ClubhouseRentalQueueTable() {
                 </p>
                 {conflicts.blockingConflicts.length > 0 ? (
                   <p style={{ margin: 0, color: "#9a3412", fontSize: "0.9rem", lineHeight: 1.6 }}>
-                    This request currently overlaps one or more blocking clubhouse bookings.
+                    This request currently overlaps one or more booked clubhouse dates.
                   </p>
                 ) : null}
                 <textarea
@@ -758,6 +771,43 @@ export function ClubhouseRentalQueueTable() {
                   </button>
                 </div>
               </div>
+
+              {canPurge ? (
+                <div
+                  style={{
+                    display: "grid",
+                    padding: "1rem 1rem 1.1rem",
+                    borderRadius: "var(--radius-md)",
+                    border: "1px solid #fecaca",
+                    background: "#fff7f7",
+                    gap: "0.95rem",
+                  }}
+                >
+                  <h4 style={{ margin: 0, color: "#7f1d1d", lineHeight: 1.15 }}>Admin Purge</h4>
+                  <p style={{ margin: 0, color: "var(--pp-slate-700)", fontSize: "0.9rem", lineHeight: 1.65 }}>
+                    Permanently delete this clubhouse rental request and all related records. Type <strong>PURGE</strong> to confirm.
+                  </p>
+                  <div style={{ paddingTop: "0.1rem" }}>
+                    <input
+                      className="form-input"
+                      value={purgeConfirm}
+                      onChange={(event) => setPurgeConfirm(event.target.value)}
+                      placeholder="Type PURGE to confirm"
+                    />
+                  </div>
+                  <div style={{ paddingTop: "0.15rem" }}>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      disabled={saving || purgeConfirm.trim().toUpperCase() !== "PURGE"}
+                      onClick={() => runAction("purge")}
+                      style={{ background: "#7f1d1d", borderColor: "#7f1d1d", color: "#fff" }}
+                    >
+                      {saving ? "Purging..." : "Purge"}
+                    </button>
+                  </div>
+                </div>
+              ) : null}
 
               <div className="stack-xs">
                 <h4 style={{ margin: 0, color: "var(--pp-navy-dark)" }}>Activity</h4>

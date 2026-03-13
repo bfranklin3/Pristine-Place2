@@ -3,6 +3,7 @@ import { requireManagementApiAccess } from "@/lib/auth/portal-management-api"
 import {
   approveClubhouseRentalRequest,
   getClubhouseRentalRequestForManagement,
+  purgeClubhouseRentalRequestForAdmin,
   rejectClubhouseRentalRequest,
   requestMoreInfoForClubhouseRentalRequest,
 } from "@/lib/clubhouse-rental/repository"
@@ -12,7 +13,7 @@ import {
   sendClubhouseRentalMoreInfoNotification,
 } from "@/lib/email/clubhouse-rental-notifications"
 
-type QueueAction = "request_more_info" | "approve" | "reject"
+type QueueAction = "request_more_info" | "approve" | "reject" | "purge"
 
 export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const access = await requireManagementApiAccess(["admin", "board_of_directors", "clubhouse_maintenance"])
@@ -48,6 +49,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   const body = (await req.json().catch(() => ({}))) as {
     action?: QueueAction
     note?: string
+    confirmText?: string
   }
 
   if (!body.action) {
@@ -59,6 +61,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
       | Awaited<ReturnType<typeof requestMoreInfoForClubhouseRentalRequest>>
       | Awaited<ReturnType<typeof approveClubhouseRentalRequest>>
       | Awaited<ReturnType<typeof rejectClubhouseRentalRequest>>
+      | Awaited<ReturnType<typeof purgeClubhouseRentalRequestForAdmin>>
     let notificationResult: unknown = undefined
 
     if (body.action === "request_more_info") {
@@ -102,7 +105,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
           decision: "approve",
         })
       }
-    } else {
+    } else if (body.action === "reject") {
       result = await rejectClubhouseRentalRequest({
         requestId: id,
         actorUserId: access.identity.clerkUserId,
@@ -123,6 +126,15 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
           decision: "reject",
         })
       }
+    } else {
+      const adminAccess = await requireManagementApiAccess(["admin"])
+      if (!adminAccess.ok) return adminAccess.response
+
+      result = await purgeClubhouseRentalRequestForAdmin({
+        requestId: id,
+        actorUserId: adminAccess.identity.clerkUserId,
+        confirmText: body.confirmText || "",
+      })
     }
 
     if (result.kind === "not_found") {
@@ -139,6 +151,10 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
         { error: "Invalid clubhouse rental action.", validationErrors: result.errors },
         { status: 400 },
       )
+    }
+
+    if ("deletedRequestId" in result) {
+      return NextResponse.json({ deletedRequestId: result.deletedRequestId })
     }
 
     return NextResponse.json({ request: result.request, notificationResult })

@@ -67,7 +67,7 @@ export default async function ClubhouseRentalAvailabilityPage({
           <h1 className="hero-title">Clubhouse Availability</h1>
           <p className="hero-subtitle" style={{ maxWidth: "60ch" }}>
             Combined availability view for clubhouse rental requests and Sanity HOA events. Approved rentals and
-            Sanity events at <strong>Clubhouse</strong> or <strong>Clubhouse Ballroom</strong> are treated as blocking.
+            Sanity events at <strong>Clubhouse</strong> or <strong>Clubhouse Ballroom</strong> are treated as booked.
           </p>
         </div>
       </section>
@@ -95,7 +95,7 @@ export default async function ClubhouseRentalAvailabilityPage({
               </div>
               <div className="card" style={{ padding: "var(--space-m)" }}>
                 <p className="text-fluid-xs font-bold" style={{ color: "var(--pp-slate-500)", textTransform: "uppercase", letterSpacing: "0.07em" }}>
-                  Blocking Entries
+                  Booked Entries
                 </p>
                 <p className="text-step-1 font-bold" style={{ color: "var(--pp-navy-dark)" }}>
                   {availability.blockingEntries.length}
@@ -215,7 +215,7 @@ export default async function ClubhouseRentalAvailabilityPage({
                     display: "inline-block",
                   }}
                 />
-                Blocking Rental
+                Booked Rental
               </span>
             </div>
 
@@ -223,8 +223,9 @@ export default async function ClubhouseRentalAvailabilityPage({
               monthDate={monthDate}
               items={calendarItems}
               basePath="/resident-portal/management/clubhouse-rental-availability"
-              description="Approved rentals, tentative rental requests, and blocking clubhouse HOA events in HOA local time."
+              description="Approved rentals, tentative rental requests, and booked clubhouse HOA events in HOA local time."
               embedded
+              compactMobileItems
             />
 
             <div className="stack" style={{ gap: "var(--space-m)" }}>

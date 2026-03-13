@@ -3,6 +3,7 @@ import { getAllPublishedEvents, type SanityEvent } from "@/lib/sanity/queries"
 import { getUpcomingEvents as expandRecurringEvents } from "@/lib/sanity/recurring-events"
 import { getMonthRange } from "@/lib/calendar/month"
 import type { PortalCalendarItem } from "@/lib/calendar/types"
+import { HOA_TIME_ZONE, zonedLocalDateTimeToUtc } from "@/lib/timezone"
 
 export type ClubhouseAvailabilitySource = "rental" | "hoa_event"
 export type ClubhouseAvailabilityScope = "clubhouse" | "ballroom"
@@ -67,9 +68,23 @@ function timeLabelToMinutes(value: string) {
 }
 
 function minutesToDate(base: Date, minutes: number) {
-  const copy = new Date(base)
-  copy.setUTCHours(0, 0, 0, 0)
-  return new Date(copy.getTime() + minutes * 60_000)
+  const year = base.getUTCFullYear()
+  const month = base.getUTCMonth() + 1
+  const day = base.getUTCDate()
+  const hour = Math.floor(minutes / 60)
+  const minute = minutes % 60
+
+  return zonedLocalDateTimeToUtc(
+    {
+      year,
+      month,
+      day,
+      hour,
+      minute,
+      second: 0,
+    },
+    HOA_TIME_ZONE,
+  )
 }
 
 function ensureEndMinutes(startMinutes: number, endMinutes: number) {
@@ -281,6 +296,7 @@ export async function getClubhouseAvailabilityCalendarItems(monthDate: Date): Pr
   return entries.map((entry) => ({
     id: entry.id,
     title: entry.title,
+    referenceNumber: entry.source === "rental" ? entry.title.split(" · ")[0] : null,
     start: entry.startAt.toISOString(),
     end: entry.endAt ? entry.endAt.toISOString() : null,
     allDay: !entry.endAt,

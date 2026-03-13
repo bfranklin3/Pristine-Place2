@@ -39,7 +39,7 @@ function itemSurfaceStyles(item: PortalCalendarItem) {
 }
 
 function itemLabel(item: PortalCalendarItem) {
-  if (item.source === "clubhouse_rental" && item.isBlocking) return "Blocking"
+  if (item.source === "clubhouse_rental" && item.isBlocking) return "Booked"
   if (item.source === "clubhouse_rental") return "Tentative"
   return "Event"
 }
@@ -65,6 +65,7 @@ export function CalendarMonth({
   embedded = false,
   description = "Community events displayed in HOA local time.",
   showSourceLabels = true,
+  compactMobileItems = false,
 }: {
   monthDate: Date
   items: PortalCalendarItem[]
@@ -74,6 +75,7 @@ export function CalendarMonth({
   embedded?: boolean
   description?: string
   showSourceLabels?: boolean
+  compactMobileItems?: boolean
 }) {
   const weeks = buildMonthGrid(monthDate)
   const itemsByDay = groupItemsByHoaDate(items)
@@ -201,7 +203,7 @@ export function CalendarMonth({
                     key={day.key}
                     style={{
                       minHeight: "10rem",
-                      padding: "0.7rem",
+                      padding: compactMobileItems ? 0 : "0.4rem",
                       borderRight: "1px solid var(--pp-slate-200)",
                       borderBottom: "1px solid var(--pp-slate-200)",
                       background: day.inCurrentMonth ? "var(--pp-white)" : "var(--pp-slate-50)",
@@ -210,7 +212,15 @@ export function CalendarMonth({
                       gap: "0.55rem",
                     }}
                   >
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.5rem" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        gap: "0.5rem",
+                        padding: compactMobileItems ? "0.35rem 0.35rem 0" : 0,
+                      }}
+                    >
                       <span
                         style={{
                           width: "2rem",
@@ -237,7 +247,12 @@ export function CalendarMonth({
                       ) : null}
                     </div>
 
-                    <div style={{ display: "grid", gap: "0.45rem" }}>
+                    <div
+                      style={{
+                        display: "grid",
+                        gap: compactMobileItems ? 0 : "0.45rem",
+                      }}
+                    >
                       {visibleItems.map((item) => {
                         const surface = itemSurfaceStyles(item)
                         const content = (
@@ -245,54 +260,136 @@ export function CalendarMonth({
                             style={{
                               display: "grid",
                               gap: "0.25rem",
-                              padding: "0.55rem 0.6rem",
-                              borderRadius: "var(--radius-md)",
+                              padding: compactMobileItems ? "0.35rem" : "0.55rem 0.6rem",
+                              borderRadius: compactMobileItems ? 0 : "var(--radius-md)",
                               background: surface.background,
                               border: `1px solid ${surface.borderColor}`,
+                              borderLeftWidth: compactMobileItems ? 0 : "1px",
+                              borderRightWidth: compactMobileItems ? 0 : "1px",
+                              width: "100%",
+                              boxSizing: "border-box",
                             }}
                           >
-                            <div style={{ display: "flex", alignItems: "center", gap: "0.35rem", flexWrap: "wrap" }}>
-                              <span
-                                style={{
-                                  display: "inline-flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                  minHeight: "1.25rem",
-                                  padding: "0.05rem 0.45rem",
-                                  borderRadius: "999px",
-                                  background: "rgba(255,255,255,0.75)",
-                                  color: surface.accent,
-                                  fontSize: "0.7rem",
-                                  fontWeight: 800,
-                                  letterSpacing: "0.04em",
-                                  textTransform: "uppercase",
-                                }}
-                              >
-                                {showSourceLabels ? itemLabel(item) : null}
-                              </span>
-                              <Clock3 style={{ width: "0.8rem", height: "0.8rem", color: "var(--pp-slate-500)" }} />
-                              <span style={{ fontSize: "0.78rem", fontWeight: 700, color: surface.meta }}>
-                                {formatTimeLabel(item)}
-                              </span>
-                              {item.isRecurring ? (
-                                <Repeat style={{ width: "0.8rem", height: "0.8rem", color: "var(--pp-gold-dark)" }} />
-                              ) : null}
-                            </div>
-                            <div style={{ color: surface.accent, fontWeight: 700, lineHeight: 1.35 }}>{item.title}</div>
-                            {item.location ? (
-                              <div
-                                style={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: "0.3rem",
-                                  color: surface.meta,
-                                  fontSize: "0.78rem",
-                                }}
-                              >
-                                <MapPin style={{ width: "0.78rem", height: "0.78rem" }} />
-                                <span>{item.location}</span>
-                              </div>
-                            ) : null}
+                            {compactMobileItems ? (
+                              <>
+                                <div className="grid gap-1 md:hidden">
+                                  <span
+                                    style={{
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                      minHeight: "1.25rem",
+                                      padding: "0.05rem 0.35rem",
+                                      borderRadius: "999px",
+                                      background: "rgba(255,255,255,0.75)",
+                                      color: surface.accent,
+                                      fontSize: "0.64rem",
+                                      fontWeight: 800,
+                                      letterSpacing: "0.04em",
+                                      textTransform: "uppercase",
+                                      width: "100%",
+                                    }}
+                                  >
+                                    {showSourceLabels ? itemLabel(item) : null}
+                                  </span>
+                                  {item.referenceNumber ? (
+                                    <div style={{ color: surface.accent, fontWeight: 700, lineHeight: 1.2, fontSize: "0.8rem" }}>
+                                      {item.referenceNumber}
+                                    </div>
+                                  ) : null}
+                                </div>
+
+                                <div className="hidden md:grid" style={{ gap: "0.25rem" }}>
+                                  <div style={{ display: "flex", alignItems: "center", gap: "0.35rem", flexWrap: "wrap" }}>
+                                    <span
+                                      style={{
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        minHeight: "1.25rem",
+                                        padding: "0.05rem 0.45rem",
+                                        borderRadius: "999px",
+                                        background: "rgba(255,255,255,0.75)",
+                                        color: surface.accent,
+                                        fontSize: "0.7rem",
+                                        fontWeight: 800,
+                                        letterSpacing: "0.04em",
+                                        textTransform: "uppercase",
+                                      }}
+                                    >
+                                      {showSourceLabels ? itemLabel(item) : null}
+                                    </span>
+                                    <Clock3 style={{ width: "0.8rem", height: "0.8rem", color: "var(--pp-slate-500)" }} />
+                                    <span style={{ fontSize: "0.78rem", fontWeight: 700, color: surface.meta }}>
+                                      {formatTimeLabel(item)}
+                                    </span>
+                                    {item.isRecurring ? (
+                                      <Repeat style={{ width: "0.8rem", height: "0.8rem", color: "var(--pp-gold-dark)" }} />
+                                    ) : null}
+                                  </div>
+                                  <div style={{ color: surface.accent, fontWeight: 700, lineHeight: 1.35 }}>{item.title}</div>
+                                  {item.location ? (
+                                    <div
+                                      style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: "0.3rem",
+                                        color: surface.meta,
+                                        fontSize: "0.78rem",
+                                      }}
+                                    >
+                                      <MapPin style={{ width: "0.78rem", height: "0.78rem" }} />
+                                      <span>{item.location}</span>
+                                    </div>
+                                  ) : null}
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                <div style={{ display: "flex", alignItems: "center", gap: "0.35rem", flexWrap: "wrap" }}>
+                                  <span
+                                    style={{
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                      minHeight: "1.25rem",
+                                      padding: "0.05rem 0.45rem",
+                                      borderRadius: "999px",
+                                      background: "rgba(255,255,255,0.75)",
+                                      color: surface.accent,
+                                      fontSize: "0.7rem",
+                                      fontWeight: 800,
+                                      letterSpacing: "0.04em",
+                                      textTransform: "uppercase",
+                                    }}
+                                  >
+                                    {showSourceLabels ? itemLabel(item) : null}
+                                  </span>
+                                  <Clock3 style={{ width: "0.8rem", height: "0.8rem", color: "var(--pp-slate-500)" }} />
+                                  <span style={{ fontSize: "0.78rem", fontWeight: 700, color: surface.meta }}>
+                                    {formatTimeLabel(item)}
+                                  </span>
+                                  {item.isRecurring ? (
+                                    <Repeat style={{ width: "0.8rem", height: "0.8rem", color: "var(--pp-gold-dark)" }} />
+                                  ) : null}
+                                </div>
+                                <div style={{ color: surface.accent, fontWeight: 700, lineHeight: 1.35 }}>{item.title}</div>
+                                {item.location ? (
+                                  <div
+                                    style={{
+                                      display: "flex",
+                                      alignItems: "center",
+                                      gap: "0.3rem",
+                                      color: surface.meta,
+                                      fontSize: "0.78rem",
+                                    }}
+                                  >
+                                    <MapPin style={{ width: "0.78rem", height: "0.78rem" }} />
+                                    <span>{item.location}</span>
+                                  </div>
+                                ) : null}
+                              </>
+                            )}
                           </div>
                         )
 
@@ -301,7 +398,7 @@ export function CalendarMonth({
                         }
 
                         return (
-                          <Link key={item.id} href={item.href} style={{ textDecoration: "none" }}>
+                          <Link key={item.id} href={item.href} style={{ textDecoration: "none", display: "block", width: "100%" }}>
                             {content}
                           </Link>
                         )
