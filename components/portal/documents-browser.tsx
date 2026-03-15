@@ -91,6 +91,7 @@ const DOC_TYPE_STYLE: Record<DocType, React.CSSProperties> = {
 
 const sectionBg = ["var(--pp-white)", "var(--pp-slate-50)"]
 const YEAR_GROUP_SECTION_IDS = new Set(["financials"])
+const DEFAULT_OPEN_SECTION_IDS = new Set(["meeting-records"])
 
 function getDocYear(doc: DisplayDoc): string {
   const titleYears = Array.from(doc.title.matchAll(/\b(20\d{2})\b/g)).map((m) => m[1])
@@ -327,7 +328,7 @@ function BoardMeetingRecordsPanel({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-l)" }}>
-      <div className="stack-s">
+      <div id="upcoming-board-meeting-agenda" className="stack-s" style={{ scrollMarginTop: "7.5rem" }}>
         <div className="stack-xs">
           <h3 className="text-step-1 font-bold" style={{ color: "var(--pp-navy-dark)" }}>
             Upcoming Board Meeting Agenda
@@ -444,7 +445,7 @@ export default function DocumentsBrowser({
     [hasActiveFilters, sections]
   )
 
-  const [openSectionIds, setOpenSectionIds] = useState<Set<string>>(new Set())
+  const [openSectionIds, setOpenSectionIds] = useState<Set<string>>(new Set(DEFAULT_OPEN_SECTION_IDS))
   const [openYearIds, setOpenYearIds] = useState<Set<string>>(new Set())
 
   useEffect(() => {
@@ -456,7 +457,7 @@ export default function DocumentsBrowser({
     } else if (hasActiveFilters) {
       setOpenSectionIds(new Set(visibleSections.map((section) => section.id)))
     } else {
-      setOpenSectionIds(new Set())
+      setOpenSectionIds(new Set(DEFAULT_OPEN_SECTION_IDS))
     }
 
     if (yrFromUrl.size > 0) {

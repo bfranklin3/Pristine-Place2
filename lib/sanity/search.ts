@@ -184,18 +184,21 @@ export async function searchDocuments(
 ): Promise<SearchResult[]> {
   if (!query || query.trim().length < 2) return []
 
+  const queryLimit = Math.min(Math.max(limit * 8, 20), 80)
+
   const searchQuery = `*[_type == "hoaDocument" && published == true && showInSearch == true && (
     title match $query ||
     description match $query ||
     pt::text(content) match $query ||
     $query in tags[]
-  )] | order(title asc) [0...${limit}] {
+  )] [0...${queryLimit}] {
     _id,
     title,
     description,
     "contentText": pt::text(content),
     category,
     categoryParent,
+    meetingDate,
     slug,
     visibility,
     effectiveDate
@@ -206,7 +209,41 @@ export async function searchDocuments(
       query: `${query}*`,
     })
 
-    return results.map((result: any) => {
+    const normalizedQuery = query.trim().toLowerCase()
+    const scored = results
+      .map((result: any) => {
+        const title = String(result.title || "")
+        const description = String(result.description || "")
+        const contentText = String(result.contentText || "")
+
+        let score = 0
+        const titleLower = title.toLowerCase()
+        const descriptionLower = description.toLowerCase()
+        const contentLower = contentText.toLowerCase()
+
+        if (titleLower.includes(normalizedQuery)) score += 120
+        if (descriptionLower.includes(normalizedQuery)) score += 70
+        if (contentLower.includes(normalizedQuery)) score += 40
+
+        if (titleLower.startsWith(normalizedQuery)) score += 25
+
+        const sortDate = result.meetingDate || result.effectiveDate || null
+        const sortTime = sortDate ? new Date(sortDate).getTime() : 0
+
+        return {
+          result,
+          score,
+          sortTime: Number.isFinite(sortTime) ? sortTime : 0,
+        }
+      })
+      .sort((a: any, b: any) => {
+        if (b.score !== a.score) return b.score - a.score
+        if (b.sortTime !== a.sortTime) return b.sortTime - a.sortTime
+        return String(a.result.title || "").localeCompare(String(b.result.title || ""))
+      })
+      .slice(0, limit)
+
+    return scored.map(({ result }: any) => {
       const href = result.slug?.current
         ? `/resident-portal/documents/${result.slug.current}`
         : "/resident-portal/documents"

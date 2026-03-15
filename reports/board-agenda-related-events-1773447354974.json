@@ -1,0 +1,279 @@
+{
+  "at": "2026-03-14T00:15:54.973Z",
+  "dryRun": true,
+  "force": false,
+  "summary": {
+    "selected": 43,
+    "matched": 1,
+    "patched": 1,
+    "unmatched": 42,
+    "ambiguous": 0
+  },
+  "matches": [
+    {
+      "docId": "wp-document-35716",
+      "title": "Board Meeting Agenda – February 17, 2026 at 7:00 PM",
+      "meetingDate": "2026-02-17",
+      "meetingKind": "board",
+      "matchedEventId": "25f2fc96-b114-43f2-bece-86332419834c",
+      "matchedEventTitle": "Monthly Board of Directors Meeting",
+      "matchedEventCategory": "bod-meeting",
+      "fallbackCategoryMatch": false
+    }
+  ],
+  "unmatched": [
+    {
+      "docId": "wp-document-34609",
+      "title": "Board Meeting Agenda – January 18, 2022 at 7:00 PM",
+      "meetingDate": "2022-01-18",
+      "meetingKind": "board"
+    },
+    {
+      "docId": "wp-document-34608",
+      "title": "Board Meeting Agenda – February 15, 2022 at 7:00 PM",
+      "meetingDate": "2022-02-15",
+      "meetingKind": "board"
+    },
+    {
+      "docId": "wp-document-34607",
+      "title": "Board Meeting Agenda – February 26, 2022 at 1:00 PM",
+      "meetingDate": "2022-02-26",
+      "meetingKind": "board"
+    },
+    {
+      "docId": "wp-document-34606",
+      "title": "Board Meeting Agenda – March 15, 2022 at 7:00 PM",
+      "meetingDate": "2022-03-15",
+      "meetingKind": "board"
+    },
+    {
+      "docId": "wp-document-34604",
+      "title": "Board Meeting Agenda – June 21, 2022 at 7:00 PM",
+      "meetingDate": "2022-06-21",
+      "meetingKind": "board"
+    },
+    {
+      "docId": "wp-document-34605",
+      "title": "Board Meeting Agenda – July 19, 2022 at 7:00 PM",
+      "meetingDate": "2022-07-19",
+      "meetingKind": "board"
+    },
+    {
+      "docId": "wp-document-34603",
+      "title": "Emergency Meeting Agenda – August 4, 2022 at 1:00 PM",
+      "meetingDate": "2022-08-04",
+      "meetingKind": "emergency"
+    },
+    {
+      "docId": "wp-document-34602",
+      "title": "Board Meeting Agenda – August 16, 2022 at 7:00 PM",
+      "meetingDate": "2022-08-16",
+      "meetingKind": "board"
+    },
+    {
+      "docId": "wp-document-34601",
+      "title": "Board Meeting Agenda – September 20, 2022 at 7:00 PM",
+      "meetingDate": "2022-09-20",
+      "meetingKind": "board"
+    },
+    {
+      "docId": "wp-document-34600",
+      "title": "Board Meeting Agenda – November 15, 2022 at 7:00 PM",
+      "meetingDate": "2022-11-15",
+      "meetingKind": "board"
+    },
+    {
+      "docId": "wp-document-34599",
+      "title": "Annual Meeting Agenda – November 30, 2022 at 7:00 PM",
+      "meetingDate": "2022-11-30",
+      "meetingKind": "annual"
+    },
+    {
+      "docId": "wp-document-34598",
+      "title": "Board Meeting Agenda – December 13, 2022 at 7:00 PM",
+      "meetingDate": "2022-12-13",
+      "meetingKind": "board"
+    },
+    {
+      "docId": "wp-document-34597",
+      "title": "Board Meeting Agenda – January 11, 2023 at 7:00 PM",
+      "meetingDate": "2023-01-11",
+      "meetingKind": "board"
+    },
+    {
+      "docId": "wp-document-34596",
+      "title": "Board Meeting Agenda – February 21, 2023 at 7:00 PM",
+      "meetingDate": "2023-02-21",
+      "meetingKind": "board"
+    },
+    {
+      "docId": "wp-document-34595",
+      "title": "Board Meeting Agenda – March 21, 2023 at 7:00 PM",
+      "meetingDate": "2023-03-21",
+      "meetingKind": "board"
+    },
+    {
+      "docId": "wp-document-34594",
+      "title": "Board Meeting Agenda – April 19, 2023 at 7:00 PM",
+      "meetingDate": "2023-04-19",
+      "meetingKind": "board"
+    },
+    {
+      "docId": "wp-document-34593",
+      "title": "Board Meeting Agenda – May 16, 2023 at 7:00 PM",
+      "meetingDate": "2023-05-16",
+      "meetingKind": "board"
+    },
+    {
+      "docId": "wp-document-34592",
+      "title": "Board Meeting Agenda – June 20, 2023 at 7:00 PM",
+      "meetingDate": "2023-06-20",
+      "meetingKind": "board"
+    },
+    {
+      "docId": "wp-document-34591",
+      "title": "Board Meeting Agenda – July 11, 2023 at 7:00 PM",
+      "meetingDate": "2023-07-11",
+      "meetingKind": "board"
+    },
+    {
+      "docId": "wp-document-34590",
+      "title": "Board Meeting Agenda – August 15, 2023 at 7:00 PM",
+      "meetingDate": "2023-08-15",
+      "meetingKind": "board"
+    },
+    {
+      "docId": "wp-document-34589",
+      "title": "Board Meeting Agenda – September 19, 2023 at 7:00 PM",
+      "meetingDate": "2023-09-19",
+      "meetingKind": "board"
+    },
+    {
+      "docId": "wp-document-34588",
+      "title": "Board Meeting Agenda – October 17, 2023 at 7:00 PM",
+      "meetingDate": "2023-10-17",
+      "meetingKind": "board"
+    },
+    {
+      "docId": "wp-document-34587",
+      "title": "Annual Meeting Agenda – November 16, 2023 at 7:00 PM",
+      "meetingDate": "2023-11-16",
+      "meetingKind": "annual"
+    },
+    {
+      "docId": "wp-document-34586",
+      "title": "Organizational Meeting Agenda – December 18, 2023 at 6:30 PM",
+      "meetingDate": "2023-12-18",
+      "meetingKind": "organizational"
+    },
+    {
+      "docId": "wp-document-34585",
+      "title": "Board Meeting Agenda – January 16, 2024 at 7:00 PM",
+      "meetingDate": "2024-01-16",
+      "meetingKind": "board"
+    },
+    {
+      "docId": "wp-document-34584",
+      "title": "Board Meeting Agenda – February 20, 2024 at 7:00 PM",
+      "meetingDate": "2024-02-20",
+      "meetingKind": "board"
+    },
+    {
+      "docId": "wp-document-34583",
+      "title": "Special Meeting Agenda – March 26, 2024 at 7:00 PM",
+      "meetingDate": "2024-03-26",
+      "meetingKind": "special"
+    },
+    {
+      "docId": "wp-document-34581",
+      "title": "Board Meeting Agenda – April 16, 2024 at 7:00 PM",
+      "meetingDate": "2024-04-16",
+      "meetingKind": "board"
+    },
+    {
+      "docId": "wp-document-34582",
+      "title": "Board Meeting Agenda – May 21, 2024 at 7:00 PM",
+      "meetingDate": "2024-05-21",
+      "meetingKind": "board"
+    },
+    {
+      "docId": "wp-document-34580",
+      "title": "Board Meeting Agenda – June 18, 2024 at 7:00 PM",
+      "meetingDate": "2024-06-18",
+      "meetingKind": "board"
+    },
+    {
+      "docId": "wp-document-34579",
+      "title": "Board Meeting Agenda – July 16, 2024 at 7:00 PM",
+      "meetingDate": "2024-07-16",
+      "meetingKind": "board"
+    },
+    {
+      "docId": "wp-document-34578",
+      "title": "Board Meeting Agenda – August 27, 2024 at 7:00 PM",
+      "meetingDate": "2024-08-27",
+      "meetingKind": "board"
+    },
+    {
+      "docId": "wp-document-34577",
+      "title": "Board Meeting Agenda – September 17, 2024 at 7:00 PM",
+      "meetingDate": "2024-09-17",
+      "meetingKind": "board"
+    },
+    {
+      "docId": "wp-document-34576",
+      "title": "Board Meeting Agenda – October 15, 2024 at 7:00 PM",
+      "meetingDate": "2024-10-15",
+      "meetingKind": "board"
+    },
+    {
+      "docId": "wp-document-34575",
+      "title": "Board Meeting Agenda – January 21, 2025 at 7:00 PM",
+      "meetingDate": "2025-01-21",
+      "meetingKind": "board"
+    },
+    {
+      "docId": "wp-document-34574",
+      "title": "Board Meeting Agenda – February 18, 2025 at 7:00 PM",
+      "meetingDate": "2025-02-18",
+      "meetingKind": "board"
+    },
+    {
+      "docId": "wp-document-34573",
+      "title": "Board Meeting Agenda – June 17, 2025 at 7:00 PM",
+      "meetingDate": "2025-06-17",
+      "meetingKind": "board"
+    },
+    {
+      "docId": "wp-document-34572",
+      "title": "Board Meeting Agenda – July 15, 2025 at 7:00 PM",
+      "meetingDate": "2025-07-15",
+      "meetingKind": "board"
+    },
+    {
+      "docId": "wp-document-34571",
+      "title": "Board Meeting Agenda – August 19, 2025 at 7:00 PM",
+      "meetingDate": "2025-08-19",
+      "meetingKind": "board"
+    },
+    {
+      "docId": "wp-document-34878",
+      "title": "Board Meeting Agenda – September 16, 2025 at 7:00 PM",
+      "meetingDate": "2025-09-16",
+      "meetingKind": "board"
+    },
+    {
+      "docId": "wp-document-35206",
+      "title": "Board Meeting Agenda – October 21, 2025 at 7:00 PM",
+      "meetingDate": "2025-10-21",
+      "meetingKind": "board"
+    },
+    {
+      "docId": "wp-document-35599",
+      "title": "Board Meeting Agenda – January 20, 2026 at 7:00 PM",
+      "meetingDate": "2026-01-20",
+      "meetingKind": "board"
+    }
+  ],
+  "ambiguous": []
+}

@@ -1,0 +1,216 @@
+{
+  "at": "2026-03-14T00:43:36.301Z",
+  "dryRun": true,
+  "force": false,
+  "summary": {
+    "selected": 33,
+    "extracted": 33,
+    "patched": 33,
+    "skippedMissingUrl": 0,
+    "skippedTooShort": 0,
+    "failed": 0
+  },
+  "extracted": [
+    {
+      "docId": "wp-document-34617",
+      "title": "April 15, 2025 BOD Meeting Minutes",
+      "paragraphCount": 7,
+      "normalizedChars": 5963
+    },
+    {
+      "docId": "wp-document-34630",
+      "title": "April 16, 2024 BOD Meeting Minutes",
+      "paragraphCount": 7,
+      "normalizedChars": 7254
+    },
+    {
+      "docId": "wp-document-34640",
+      "title": "April 19, 2023 BOD Meeting Minutes",
+      "paragraphCount": 9,
+      "normalizedChars": 8311
+    },
+    {
+      "docId": "wp-document-34636",
+      "title": "August 15, 2023 BOD Meeting Minutes",
+      "paragraphCount": 8,
+      "normalizedChars": 7602
+    },
+    {
+      "docId": "wp-document-34894",
+      "title": "August 18, 2025 BOD Minutes",
+      "paragraphCount": 13,
+      "normalizedChars": 12055
+    },
+    {
+      "docId": "wp-document-34625",
+      "title": "August 27, 2024 BOD Meeting Minutes",
+      "paragraphCount": 14,
+      "normalizedChars": 11839
+    },
+    {
+      "docId": "wp-document-34621",
+      "title": "December 5, 2024 BOD Meeting Minutes",
+      "paragraphCount": 5,
+      "normalizedChars": 4179
+    },
+    {
+      "docId": "wp-document-34631",
+      "title": "February 17, 2024 BOD Meeting Minutes",
+      "paragraphCount": 7,
+      "normalizedChars": 6535
+    },
+    {
+      "docId": "wp-document-34619",
+      "title": "February 18, 2025 BOD Meeting Minutes",
+      "paragraphCount": 9,
+      "normalizedChars": 9637
+    },
+    {
+      "docId": "wp-document-34642",
+      "title": "February 22, 2023 BOD Meeting Minutes",
+      "paragraphCount": 8,
+      "normalizedChars": 7672
+    },
+    {
+      "docId": "wp-document-34643",
+      "title": "January 10, 2023 BOD Meeting Minutes",
+      "paragraphCount": 7,
+      "normalizedChars": 6284
+    },
+    {
+      "docId": "wp-document-34632",
+      "title": "January 16, 2024 BOD Meeting Minutes",
+      "paragraphCount": 9,
+      "normalizedChars": 8306
+    },
+    {
+      "docId": "wp-document-34620",
+      "title": "January 21, 2025 BOD Meeting Minutes",
+      "paragraphCount": 8,
+      "normalizedChars": 8472
+    },
+    {
+      "docId": "wp-document-34637",
+      "title": "July 11, 2023 BOD Meeting Minutes",
+      "paragraphCount": 6,
+      "normalizedChars": 5786
+    },
+    {
+      "docId": "wp-document-34614",
+      "title": "July 15, 2025 BOD Minutes",
+      "paragraphCount": 14,
+      "normalizedChars": 12904
+    },
+    {
+      "docId": "wp-document-34626",
+      "title": "July 16, 2024 BOD Meeting Minutes",
+      "paragraphCount": 8,
+      "normalizedChars": 7768
+    },
+    {
+      "docId": "wp-document-34615",
+      "title": "June 17, 2025 BOD Minutes",
+      "paragraphCount": 11,
+      "normalizedChars": 8603
+    },
+    {
+      "docId": "wp-document-34627",
+      "title": "June 18, 2024 BOD Meeting Minutes",
+      "paragraphCount": 16,
+      "normalizedChars": 13841
+    },
+    {
+      "docId": "wp-document-34638",
+      "title": "June 20, 2023 BOD Meeting Minutes",
+      "paragraphCount": 7,
+      "normalizedChars": 5938
+    },
+    {
+      "docId": "wp-document-34618",
+      "title": "March 18, 2025 BOD Meeting Minutes",
+      "paragraphCount": 5,
+      "normalizedChars": 4753
+    },
+    {
+      "docId": "wp-document-34641",
+      "title": "March 21, 2023 BOD Meeting Minutes",
+      "paragraphCount": 8,
+      "normalizedChars": 7620
+    },
+    {
+      "docId": "wp-document-34628",
+      "title": "March 6, 2024 BOD Meeting Minutes",
+      "paragraphCount": 2,
+      "normalizedChars": 2347
+    },
+    {
+      "docId": "wp-document-34639",
+      "title": "May 16, 2023 BOD Meeting Minutes",
+      "paragraphCount": 4,
+      "normalizedChars": 4631
+    },
+    {
+      "docId": "wp-document-34616",
+      "title": "May 20, 2025 BOD Meeting Minutes",
+      "paragraphCount": 13,
+      "normalizedChars": 12004
+    },
+    {
+      "docId": "wp-document-34629",
+      "title": "May 21, 2024 BOD Meeting Minutes",
+      "paragraphCount": 6,
+      "normalizedChars": 6601
+    },
+    {
+      "docId": "wp-document-34622",
+      "title": "November 14, 2024 BOD Meeting Minutes",
+      "paragraphCount": 7,
+      "normalizedChars": 6931
+    },
+    {
+      "docId": "wp-document-34633",
+      "title": "November 16, 2023 BOD Meeting Minutes",
+      "paragraphCount": 5,
+      "normalizedChars": 4343
+    },
+    {
+      "docId": "wp-document-34623",
+      "title": "October 15, 2024 BOD Meeting Minutes",
+      "paragraphCount": 8,
+      "normalizedChars": 6226
+    },
+    {
+      "docId": "wp-document-34634",
+      "title": "October 17, 2023 BOD Meeting Minutes",
+      "paragraphCount": 7,
+      "normalizedChars": 6304
+    },
+    {
+      "docId": "wp-document-35212",
+      "title": "October 21, 2025 BOD Minutes",
+      "paragraphCount": 11,
+      "normalizedChars": 9530
+    },
+    {
+      "docId": "wp-document-35213",
+      "title": "September 16, 2025 BOD Minutes",
+      "paragraphCount": 10,
+      "normalizedChars": 8562
+    },
+    {
+      "docId": "wp-document-34624",
+      "title": "September 17, 2024 BOD Meeting Minutes",
+      "paragraphCount": 6,
+      "normalizedChars": 5487
+    },
+    {
+      "docId": "wp-document-34635",
+      "title": "September 19, 2023 BOD Meeting Minutes",
+      "paragraphCount": 10,
+      "normalizedChars": 10749
+    }
+  ],
+  "skippedMissingUrl": [],
+  "skippedTooShort": [],
+  "failures": []
+}

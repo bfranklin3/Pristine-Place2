@@ -1,0 +1,26 @@
+{
+  "at": "2026-03-14T23:21:54.026Z",
+  "dryRun": true,
+  "force": false,
+  "summary": {
+    "selected": 1,
+    "matched": 1,
+    "patched": 1,
+    "unmatched": 0,
+    "ambiguous": 0
+  },
+  "matches": [
+    {
+      "docId": "manual-board-agenda-2026-03-17",
+      "title": "Board Meeting Agenda – March 17, 2026 at 7:00 PM",
+      "meetingDate": "2026-03-17",
+      "meetingKind": "board",
+      "matchedEventId": "25f2fc96-b114-43f2-bece-86332419834c",
+      "matchedEventTitle": "Monthly Board of Directors Meeting",
+      "matchedEventCategory": "bod-meeting",
+      "fallbackCategoryMatch": false
+    }
+  ],
+  "unmatched": [],
+  "ambiguous": []
+}

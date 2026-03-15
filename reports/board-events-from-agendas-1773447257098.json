@@ -1,0 +1,447 @@
+{
+  "at": "2026-03-14T00:14:17.098Z",
+  "dryRun": true,
+  "force": false,
+  "summary": {
+    "selected": 43,
+    "matchedExisting": 1,
+    "wouldCreate": 42,
+    "created": 42,
+    "ambiguousExisting": 0,
+    "failed": 0
+  },
+  "matchedExisting": [
+    {
+      "docId": "wp-document-35716",
+      "title": "Board Meeting Agenda – February 17, 2026 at 7:00 PM",
+      "meetingDate": "2026-02-17",
+      "existingEventId": "25f2fc96-b114-43f2-bece-86332419834c",
+      "existingEventTitle": "Monthly Board of Directors Meeting",
+      "existingEventCategory": "bod-meeting"
+    }
+  ],
+  "created": [
+    {
+      "docId": "wp-document-34609",
+      "title": "Board Meeting Agenda – January 18, 2022 at 7:00 PM",
+      "meetingDate": "2022-01-18",
+      "createdEventId": "historic-board-event-wp-document-34609",
+      "createdEventTitle": "Monthly Board of Directors Meeting",
+      "createdEventCategory": "bod-meeting",
+      "eventDate": "2022-01-19T00:00:00.000Z",
+      "location": "Clubhouse / Zoom"
+    },
+    {
+      "docId": "wp-document-34608",
+      "title": "Board Meeting Agenda – February 15, 2022 at 7:00 PM",
+      "meetingDate": "2022-02-15",
+      "createdEventId": "historic-board-event-wp-document-34608",
+      "createdEventTitle": "Monthly Board of Directors Meeting",
+      "createdEventCategory": "bod-meeting",
+      "eventDate": "2022-02-16T00:00:00.000Z",
+      "location": "Clubhouse / Zoom"
+    },
+    {
+      "docId": "wp-document-34607",
+      "title": "Board Meeting Agenda – February 26, 2022 at 1:00 PM",
+      "meetingDate": "2022-02-26",
+      "createdEventId": "historic-board-event-wp-document-34607",
+      "createdEventTitle": "Monthly Board of Directors Meeting",
+      "createdEventCategory": "bod-meeting",
+      "eventDate": "2022-02-26T18:00:00.000Z",
+      "location": "Clubhouse"
+    },
+    {
+      "docId": "wp-document-34606",
+      "title": "Board Meeting Agenda – March 15, 2022 at 7:00 PM",
+      "meetingDate": "2022-03-15",
+      "createdEventId": "historic-board-event-wp-document-34606",
+      "createdEventTitle": "Monthly Board of Directors Meeting",
+      "createdEventCategory": "bod-meeting",
+      "eventDate": "2022-03-15T23:00:00.000Z",
+      "location": "Clubhouse / Zoom"
+    },
+    {
+      "docId": "wp-document-34604",
+      "title": "Board Meeting Agenda – June 21, 2022 at 7:00 PM",
+      "meetingDate": "2022-06-21",
+      "createdEventId": "historic-board-event-wp-document-34604",
+      "createdEventTitle": "Monthly Board of Directors Meeting",
+      "createdEventCategory": "bod-meeting",
+      "eventDate": "2022-06-21T23:00:00.000Z",
+      "location": "Clubhouse / Zoom"
+    },
+    {
+      "docId": "wp-document-34605",
+      "title": "Board Meeting Agenda – July 19, 2022 at 7:00 PM",
+      "meetingDate": "2022-07-19",
+      "createdEventId": "historic-board-event-wp-document-34605",
+      "createdEventTitle": "Monthly Board of Directors Meeting",
+      "createdEventCategory": "bod-meeting",
+      "eventDate": "2022-07-19T23:00:00.000Z",
+      "location": "Clubhouse / Zoom"
+    },
+    {
+      "docId": "wp-document-34603",
+      "title": "Emergency Meeting Agenda – August 4, 2022 at 1:00 PM",
+      "meetingDate": "2022-08-04",
+      "createdEventId": "historic-board-event-wp-document-34603",
+      "createdEventTitle": "Emergency Board Meeting",
+      "createdEventCategory": "special-meeting",
+      "eventDate": "2022-08-04T17:00:00.000Z",
+      "location": "Clubhouse"
+    },
+    {
+      "docId": "wp-document-34602",
+      "title": "Board Meeting Agenda – August 16, 2022 at 7:00 PM",
+      "meetingDate": "2022-08-16",
+      "createdEventId": "historic-board-event-wp-document-34602",
+      "createdEventTitle": "Monthly Board of Directors Meeting",
+      "createdEventCategory": "bod-meeting",
+      "eventDate": "2022-08-16T23:00:00.000Z",
+      "location": "Clubhouse / Zoom"
+    },
+    {
+      "docId": "wp-document-34601",
+      "title": "Board Meeting Agenda – September 20, 2022 at 7:00 PM",
+      "meetingDate": "2022-09-20",
+      "createdEventId": "historic-board-event-wp-document-34601",
+      "createdEventTitle": "Monthly Board of Directors Meeting",
+      "createdEventCategory": "bod-meeting",
+      "eventDate": "2022-09-20T23:00:00.000Z",
+      "location": "Clubhouse / Zoom"
+    },
+    {
+      "docId": "wp-document-34600",
+      "title": "Board Meeting Agenda – November 15, 2022 at 7:00 PM",
+      "meetingDate": "2022-11-15",
+      "createdEventId": "historic-board-event-wp-document-34600",
+      "createdEventTitle": "Monthly Board of Directors Meeting",
+      "createdEventCategory": "bod-meeting",
+      "eventDate": "2022-11-16T00:00:00.000Z",
+      "location": "Clubhouse / Zoom"
+    },
+    {
+      "docId": "wp-document-34599",
+      "title": "Annual Meeting Agenda – November 30, 2022 at 7:00 PM",
+      "meetingDate": "2022-11-30",
+      "createdEventId": "historic-board-event-wp-document-34599",
+      "createdEventTitle": "Annual HOA Meeting",
+      "createdEventCategory": "annual-meeting",
+      "eventDate": "2022-12-01T00:00:00.000Z",
+      "location": "Clubhouse"
+    },
+    {
+      "docId": "wp-document-34598",
+      "title": "Board Meeting Agenda – December 13, 2022 at 7:00 PM",
+      "meetingDate": "2022-12-13",
+      "createdEventId": "historic-board-event-wp-document-34598",
+      "createdEventTitle": "Monthly Board of Directors Meeting",
+      "createdEventCategory": "bod-meeting",
+      "eventDate": "2022-12-14T00:00:00.000Z",
+      "location": "Clubhouse / Zoom"
+    },
+    {
+      "docId": "wp-document-34597",
+      "title": "Board Meeting Agenda – January 11, 2023 at 7:00 PM",
+      "meetingDate": "2023-01-11",
+      "createdEventId": "historic-board-event-wp-document-34597",
+      "createdEventTitle": "Monthly Board of Directors Meeting",
+      "createdEventCategory": "bod-meeting",
+      "eventDate": "2023-01-12T00:00:00.000Z",
+      "location": "Clubhouse"
+    },
+    {
+      "docId": "wp-document-34596",
+      "title": "Board Meeting Agenda – February 21, 2023 at 7:00 PM",
+      "meetingDate": "2023-02-21",
+      "createdEventId": "historic-board-event-wp-document-34596",
+      "createdEventTitle": "Monthly Board of Directors Meeting",
+      "createdEventCategory": "bod-meeting",
+      "eventDate": "2023-02-22T00:00:00.000Z",
+      "location": "Clubhouse / Zoom"
+    },
+    {
+      "docId": "wp-document-34595",
+      "title": "Board Meeting Agenda – March 21, 2023 at 7:00 PM",
+      "meetingDate": "2023-03-21",
+      "createdEventId": "historic-board-event-wp-document-34595",
+      "createdEventTitle": "Monthly Board of Directors Meeting",
+      "createdEventCategory": "bod-meeting",
+      "eventDate": "2023-03-21T23:00:00.000Z",
+      "location": "Clubhouse / Zoom"
+    },
+    {
+      "docId": "wp-document-34594",
+      "title": "Board Meeting Agenda – April 19, 2023 at 7:00 PM",
+      "meetingDate": "2023-04-19",
+      "createdEventId": "historic-board-event-wp-document-34594",
+      "createdEventTitle": "Monthly Board of Directors Meeting",
+      "createdEventCategory": "bod-meeting",
+      "eventDate": "2023-04-19T23:00:00.000Z",
+      "location": "Clubhouse"
+    },
+    {
+      "docId": "wp-document-34593",
+      "title": "Board Meeting Agenda – May 16, 2023 at 7:00 PM",
+      "meetingDate": "2023-05-16",
+      "createdEventId": "historic-board-event-wp-document-34593",
+      "createdEventTitle": "Monthly Board of Directors Meeting",
+      "createdEventCategory": "bod-meeting",
+      "eventDate": "2023-05-16T23:00:00.000Z",
+      "location": "Clubhouse"
+    },
+    {
+      "docId": "wp-document-34592",
+      "title": "Board Meeting Agenda – June 20, 2023 at 7:00 PM",
+      "meetingDate": "2023-06-20",
+      "createdEventId": "historic-board-event-wp-document-34592",
+      "createdEventTitle": "Monthly Board of Directors Meeting",
+      "createdEventCategory": "bod-meeting",
+      "eventDate": "2023-06-20T23:00:00.000Z",
+      "location": "Clubhouse"
+    },
+    {
+      "docId": "wp-document-34591",
+      "title": "Board Meeting Agenda – July 11, 2023 at 7:00 PM",
+      "meetingDate": "2023-07-11",
+      "createdEventId": "historic-board-event-wp-document-34591",
+      "createdEventTitle": "Monthly Board of Directors Meeting",
+      "createdEventCategory": "bod-meeting",
+      "eventDate": "2023-07-11T23:00:00.000Z",
+      "location": "Clubhouse"
+    },
+    {
+      "docId": "wp-document-34590",
+      "title": "Board Meeting Agenda – August 15, 2023 at 7:00 PM",
+      "meetingDate": "2023-08-15",
+      "createdEventId": "historic-board-event-wp-document-34590",
+      "createdEventTitle": "Monthly Board of Directors Meeting",
+      "createdEventCategory": "bod-meeting",
+      "eventDate": "2023-08-15T23:00:00.000Z",
+      "location": "Clubhouse / Zoom"
+    },
+    {
+      "docId": "wp-document-34589",
+      "title": "Board Meeting Agenda – September 19, 2023 at 7:00 PM",
+      "meetingDate": "2023-09-19",
+      "createdEventId": "historic-board-event-wp-document-34589",
+      "createdEventTitle": "Monthly Board of Directors Meeting",
+      "createdEventCategory": "bod-meeting",
+      "eventDate": "2023-09-19T23:00:00.000Z",
+      "location": "Clubhouse / Zoom"
+    },
+    {
+      "docId": "wp-document-34588",
+      "title": "Board Meeting Agenda – October 17, 2023 at 7:00 PM",
+      "meetingDate": "2023-10-17",
+      "createdEventId": "historic-board-event-wp-document-34588",
+      "createdEventTitle": "Monthly Board of Directors Meeting",
+      "createdEventCategory": "bod-meeting",
+      "eventDate": "2023-10-17T23:00:00.000Z",
+      "location": "Clubhouse / Zoom"
+    },
+    {
+      "docId": "wp-document-34587",
+      "title": "Annual Meeting Agenda – November 16, 2023 at 7:00 PM",
+      "meetingDate": "2023-11-16",
+      "createdEventId": "historic-board-event-wp-document-34587",
+      "createdEventTitle": "Annual HOA Meeting",
+      "createdEventCategory": "annual-meeting",
+      "eventDate": "2023-11-17T00:00:00.000Z",
+      "location": null
+    },
+    {
+      "docId": "wp-document-34586",
+      "title": "Organizational Meeting Agenda – December 18, 2023 at 6:30 PM",
+      "meetingDate": "2023-12-18",
+      "createdEventId": "historic-board-event-wp-document-34586",
+      "createdEventTitle": "Organizational Board Meeting",
+      "createdEventCategory": "bod-meeting",
+      "eventDate": "2023-12-18T23:30:00.000Z",
+      "location": "Clubhouse"
+    },
+    {
+      "docId": "wp-document-34585",
+      "title": "Board Meeting Agenda – January 16, 2024 at 7:00 PM",
+      "meetingDate": "2024-01-16",
+      "createdEventId": "historic-board-event-wp-document-34585",
+      "createdEventTitle": "Monthly Board of Directors Meeting",
+      "createdEventCategory": "bod-meeting",
+      "eventDate": "2024-01-17T00:00:00.000Z",
+      "location": "Clubhouse / Zoom"
+    },
+    {
+      "docId": "wp-document-34584",
+      "title": "Board Meeting Agenda – February 20, 2024 at 7:00 PM",
+      "meetingDate": "2024-02-20",
+      "createdEventId": "historic-board-event-wp-document-34584",
+      "createdEventTitle": "Monthly Board of Directors Meeting",
+      "createdEventCategory": "bod-meeting",
+      "eventDate": "2024-02-21T00:00:00.000Z",
+      "location": "Clubhouse / Zoom"
+    },
+    {
+      "docId": "wp-document-34583",
+      "title": "Special Meeting Agenda – March 26, 2024 at 7:00 PM",
+      "meetingDate": "2024-03-26",
+      "createdEventId": "historic-board-event-wp-document-34583",
+      "createdEventTitle": "Special Board Meeting",
+      "createdEventCategory": "special-meeting",
+      "eventDate": "2024-03-26T23:00:00.000Z",
+      "location": "Clubhouse"
+    },
+    {
+      "docId": "wp-document-34581",
+      "title": "Board Meeting Agenda – April 16, 2024 at 7:00 PM",
+      "meetingDate": "2024-04-16",
+      "createdEventId": "historic-board-event-wp-document-34581",
+      "createdEventTitle": "Monthly Board of Directors Meeting",
+      "createdEventCategory": "bod-meeting",
+      "eventDate": "2024-04-16T23:00:00.000Z",
+      "location": "Clubhouse / Zoom"
+    },
+    {
+      "docId": "wp-document-34582",
+      "title": "Board Meeting Agenda – May 21, 2024 at 7:00 PM",
+      "meetingDate": "2024-05-21",
+      "createdEventId": "historic-board-event-wp-document-34582",
+      "createdEventTitle": "Monthly Board of Directors Meeting",
+      "createdEventCategory": "bod-meeting",
+      "eventDate": "2024-05-21T23:00:00.000Z",
+      "location": "Clubhouse / Zoom"
+    },
+    {
+      "docId": "wp-document-34580",
+      "title": "Board Meeting Agenda – June 18, 2024 at 7:00 PM",
+      "meetingDate": "2024-06-18",
+      "createdEventId": "historic-board-event-wp-document-34580",
+      "createdEventTitle": "Monthly Board of Directors Meeting",
+      "createdEventCategory": "bod-meeting",
+      "eventDate": "2024-06-18T23:00:00.000Z",
+      "location": "Clubhouse / Zoom"
+    },
+    {
+      "docId": "wp-document-34579",
+      "title": "Board Meeting Agenda – July 16, 2024 at 7:00 PM",
+      "meetingDate": "2024-07-16",
+      "createdEventId": "historic-board-event-wp-document-34579",
+      "createdEventTitle": "Monthly Board of Directors Meeting",
+      "createdEventCategory": "bod-meeting",
+      "eventDate": "2024-07-16T23:00:00.000Z",
+      "location": "Clubhouse / Zoom"
+    },
+    {
+      "docId": "wp-document-34578",
+      "title": "Board Meeting Agenda – August 27, 2024 at 7:00 PM",
+      "meetingDate": "2024-08-27",
+      "createdEventId": "historic-board-event-wp-document-34578",
+      "createdEventTitle": "Monthly Board of Directors Meeting",
+      "createdEventCategory": "bod-meeting",
+      "eventDate": "2024-08-27T23:00:00.000Z",
+      "location": "Clubhouse / Zoom"
+    },
+    {
+      "docId": "wp-document-34577",
+      "title": "Board Meeting Agenda – September 17, 2024 at 7:00 PM",
+      "meetingDate": "2024-09-17",
+      "createdEventId": "historic-board-event-wp-document-34577",
+      "createdEventTitle": "Monthly Board of Directors Meeting",
+      "createdEventCategory": "bod-meeting",
+      "eventDate": "2024-09-17T23:00:00.000Z",
+      "location": "Clubhouse / Zoom"
+    },
+    {
+      "docId": "wp-document-34576",
+      "title": "Board Meeting Agenda – October 15, 2024 at 7:00 PM",
+      "meetingDate": "2024-10-15",
+      "createdEventId": "historic-board-event-wp-document-34576",
+      "createdEventTitle": "Monthly Board of Directors Meeting",
+      "createdEventCategory": "bod-meeting",
+      "eventDate": "2024-10-15T23:00:00.000Z",
+      "location": "Clubhouse / Zoom"
+    },
+    {
+      "docId": "wp-document-34575",
+      "title": "Board Meeting Agenda – January 21, 2025 at 7:00 PM",
+      "meetingDate": "2025-01-21",
+      "createdEventId": "historic-board-event-wp-document-34575",
+      "createdEventTitle": "Monthly Board of Directors Meeting",
+      "createdEventCategory": "bod-meeting",
+      "eventDate": "2025-01-22T00:00:00.000Z",
+      "location": "Clubhouse / Zoom"
+    },
+    {
+      "docId": "wp-document-34574",
+      "title": "Board Meeting Agenda – February 18, 2025 at 7:00 PM",
+      "meetingDate": "2025-02-18",
+      "createdEventId": "historic-board-event-wp-document-34574",
+      "createdEventTitle": "Monthly Board of Directors Meeting",
+      "createdEventCategory": "bod-meeting",
+      "eventDate": "2025-02-19T00:00:00.000Z",
+      "location": "Clubhouse / Zoom"
+    },
+    {
+      "docId": "wp-document-34573",
+      "title": "Board Meeting Agenda – June 17, 2025 at 7:00 PM",
+      "meetingDate": "2025-06-17",
+      "createdEventId": "historic-board-event-wp-document-34573",
+      "createdEventTitle": "Monthly Board of Directors Meeting",
+      "createdEventCategory": "bod-meeting",
+      "eventDate": "2025-06-17T23:00:00.000Z",
+      "location": "Clubhouse / Zoom"
+    },
+    {
+      "docId": "wp-document-34572",
+      "title": "Board Meeting Agenda – July 15, 2025 at 7:00 PM",
+      "meetingDate": "2025-07-15",
+      "createdEventId": "historic-board-event-wp-document-34572",
+      "createdEventTitle": "Monthly Board of Directors Meeting",
+      "createdEventCategory": "bod-meeting",
+      "eventDate": "2025-07-15T23:00:00.000Z",
+      "location": "Clubhouse / Zoom"
+    },
+    {
+      "docId": "wp-document-34571",
+      "title": "Board Meeting Agenda – August 19, 2025 at 7:00 PM",
+      "meetingDate": "2025-08-19",
+      "createdEventId": "historic-board-event-wp-document-34571",
+      "createdEventTitle": "Monthly Board of Directors Meeting",
+      "createdEventCategory": "bod-meeting",
+      "eventDate": "2025-08-19T23:00:00.000Z",
+      "location": "Clubhouse / Zoom"
+    },
+    {
+      "docId": "wp-document-34878",
+      "title": "Board Meeting Agenda – September 16, 2025 at 7:00 PM",
+      "meetingDate": "2025-09-16",
+      "createdEventId": "historic-board-event-wp-document-34878",
+      "createdEventTitle": "Monthly Board of Directors Meeting",
+      "createdEventCategory": "bod-meeting",
+      "eventDate": "2025-09-16T23:00:00.000Z",
+      "location": "Clubhouse / Zoom"
+    },
+    {
+      "docId": "wp-document-35206",
+      "title": "Board Meeting Agenda – October 21, 2025 at 7:00 PM",
+      "meetingDate": "2025-10-21",
+      "createdEventId": "historic-board-event-wp-document-35206",
+      "createdEventTitle": "Monthly Board of Directors Meeting",
+      "createdEventCategory": "bod-meeting",
+      "eventDate": "2025-10-21T23:00:00.000Z",
+      "location": "Clubhouse / Zoom"
+    },
+    {
+      "docId": "wp-document-35599",
+      "title": "Board Meeting Agenda – January 20, 2026 at 7:00 PM",
+      "meetingDate": "2026-01-20",
+      "createdEventId": "historic-board-event-wp-document-35599",
+      "createdEventTitle": "Monthly Board of Directors Meeting",
+      "createdEventCategory": "bod-meeting",
+      "eventDate": "2026-01-21T00:00:00.000Z",
+      "location": "Clubhouse / Zoom"
+    }
+  ],
+  "ambiguous": [],
+  "failures": []
+}
