@@ -7,6 +7,7 @@ import {
 } from "@prisma/client"
 import { prisma } from "@/lib/db/prisma"
 import { canonicalizeAddressParts } from "@/lib/address-normalization"
+import { resolveCurrentResidencyForClerkUser } from "@/lib/resident-identity/resolve-current-residency"
 
 export type AccWorkflowWorkType = "paint" | "roof" | "fence" | "landscaping" | "other" | ""
 export type AccWorkflowRoleType = "owner" | "authorized_rep" | ""
@@ -407,18 +408,6 @@ function toFormDataJson(form: AccWorkflowFormData): Prisma.InputJsonObject {
   }
 }
 
-async function resolveCurrentResidency(clerkUserId: string) {
-  const rows = await prisma.residency.findMany({
-    where: { clerkUserId, isCurrent: true },
-    include: { household: true },
-    take: 2,
-    orderBy: [{ updatedAt: "desc" }, { id: "asc" }],
-  })
-
-  if (rows.length !== 1) return null
-  return rows[0]
-}
-
 function toResidentResponse(row: ResidentRequestRow, includeFormData: boolean) {
   const showResidentActionNote = row.status === "needs_more_info"
 
@@ -686,7 +675,10 @@ async function reserveNextWorkflowRequestNumber(
 
 export async function createWorkflowRequestForResident(input: { clerkUserId: string; formData: AccWorkflowFormData }) {
   const { clerkUserId, formData } = input
-  const residency = await resolveCurrentResidency(clerkUserId)
+  const residency = await resolveCurrentResidencyForClerkUser({
+    clerkUserId,
+    addressRaw: formData.streetAddress,
+  })
   const canonical = canonicalizeAddressParts(formData.streetAddress)
   const submittedAt = new Date()
 

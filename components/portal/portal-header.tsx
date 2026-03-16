@@ -134,7 +134,7 @@ const managementItems = [
     label: "Resident 360 Lookup",
     href: "/resident-portal/management/resident-360",
     description: "Unified resident profile + gate credentials + ACC history",
-    allowed: ["admin", "acc", "access_control", "board_of_directors"] as Array<CommitteeSlug | "admin">,
+    allowed: ["admin"] as Array<CommitteeSlug | "admin">,
   },
   {
     label: "Access Control Management Wordpress",

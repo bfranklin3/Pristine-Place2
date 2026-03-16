@@ -5,6 +5,7 @@ import {
 } from "@prisma/client"
 import { prisma } from "@/lib/db/prisma"
 import { canonicalizeAddressParts } from "@/lib/address-normalization"
+import { resolveCurrentResidencyForClerkUser } from "@/lib/resident-identity/resolve-current-residency"
 import {
   EMPTY_CLUBHOUSE_RENTAL_FORM_DATA,
   normalizeClubhouseRentalFormData,
@@ -265,18 +266,6 @@ function parseDateInput(value: string): Date | null {
   return Number.isNaN(parsed.getTime()) ? null : parsed
 }
 
-async function resolveCurrentResidency(clerkUserId: string) {
-  const rows = await prisma.residency.findMany({
-    where: { clerkUserId, isCurrent: true },
-    include: { household: true },
-    take: 2,
-    orderBy: [{ updatedAt: "desc" }, { id: "asc" }],
-  })
-
-  if (rows.length !== 1) return null
-  return rows[0]
-}
-
 function toFormDataJson(form: ClubhouseRentalFormData): Prisma.InputJsonObject {
   return {
     residentName: form.residentName,
@@ -466,7 +455,10 @@ export async function createClubhouseRentalRequestForResident(input: {
   formData: ClubhouseRentalFormData
 }) {
   const { clerkUserId, formData } = input
-  const residency = await resolveCurrentResidency(clerkUserId)
+  const residency = await resolveCurrentResidencyForClerkUser({
+    clerkUserId,
+    addressRaw: formData.propertyAddress,
+  })
   const canonical = canonicalizeAddressParts(formData.propertyAddress)
   const submittedAt = new Date()
 

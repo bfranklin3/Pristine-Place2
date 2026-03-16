@@ -169,3 +169,7 @@ No hard-delete of source-import records used for governance/history.
 3. ACC/Access reports expose Current/Past/Unknown resident state.
 4. Historical records remain visible and attributed to past residencies.
 5. Link decisions are auditable and exportable.
+
+## Related Implementation Note
+
+- [Resident 360 Native ACC Cutover Note](/Volumes/Data%20SSD/%20Software%20Development/Vercel-Next-JS/Pristine-Place-HOA/docs/resident-360-native-acc-cutover-note.md)

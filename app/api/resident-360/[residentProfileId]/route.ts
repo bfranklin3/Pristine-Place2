@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/db/prisma"
 import { requireManagementApiAccess } from "@/lib/auth/portal-management-api"
+import { buildNativeAccRequestWhere, dedupeNativeAccRequests } from "@/lib/resident-360/native-acc"
 
 export async function GET(
   _req: NextRequest,
   context: { params: Promise<{ residentProfileId: string }> },
 ) {
-  const access = await requireManagementApiAccess(["admin", "acc", "access_control", "board_of_directors"])
+  const access = await requireManagementApiAccess(["admin"])
   if (!access.ok) return access.response
 
   const { residentProfileId } = await context.params
@@ -18,6 +19,17 @@ export async function GET(
     const row = await prisma.residentProfile.findUnique({
       where: { id: residentProfileId },
       include: {
+        household: {
+          select: {
+            id: true,
+            addressCanonical: true,
+          },
+        },
+        residency: {
+          select: {
+            id: true,
+          },
+        },
         householdMembers: { orderBy: { createdAt: "asc" } },
         credentials: { orderBy: { createdAt: "asc" } },
         accMatches: {
@@ -40,6 +52,25 @@ export async function GET(
 
     const primary = row.householdMembers.find((m) => m.role === "primary") || null
     const secondary = row.householdMembers.find((m) => m.role === "secondary") || null
+    const nativeWhere = buildNativeAccRequestWhere({
+      residencyId: row.residency?.id || null,
+      householdId: row.household?.id || null,
+      addressCanonical: row.household?.addressCanonical || null,
+    })
+    const nativeRequests = nativeWhere
+      ? dedupeNativeAccRequests(
+          await prisma.accWorkflowRequest.findMany({
+            where: nativeWhere,
+            orderBy: [{ submittedAt: "desc" }, { id: "desc" }],
+            include: {
+              attachments: {
+                where: { deletedAt: null },
+                orderBy: { createdAt: "asc" },
+              },
+            },
+          }),
+        )
+      : []
 
     return NextResponse.json({
       id: row.id,
@@ -55,6 +86,31 @@ export async function GET(
       secondary,
       householdMembers: row.householdMembers,
       credentials: row.credentials,
+      nativeAccRequests: nativeRequests.map((request) => ({
+        id: request.id,
+        requestNumber: request.requestNumber,
+        submittedAt: request.submittedAt,
+        status: request.status,
+        finalDecision: request.finalDecision,
+        finalDecisionAt: request.finalDecisionAt,
+        reviewCycle: request.reviewCycle,
+        isVerified: request.isVerified,
+        workType: request.workType,
+        title: request.title,
+        description: request.description,
+        residentName: request.residentNameSnapshot,
+        residentAddress: request.residentAddressSnapshot,
+        decisionNote: request.decisionNote,
+        residentActionNote: request.residentActionNote,
+        attachments: request.attachments.map((a) => ({
+          id: a.id,
+          filename: a.originalFilename,
+          mimeType: a.mimeType,
+          storageKey: a.storageKey,
+          storageProvider: a.storageProvider,
+          scope: a.scope,
+        })),
+      })),
       confirmedAccRequests: row.accMatches.map((match) => ({
         matchId: match.id,
         matchScore: match.matchScore,
@@ -86,4 +142,3 @@ export async function GET(
     return NextResponse.json({ error: "Failed to load resident lookup detail", detail }, { status: 500 })
   }
 }
-

@@ -10,10 +10,7 @@ export const metadata: Metadata = {
 }
 
 export default async function Resident360Page() {
-  await requirePortalRolePageAccess(
-    ["admin", "acc", "access_control", "board_of_directors"],
-    "/resident-portal/management/resident-360",
-  )
+  await requirePortalRolePageAccess(["admin"], "/resident-portal/management/resident-360")
 
   return (
     <>
@@ -53,4 +50,3 @@ export default async function Resident360Page() {
     </>
   )
 }
-

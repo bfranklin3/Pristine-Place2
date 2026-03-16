@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/db/prisma"
 import { requireManagementApiAccess } from "@/lib/auth/portal-management-api"
+import {
+  buildNativeAccRequestWhere,
+  dedupeNativeAccRequests,
+  matchesNativeAccAnchor,
+} from "@/lib/resident-360/native-acc"
 
 export async function GET(req: NextRequest) {
-  const access = await requireManagementApiAccess(["admin", "acc", "access_control", "board_of_directors"])
+  const access = await requireManagementApiAccess(["admin"])
   if (!access.ok) return access.response
 
   const { searchParams } = new URL(req.url)
@@ -12,44 +17,154 @@ export async function GET(req: NextRequest) {
   const pageSizeRaw = Number.parseInt(searchParams.get("pageSize") || "25", 10) || 25
   const pageSize = Math.max(5, Math.min(100, pageSizeRaw))
 
-  const where = q
-    ? {
-        OR: [
-          { addressFull: { contains: q, mode: "insensitive" as const } },
-          { addressNumber: { contains: q, mode: "insensitive" as const } },
-          { streetName: { contains: q, mode: "insensitive" as const } },
-          {
-            householdMembers: {
-              some: {
-                OR: [
-                  { firstName: { contains: q, mode: "insensitive" as const } },
-                  { lastName: { contains: q, mode: "insensitive" as const } },
-                  { email: { contains: q, mode: "insensitive" as const } },
-                  { phone: { contains: q, mode: "insensitive" as const } },
-                ],
-              },
-            },
+  try {
+    const matchingNativeRequests = q
+      ? await prisma.accWorkflowRequest.findMany({
+          where: {
+            OR: [
+              { requestNumber: { contains: q, mode: "insensitive" } },
+              { residentNameSnapshot: { contains: q, mode: "insensitive" } },
+              { workType: { contains: q, mode: "insensitive" } },
+              { title: { contains: q, mode: "insensitive" } },
+              { description: { contains: q, mode: "insensitive" } },
+              { residentAddressSnapshot: { contains: q, mode: "insensitive" } },
+            ],
           },
-          {
-            accMatches: {
-              some: {
-                status: "confirmed" as const,
-                accRequest: {
+          select: {
+            householdId: true,
+            residencyId: true,
+            addressCanonical: true,
+          },
+          take: 100,
+        })
+      : []
+
+    const nativeResidencyIds = Array.from(
+      new Set(matchingNativeRequests.map((row) => row.residencyId).filter((value): value is string => Boolean(value))),
+    )
+    const nativeHouseholdIds = Array.from(
+      new Set(matchingNativeRequests.map((row) => row.householdId).filter((value): value is string => Boolean(value))),
+    )
+    const nativeAddressCanonicals = Array.from(
+      new Set(matchingNativeRequests.map((row) => row.addressCanonical).filter((value): value is string => Boolean(value))),
+    )
+
+    const where = q
+      ? {
+          OR: [
+            { addressFull: { contains: q, mode: "insensitive" as const } },
+            { addressNumber: { contains: q, mode: "insensitive" as const } },
+            { streetName: { contains: q, mode: "insensitive" as const } },
+            {
+              householdMembers: {
+                some: {
                   OR: [
-                    { permitNumber: { contains: q, mode: "insensitive" as const } },
-                    { ownerName: { contains: q, mode: "insensitive" as const } },
-                    { addressRaw: { contains: q, mode: "insensitive" as const } },
-                    { workType: { contains: q, mode: "insensitive" as const } },
+                    { firstName: { contains: q, mode: "insensitive" as const } },
+                    { lastName: { contains: q, mode: "insensitive" as const } },
+                    { email: { contains: q, mode: "insensitive" as const } },
+                    { phone: { contains: q, mode: "insensitive" as const } },
                   ],
                 },
               },
             },
-          },
-        ],
-      }
-    : {}
+            {
+              accMatches: {
+                some: {
+                  status: "confirmed" as const,
+                  accRequest: {
+                    OR: [
+                      { permitNumber: { contains: q, mode: "insensitive" as const } },
+                      { ownerName: { contains: q, mode: "insensitive" as const } },
+                      { addressRaw: { contains: q, mode: "insensitive" as const } },
+                      { workType: { contains: q, mode: "insensitive" as const } },
+                    ],
+                  },
+                },
+              },
+            },
+            {
+              residency: {
+                is: {
+                  accWorkflowRequests: {
+                    some: {
+                      OR: [
+                        { requestNumber: { contains: q, mode: "insensitive" as const } },
+                        { residentNameSnapshot: { contains: q, mode: "insensitive" as const } },
+                        { workType: { contains: q, mode: "insensitive" as const } },
+                        { title: { contains: q, mode: "insensitive" as const } },
+                        { description: { contains: q, mode: "insensitive" as const } },
+                        { residentAddressSnapshot: { contains: q, mode: "insensitive" as const } },
+                      ],
+                    },
+                  },
+                },
+              },
+            },
+            {
+              household: {
+                is: {
+                  accWorkflowRequests: {
+                    some: {
+                      OR: [
+                        { requestNumber: { contains: q, mode: "insensitive" as const } },
+                        { residentNameSnapshot: { contains: q, mode: "insensitive" as const } },
+                        { workType: { contains: q, mode: "insensitive" as const } },
+                        { title: { contains: q, mode: "insensitive" as const } },
+                        { description: { contains: q, mode: "insensitive" as const } },
+                        { residentAddressSnapshot: { contains: q, mode: "insensitive" as const } },
+                      ],
+                    },
+                  },
+                },
+              },
+            },
+            ...(nativeResidencyIds.length
+              ? [
+                  {
+                    residency: {
+                      is: {
+                        id: {
+                          in: nativeResidencyIds,
+                        },
+                      },
+                    },
+                  },
+                ]
+              : []),
+            ...(nativeHouseholdIds.length || nativeAddressCanonicals.length
+              ? [
+                  {
+                    household: {
+                      is: {
+                        OR: [
+                          ...(nativeHouseholdIds.length
+                            ? [
+                                {
+                                  id: {
+                                    in: nativeHouseholdIds,
+                                  },
+                                },
+                              ]
+                            : []),
+                          ...(nativeAddressCanonicals.length
+                            ? [
+                                {
+                                  addressCanonical: {
+                                    in: nativeAddressCanonicals,
+                                  },
+                                },
+                              ]
+                            : []),
+                        ],
+                      },
+                    },
+                  },
+                ]
+              : []),
+          ],
+        }
+      : {}
 
-  try {
     const [total, rows] = await Promise.all([
       prisma.residentProfile.count({ where }),
       prisma.residentProfile.findMany({
@@ -59,6 +174,17 @@ export async function GET(req: NextRequest) {
         take: pageSize,
         include: {
           householdMembers: true,
+          household: {
+            select: {
+              id: true,
+              addressCanonical: true,
+            },
+          },
+          residency: {
+            select: {
+              id: true,
+            },
+          },
           credentials: {
             where: { status: "active" },
             orderBy: { createdAt: "asc" },
@@ -71,9 +197,52 @@ export async function GET(req: NextRequest) {
       }),
     ])
 
+    const nativeWhere = rows.length
+      ? {
+          OR: rows
+            .map((row) =>
+              buildNativeAccRequestWhere({
+                residencyId: row.residency?.id || null,
+                householdId: row.household?.id || null,
+                addressCanonical: row.household?.addressCanonical || null,
+              }),
+            )
+            .filter((clause): clause is NonNullable<typeof clause> => Boolean(clause)),
+        }
+      : null
+
+    const nativeRequests = nativeWhere
+      ? await prisma.accWorkflowRequest.findMany({
+          where: nativeWhere,
+          select: {
+            id: true,
+            submittedAt: true,
+            householdId: true,
+            residencyId: true,
+            addressCanonical: true,
+          },
+        })
+      : []
+
     const items = rows.map((row) => {
       const primary = row.householdMembers.find((m) => m.role === "primary") || null
       const secondary = row.householdMembers.find((m) => m.role === "secondary") || null
+      const residentNativeRequests = dedupeNativeAccRequests(
+        nativeRequests.filter((request) =>
+          matchesNativeAccAnchor(request, {
+            residencyId: row.residency?.id || null,
+            householdId: row.household?.id || null,
+            addressCanonical: row.household?.addressCanonical || null,
+          }),
+        ),
+      )
+      const combinedSubmittedAt = [
+        ...row.accMatches.map((m) => m.accRequest.submittedAt),
+        ...residentNativeRequests.map((r) => r.submittedAt),
+      ]
+        .filter((d): d is Date => Boolean(d))
+        .sort((a, b) => b.getTime() - a.getTime())
+
       return {
         id: row.id,
         address:
@@ -83,12 +252,8 @@ export async function GET(req: NextRequest) {
         secondaryName: secondary ? `${secondary.firstName || ""} ${secondary.lastName || ""}`.trim() || "—" : "—",
         entryCode: row.entryCode || "",
         activeCredentialCount: row.credentials.length,
-        confirmedAccCount: row.accMatches.length,
-        latestAccSubmittedAt:
-          row.accMatches
-            .map((m) => m.accRequest.submittedAt)
-            .filter((d): d is Date => Boolean(d))
-            .sort((a, b) => b.getTime() - a.getTime())[0] || null,
+        confirmedAccCount: row.accMatches.length + residentNativeRequests.length,
+        latestAccSubmittedAt: combinedSubmittedAt[0] || null,
       }
     })
 
@@ -107,4 +272,3 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Failed to load resident lookup list", detail }, { status: 500 })
   }
 }
-

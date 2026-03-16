@@ -22,6 +22,8 @@
     "import:acc:gf": "tsx scripts/import-acc-from-gf.ts",
     "report:acc:process-date-mismatches": "tsx scripts/report-acc-process-date-mismatches.ts",
     "backfill:households:residencies": "tsx scripts/backfill-households-residencies.ts",
+    "report:resident:missing-clerk-links": "tsx scripts/report-missing-residency-clerk-links.ts",
+    "report:clerk:address-matches": "tsx scripts/report-clerk-address-matches.ts",
     "backfill:access:holders": "tsx scripts/backfill-access-holder-categories.ts",
     "cleanup:access:duplicate-secondary": "tsx scripts/remove-duplicate-secondary-contacts.ts",
     "migrate:wp:users:clerk": "tsx scripts/migrate-wp-users-to-clerk.ts",

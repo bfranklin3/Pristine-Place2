@@ -50,6 +50,31 @@ interface Resident360Detail {
     credentialValue: string
     status: string
   }>
+  nativeAccRequests: Array<{
+    id: string
+    requestNumber: string
+    submittedAt: string | null
+    status: string
+    finalDecision: string | null
+    finalDecisionAt: string | null
+    reviewCycle: number
+    isVerified: boolean
+    workType: string | null
+    title: string | null
+    description: string | null
+    residentName: string | null
+    residentAddress: string | null
+    decisionNote: string | null
+    residentActionNote: string | null
+    attachments: Array<{
+      id: string
+      filename: string | null
+      mimeType: string | null
+      storageKey: string
+      storageProvider: string
+      scope: string | null
+    }>
+  }>
   confirmedAccRequests: Array<{
     matchId: string
     matchScore: number
@@ -77,9 +102,25 @@ interface Resident360Detail {
 
 function formatDate(value: string | null | undefined): string {
   if (!value) return "—"
+  const isoDateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim())
+  if (isoDateOnly) {
+    const [, year, month, day] = isoDateOnly
+    return `${month}/${day}/${year}`
+  }
   const d = new Date(value)
   if (Number.isNaN(d.getTime())) return "—"
   return d.toLocaleDateString()
+}
+
+function nativeAccStatusLabel(status: string, finalDecision: string | null): string {
+  if (finalDecision === "approve") return "Approved"
+  if (finalDecision === "reject") return "Rejected"
+  if (status === "initial_review") return "Initial Review"
+  if (status === "needs_more_info") return "Needs More Info"
+  if (status === "committee_vote") return "Committee Vote"
+  if (status === "approved") return "Approved"
+  if (status === "rejected") return "Rejected"
+  return status || "—"
 }
 
 function personName(person: { firstName: string | null; lastName: string | null } | null): string {
@@ -191,6 +232,12 @@ export function Resident360Table() {
     setQ(qInput.trim())
   }
 
+  const onClear = () => {
+    setQInput("")
+    setQ("")
+    setPage(1)
+  }
+
   const selectedSummary = useMemo(() => items.find((item) => item.id === selectedId) || null, [items, selectedId])
   const exportBaseName = useMemo(() => {
     const base = detail?.addressFull || selectedSummary?.address || detail?.id || "resident-report"
@@ -226,8 +273,24 @@ export function Resident360Table() {
       pushRow(`Credential ${idx + 1}`, "Status", c.status)
     })
 
+    detail.nativeAccRequests.forEach((r, idx) => {
+      const section = `Native ACC Request ${idx + 1}`
+      pushRow(section, "Request Number", r.requestNumber)
+      pushRow(section, "Status", nativeAccStatusLabel(r.status, r.finalDecision))
+      pushRow(section, "Work Type", r.workType || "")
+      pushRow(section, "Title", r.title || "")
+      pushRow(section, "Submitted", formatDate(r.submittedAt))
+      pushRow(section, "Final Decision", r.finalDecision || "")
+      pushRow(section, "Final Decision Date", formatDate(r.finalDecisionAt))
+      pushRow(section, "Resident Name", r.residentName || "")
+      pushRow(section, "Resident Address", r.residentAddress || "")
+      pushRow(section, "Description", r.description || "")
+      pushRow(section, "Decision Note", r.decisionNote || "")
+      pushRow(section, "Resident Action Note", r.residentActionNote || "")
+    })
+
     detail.confirmedAccRequests.forEach((r, idx) => {
-      const section = `ACC Request ${idx + 1}`
+      const section = `Legacy ACC Request ${idx + 1}`
       pushRow(section, "Permit Number", r.permitNumber || "")
       pushRow(section, "Source Entry", r.sourceEntryId)
       pushRow(section, "Disposition", r.disposition)
@@ -266,6 +329,21 @@ export function Resident360Table() {
         (c) =>
           `<tr><td>${escapeHtml(c.credentialType)}${c.credentialLabel ? ` (${escapeHtml(c.credentialLabel)})` : ""}</td><td>${escapeHtml(c.credentialValue)}</td><td>${escapeHtml(c.status)}</td></tr>`,
       )
+      .join("")
+
+    const nativeAccRows = detail.nativeAccRequests
+      .map((r) => {
+        return `
+          <div class="card">
+            <h4>${escapeHtml(r.requestNumber)} · ${escapeHtml(r.workType || r.title || "Native ACC Request")}</h4>
+            <p><strong>Status:</strong> ${escapeHtml(nativeAccStatusLabel(r.status, r.finalDecision))} | <strong>Submitted:</strong> ${escapeHtml(formatDate(r.submittedAt))}</p>
+            <p><strong>Resident:</strong> ${escapeHtml(r.residentName || "—")} | <strong>Address:</strong> ${escapeHtml(r.residentAddress || "—")}</p>
+            <p><strong>Description:</strong> ${escapeHtml(r.description || "—")}</p>
+            <p><strong>Decision Note:</strong> ${escapeHtml(r.decisionNote || "—")}</p>
+            <p><strong>Resident Action Note:</strong> ${escapeHtml(r.residentActionNote || "—")}</p>
+          </div>
+        `
+      })
       .join("")
 
     const accRows = detail.confirmedAccRequests
@@ -348,8 +426,10 @@ export function Resident360Table() {
       <tbody>${credentialRows || '<tr><td colspan="3">No credentials</td></tr>'}</tbody>
     </table>
 
-    <h2>Confirmed ACC Requests</h2>
-    ${accRows || '<p>No confirmed ACC requests.</p>'}
+    <h2>ACC History</h2>
+    ${nativeAccRows || ""}
+    ${accRows || ""}
+    ${nativeAccRows || accRows ? "" : "<p>No ACC history available.</p>"}
   </body>
 </html>`
 
@@ -430,6 +510,14 @@ export function Resident360Table() {
 
         <button type="button" className="btn btn-primary" onClick={onSearch}>
           Search
+        </button>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={onClear}
+          disabled={!qInput.trim() && !q.trim() && page === 1}
+        >
+          Clear
         </button>
         <button
           type="button"
@@ -589,13 +677,25 @@ export function Resident360Table() {
               </div>
 
               <div style={{ border: "1px solid var(--pp-slate-200)", borderRadius: "var(--radius-sm)", padding: "0.65rem" }}>
-                <strong style={{ color: "var(--pp-navy-dark)" }}>Confirmed ACC Requests</strong>
-                {!detail.confirmedAccRequests.length ? (
+                <strong style={{ color: "var(--pp-navy-dark)" }}>ACC History</strong>
+
+                {!detail.nativeAccRequests.length && !detail.confirmedAccRequests.length ? (
                   <p style={{ margin: "0.35rem 0 0 0", fontSize: "0.85rem", color: "var(--pp-slate-600)" }}>
-                    No confirmed ACC requests linked yet.
+                    No ACC history available.
                   </p>
                 ) : (
-                  <div className="stack" style={{ gap: "0.45rem", marginTop: "0.45rem" }}>
+                  <div className="stack" style={{ gap: "0.45rem", marginTop: "0.55rem" }}>
+                    {detail.nativeAccRequests.map((r) => (
+                      <div key={r.id} style={{ borderTop: "1px solid var(--pp-slate-100)", paddingTop: "0.4rem" }}>
+                        <p style={{ margin: 0, fontSize: "0.85rem" }}>
+                          <strong>Request:</strong> {r.requestNumber} · <strong>Type:</strong> {r.workType || r.title || "—"} ·{" "}
+                          <strong>Submitted:</strong> {formatDate(r.submittedAt)} · <strong>Status:</strong> {nativeAccStatusLabel(r.status, r.finalDecision)}
+                        </p>
+                        <p style={{ margin: "0.2rem 0 0 0", fontSize: "0.82rem", color: "var(--pp-slate-700)" }}>
+                          {r.description || r.decisionNote || r.residentActionNote || "No additional description"}
+                        </p>
+                      </div>
+                    ))}
                     {detail.confirmedAccRequests.map((r) => (
                       <div key={r.matchId} style={{ borderTop: "1px solid var(--pp-slate-100)", paddingTop: "0.4rem" }}>
                         <p style={{ margin: 0, fontSize: "0.85rem" }}>
