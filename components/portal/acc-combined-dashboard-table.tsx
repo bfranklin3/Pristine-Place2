@@ -244,6 +244,14 @@ export function AccCombinedDashboardTable({ viewMode = "full" }: { viewMode?: Vi
     setDetailLoading(false)
   }, [])
 
+  const clearFilters = useCallback(() => {
+    setQueryInput("")
+    setQuery("")
+    setSource("all")
+    setStatus("all")
+    setPage(1)
+  }, [])
+
   const pageStart = total === 0 ? 0 : (page - 1) * perPage + 1
   const pageEnd = Math.min(total, page * perPage)
 
@@ -301,6 +309,14 @@ export function AccCombinedDashboardTable({ viewMode = "full" }: { viewMode?: Vi
           </select>
           <button type="button" className="btn btn-primary" onClick={() => { setQuery(queryInput); setPage(1) }}>
             Filter
+          </button>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={clearFilters}
+            disabled={!queryInput && !query && source === "all" && status === "all"}
+          >
+            Clear
           </button>
         </div>
       </div>
