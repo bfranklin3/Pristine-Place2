@@ -108,15 +108,22 @@ function formatDateTime(value: string | null) {
 
 function formatDateOnly(value: string | null) {
   if (!value) return "—"
-  const isoDate = new Date(value)
-  if (!Number.isNaN(isoDate.getTime())) {
-    return isoDate.toLocaleDateString()
+
+  const isoDateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim())
+  if (isoDateOnly) {
+    const [, year, month, day] = isoDateOnly
+    return `${month}/${day}/${year}`
   }
 
   const mmddyyyy = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(value.trim())
   if (mmddyyyy) {
     const [, month, day, year] = mmddyyyy
     return `${month}/${day}/${year}`
+  }
+
+  const isoDate = new Date(value)
+  if (!Number.isNaN(isoDate.getTime())) {
+    return isoDate.toLocaleDateString()
   }
 
   return value

@@ -2,6 +2,7 @@ import "dotenv/config"
 import path from "node:path"
 import { PrismaClient } from "@prisma/client"
 import { canonicalizeAddressParts, normalizeSpace } from "../lib/address-normalization"
+import { HOA_TIME_ZONE, zonedLocalDateTimeToUtc } from "../lib/timezone"
 import { getAccImportOverride } from "./lib/acc-import-overrides"
 
 type GfEntry = Record<string, unknown> & {
@@ -53,16 +54,30 @@ function parseWpDateTime(value: unknown): Date | null {
   return Number.isNaN(date.getTime()) ? null : date
 }
 
-function parseMdyDate(value: unknown): Date | null {
+function parseProcessDate(value: unknown): Date | null {
   const s = asString(value)
   if (!s) return null
-  const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
-  if (!m) return null
-  const month = Number.parseInt(m[1], 10)
-  const day = Number.parseInt(m[2], 10)
-  const year = Number.parseInt(m[3], 10)
+
+  let month = 0
+  let day = 0
+  let year = 0
+
+  const mdy = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
+  if (mdy) {
+    month = Number.parseInt(mdy[1], 10)
+    day = Number.parseInt(mdy[2], 10)
+    year = Number.parseInt(mdy[3], 10)
+  } else {
+    const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+    if (!iso) return null
+    year = Number.parseInt(iso[1], 10)
+    month = Number.parseInt(iso[2], 10)
+    day = Number.parseInt(iso[3], 10)
+  }
+
   if (month < 1 || month > 12 || day < 1 || day > 31) return null
-  const d = new Date(year, month - 1, day)
+
+  const d = zonedLocalDateTimeToUtc({ year, month, day, hour: 0, minute: 0, second: 0 }, HOA_TIME_ZONE)
   return Number.isNaN(d.getTime()) ? null : d
 }
 
@@ -181,8 +196,8 @@ function mapEntry(entry: GfEntry, formId: string) {
   const description = asString(entry["14"])
   const notes = asString(entry["37"])
   const permitNumber = asString(entry["39"])
-  const processDate = parseMdyDate(entry["61"])
   const override = getAccImportOverride(sourceEntryId)
+  const processDate = parseProcessDate(override?.processDate ?? entry["61"])
   const disposition = override?.disposition ?? normalizeDisposition(entry["55"])
   const phase = asString(entry["4"])
   const lot = asString(entry["5"])

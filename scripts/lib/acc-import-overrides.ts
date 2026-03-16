@@ -2,6 +2,7 @@ type AccImportDisposition = "approved" | "denied" | "conditional" | "duplicate" 
 
 type AccImportOverride = {
   disposition?: AccImportDisposition
+  processDate?: string
   rawEntryPatch?: Record<string, unknown>
   note: string
 }
@@ -9,12 +10,14 @@ type AccImportOverride = {
 export const ACC_IMPORT_OVERRIDES: Record<string, AccImportOverride> = {
   "3176": {
     disposition: "approved",
+    processDate: "02/18/2026",
     rawEntryPatch: {
       "55": "Approved",
+      "61": "02/18/2026",
       workflow_final_status: "approved",
     },
     note:
-      "Preserve approved ACC disposition during reimport. WordPress/Gravity Flow workflow state for GF entry 3176 is inconsistent and must not override the native Neon decision.",
+      "Preserve approved ACC disposition and process date during reimport. WordPress/Gravity Flow workflow state for GF entry 3176 is inconsistent and must not override the native Neon decision.",
   },
 }
 

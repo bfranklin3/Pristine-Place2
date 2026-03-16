@@ -20,6 +20,7 @@
     "prisma:migrate:deploy": "prisma migrate deploy",
     "import:access:xlsx": "tsx scripts/import-access-from-xlsx.ts",
     "import:acc:gf": "tsx scripts/import-acc-from-gf.ts",
+    "report:acc:process-date-mismatches": "tsx scripts/report-acc-process-date-mismatches.ts",
     "backfill:households:residencies": "tsx scripts/backfill-households-residencies.ts",
     "backfill:access:holders": "tsx scripts/backfill-access-holder-categories.ts",
     "cleanup:access:duplicate-secondary": "tsx scripts/remove-duplicate-secondary-contacts.ts",

@@ -11,7 +11,7 @@ They exist to preserve correct Neon-side operational state when legacy WordPress
 - Resident: `Carole Fumano`
 - Permit: `26-034`
 - Address: `13363 Twinberry Drive`
-- Rule: force imported `disposition` to `approved`
+- Rule: force imported `disposition` to `approved` and preserve `processDate` as `2026-02-18`
 - Reason: WordPress / Gravity Flow workflow metadata for this entry can revert to `complete` or otherwise inconsistent values during restart/reset attempts. The native Neon ACC record should continue to be treated as approved.
 - Implementation:
   - import override in [scripts/lib/acc-import-overrides.ts](/Volumes/Data%20SSD/%20Software%20Development/Vercel-Next-JS/Pristine-Place-HOA/scripts/lib/acc-import-overrides.ts)
