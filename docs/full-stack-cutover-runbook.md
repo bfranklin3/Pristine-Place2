@@ -167,6 +167,11 @@ Because legacy WordPress remains active until cutover:
 
 - [ ] Re-run ACC import (`--mode full`)
 - [ ] Re-check [ACC import overrides](/Volumes/Data%20SSD/%20Software%20Development/Vercel-Next-JS/Pristine-Place-HOA/docs/acc-import-overrides.md) before the final ACC reimport
+- [ ] Confirm whether this is the final ACC migration before go-live
+- [ ] If this is the final ACC migration:
+  - [ ] delete disposable native ACC test requests created before go-live
+  - [ ] reset native ACC request numbering so the first real native request becomes `REQ-2026-0001`
+  - [ ] reset native ACC permit numbering so the first real approved native request becomes `26-001`
 - [ ] Re-run matching
 - [ ] Re-resolve new unmatched rows
 - [ ] Re-check record counts against source
@@ -227,3 +232,4 @@ Trigger rollback if any critical path fails (auth, data integrity, core manageme
 - Keep this runbook in source control and check boxes in PR notes or deployment ticket.
 - Do not rotate credentials mid-cutover unless required; rotate after stable cutover.
 - Prefer rerunnable import commands and deterministic validation reports.
+- For ACC specifically, treat sequence reset as a one-time cutover step only. Do not reset native request or permit numbering during ordinary interim WordPress reimports.

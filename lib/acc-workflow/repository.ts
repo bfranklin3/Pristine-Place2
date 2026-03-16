@@ -8,6 +8,7 @@ import {
 import { prisma } from "@/lib/db/prisma"
 import { canonicalizeAddressParts } from "@/lib/address-normalization"
 import { resolveCurrentResidencyForClerkUser } from "@/lib/resident-identity/resolve-current-residency"
+import { getTimePartsInZone, HOA_TIME_ZONE } from "@/lib/timezone"
 
 export type AccWorkflowWorkType = "paint" | "roof" | "fence" | "landscaping" | "other" | ""
 export type AccWorkflowRoleType = "owner" | "authorized_rep" | ""
@@ -65,6 +66,7 @@ const residentRequestSelect = Prisma.validator<Prisma.AccWorkflowRequestDefaultA
   select: {
     id: true,
     requestNumber: true,
+    permitNumber: true,
     residentClerkUserId: true,
     residentNameSnapshot: true,
     residentEmailSnapshot: true,
@@ -112,6 +114,7 @@ const managementListSelect = Prisma.validator<Prisma.AccWorkflowRequestDefaultAr
   select: {
     id: true,
     requestNumber: true,
+    permitNumber: true,
     residentNameSnapshot: true,
     residentEmailSnapshot: true,
     residentPhoneSnapshot: true,
@@ -140,6 +143,7 @@ const managementDetailSelect = Prisma.validator<Prisma.AccWorkflowRequestDefault
   select: {
     id: true,
     requestNumber: true,
+    permitNumber: true,
     origin: true,
     importedAccRequestId: true,
     residentClerkUserId: true,
@@ -414,6 +418,7 @@ function toResidentResponse(row: ResidentRequestRow, includeFormData: boolean) {
   return {
     id: row.id,
     requestNumber: row.requestNumber,
+    permitNumber: row.permitNumber,
     residentName: row.residentNameSnapshot,
     residentEmail: row.residentEmailSnapshot,
     residentPhone: row.residentPhoneSnapshot,
@@ -455,6 +460,7 @@ function toManagementListResponse(row: ManagementListRow) {
   return {
     id: row.id,
     requestNumber: row.requestNumber,
+    permitNumber: row.permitNumber,
     residentName: row.residentNameSnapshot,
     residentEmail: row.residentEmailSnapshot,
     residentPhone: row.residentPhoneSnapshot,
@@ -489,6 +495,7 @@ function toManagementDetailResponse(row: ManagementDetailRow, viewerUserId: stri
   return {
     id: row.id,
     requestNumber: row.requestNumber,
+    permitNumber: row.permitNumber,
     origin: row.origin,
     importedAccRequestId: row.importedAccRequestId,
     residentClerkUserId: row.residentClerkUserId,
@@ -565,6 +572,7 @@ function buildSearchWhere(query?: string): Prisma.AccWorkflowRequestWhereInput {
     OR: [
       { residentNameSnapshot: { contains: q, mode: "insensitive" } },
       { requestNumber: { contains: q, mode: "insensitive" } },
+      { permitNumber: { contains: q, mode: "insensitive" } },
       { residentEmailSnapshot: { contains: q, mode: "insensitive" } },
       { residentPhoneSnapshot: { contains: q, mode: "insensitive" } },
       { residentAddressSnapshot: { contains: q, mode: "insensitive" } },
@@ -621,11 +629,14 @@ async function finalizeByCommitteeVote(tx: Prisma.TransactionClient, input: {
     approveVotes: input.approveVotes,
     rejectVotes: input.rejectVotes,
   })
+  const permitNumber =
+    finalDecision === "approve" ? await assignPermitNumberIfNeeded(tx, input.requestId, finalizedAt) : null
 
   await tx.accWorkflowRequest.update({
     where: { id: input.requestId },
     data: {
       status: finalDecision === "approve" ? "approved" : "rejected",
+      permitNumber,
       finalDecision,
       finalDecisionAt: finalizedAt,
       finalDecisionByRole: "system",
@@ -646,6 +657,7 @@ async function finalizeByCommitteeVote(tx: Prisma.TransactionClient, input: {
         finalDecision,
         approveVotes: input.approveVotes,
         rejectVotes: input.rejectVotes,
+        permitNumber,
       },
     },
   })
@@ -671,6 +683,43 @@ async function reserveNextWorkflowRequestNumber(
 
   const reservedNumber = sequence.nextNumber - 1
   return `REQ-${year}-${String(reservedNumber).padStart(4, "0")}`
+}
+
+async function reserveNextWorkflowPermitNumber(
+  tx: Prisma.TransactionClient,
+  decisionDate: Date,
+) {
+  const { year } = getTimePartsInZone(decisionDate, HOA_TIME_ZONE)
+  const sequence = await tx.accWorkflowPermitNumberSequence.upsert({
+    where: { year },
+    update: {
+      nextNumber: {
+        increment: 1,
+      },
+    },
+    create: {
+      year,
+      nextNumber: 2,
+    },
+  })
+
+  const reservedNumber = sequence.nextNumber - 1
+  const shortYear = String(year % 100).padStart(2, "0")
+  return `${shortYear}-${String(reservedNumber).padStart(3, "0")}`
+}
+
+async function assignPermitNumberIfNeeded(
+  tx: Prisma.TransactionClient,
+  requestId: string,
+  decisionDate: Date,
+) {
+  const existing = await tx.accWorkflowRequest.findUnique({
+    where: { id: requestId },
+    select: { permitNumber: true },
+  })
+
+  if (existing?.permitNumber) return existing.permitNumber
+  return reserveNextWorkflowPermitNumber(tx, decisionDate)
 }
 
 export async function createWorkflowRequestForResident(input: { clerkUserId: string; formData: AccWorkflowFormData }) {
@@ -1068,11 +1117,14 @@ async function finalizeInitialReview(input: {
     const finalizedAt = new Date()
     const nextStatus: AccWorkflowRequestStatus = input.decision === "approve" ? "approved" : "rejected"
     const finalizeSource = existing.status === "needs_more_info" ? "needs_more_info" : "initial_review"
+    const permitNumber =
+      input.decision === "approve" ? await assignPermitNumberIfNeeded(tx, existing.id, finalizedAt) : null
 
     await tx.accWorkflowRequest.update({
       where: { id: existing.id },
       data: {
         status: nextStatus,
+        permitNumber,
         finalDecision: input.decision,
         finalDecisionAt: finalizedAt,
         finalDecisionByUserId: input.actorUserId,
@@ -1103,6 +1155,7 @@ async function finalizeInitialReview(input: {
           metadataJson: {
             source: finalizeSource,
             finalDecision: input.decision,
+            permitNumber,
           },
         },
       ],
@@ -1268,10 +1321,13 @@ export async function overrideCommitteeVoteForWorkflowRequest(input: {
     }
 
     const finalizedAt = new Date()
+    const permitNumber =
+      input.decision === "approve" ? await assignPermitNumberIfNeeded(tx, existing.id, finalizedAt) : null
     await tx.accWorkflowRequest.update({
       where: { id: existing.id },
       data: {
         status: input.decision === "approve" ? "approved" : "rejected",
+        permitNumber,
         finalDecision: input.decision,
         finalDecisionAt: finalizedAt,
         finalDecisionByUserId: input.actorUserId,
@@ -1301,6 +1357,7 @@ export async function overrideCommitteeVoteForWorkflowRequest(input: {
           metadataJson: {
             source: "chair_override",
             finalDecision: input.decision,
+            permitNumber,
           },
         },
       ],

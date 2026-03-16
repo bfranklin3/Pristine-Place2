@@ -156,6 +156,10 @@ Canonical cross-domain linking spec (Resident 360, addresses, current/past resid
 - [ ] Define and announce cutover window
 - [ ] Run final import:
   - [ ] `npm run import:acc:gf -- --form=44 --mode=final`
+- [ ] Confirm explicitly that this run is the final ACC migration before go-live
+- [ ] Delete disposable native ACC test requests created during development/testing
+- [ ] Reset native ACC request-number sequence so first live native request is `REQ-2026-0001`
+- [ ] Reset native ACC permit-number sequence so first live approved native request is `26-001`
 - [ ] Re-run hard checks:
   - [ ] counts
   - [ ] attachments

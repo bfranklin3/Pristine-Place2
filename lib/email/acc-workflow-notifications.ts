@@ -22,6 +22,7 @@ type SanityEmailTemplateDoc = {
 type AccWorkflowNotificationPayload = {
   requestId: string
   requestNumber?: string | null
+  permitNumber?: string | null
   title?: string | null
   residentName?: string | null
   residentEmail?: string | null
@@ -138,9 +139,11 @@ function buildFallbackTemplate(
 ): RenderedTemplate {
   const title = replacements.requestTitle || "ACC Request"
   const requestNumber = replacements.requestNumber || ""
+  const permitNumber = replacements.permitNumber || ""
   const detailUrl = replacements.detailUrl || replacements.managementUrl || siteConfig.url
   const note = replacements.decisionNote || replacements.residentActionNote || ""
   const requestNumberHtml = requestNumber ? `<p><strong>Request Number:</strong> ${escapeHtml(requestNumber)}</p>` : ""
+  const permitNumberHtml = permitNumber ? `<p><strong>Permit Number:</strong> ${escapeHtml(permitNumber)}</p>` : ""
 
   if (key === "acc_workflow_submitted_resident") {
     return {
@@ -180,7 +183,7 @@ function buildFallbackTemplate(
   if (key === "acc_workflow_approved_resident") {
     return {
       subject: `ACC request approved: ${title}`,
-      html: `<p>Your ACC request has been approved.</p>${requestNumberHtml}${note ? `<p><strong>Note:</strong> ${escapeHtml(note)}</p>` : ""}<p><a href="${detailUrl}">View your request</a></p>`,
+      html: `<p>Your ACC request has been approved.</p>${requestNumberHtml}${permitNumberHtml}${note ? `<p><strong>Note:</strong> ${escapeHtml(note)}</p>` : ""}<p><a href="${detailUrl}">View your request</a></p>`,
     }
   }
 
@@ -424,6 +427,7 @@ function buildCommonReplacements(payload: AccWorkflowNotificationPayload) {
   return {
     requestId: payload.requestId,
     requestNumber: payload.requestNumber || "",
+    permitNumber: payload.permitNumber || "",
     requestTitle: payload.title || "ACC Request",
     residentName: payload.residentName || "Resident",
     residentEmail: payload.residentEmail || "",

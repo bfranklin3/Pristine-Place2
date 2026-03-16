@@ -32,6 +32,7 @@ type GfEntry = {
 type NativeRow = {
   id: string
   requestNumber: string
+  permitNumber: string | null
   residentNameSnapshot: string
   residentAddressSnapshot: string | null
   title: string | null
@@ -372,7 +373,7 @@ function toNativeEntry(entry: NativeRow, viewMode: CombinedAccDashboardViewMode)
     residentAddress: entry.residentAddressSnapshot,
     title: entry.title || "Native ACC Request",
     description: entry.description || null,
-    permitNumber: null,
+    permitNumber: entry.permitNumber,
     statusKey: entry.status,
     statusLabel: nativeStatusLabel(entry.status),
     processedAt: entry.finalDecisionAt?.toISOString() || null,
@@ -396,6 +397,7 @@ export async function listCombinedAccDashboardEntries(
       select: {
         id: true,
         requestNumber: true,
+        permitNumber: true,
         residentNameSnapshot: true,
         residentAddressSnapshot: true,
         title: true,

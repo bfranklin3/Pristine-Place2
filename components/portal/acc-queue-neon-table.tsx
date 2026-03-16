@@ -23,6 +23,7 @@ type QueueAction =
 type QueueEntry = {
   id: string
   requestNumber: string
+  permitNumber: string | null
   residentName: string
   residentEmail: string
   residentPhone: string | null
@@ -49,6 +50,7 @@ type QueueEntry = {
 type WorkflowDetail = {
   id: string
   requestNumber: string
+  permitNumber: string | null
   residentName: string
   residentEmail: string
   residentPhone: string | null
@@ -151,6 +153,12 @@ function formatDateTime(value: string | null) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return "—"
   return date.toLocaleString()
+}
+
+function hasDisplayValue(value: unknown): boolean {
+  if (value === null || value === undefined) return false
+  if (typeof value === "string") return value.trim().length > 0
+  return true
 }
 
 function formatDateOnly(value: string | null) {
@@ -592,6 +600,11 @@ export function AccQueueNeonTable(props: Props) {
                   >
                     <td style={{ padding: "0.85rem 1rem", verticalAlign: "top", whiteSpace: "nowrap" }}>
                       <div style={{ fontWeight: 700, color: "var(--pp-navy-dark)", fontFamily: "monospace" }}>{entry.requestNumber}</div>
+                      {entry.permitNumber ? (
+                        <div className="text-fluid-sm" style={{ color: "var(--pp-slate-600)", marginTop: "0.2rem" }}>
+                          Permit {entry.permitNumber}
+                        </div>
+                      ) : null}
                     </td>
                     <td style={{ padding: "0.85rem 1rem", verticalAlign: "top" }}>
                       <div style={{ fontWeight: 700, color: "var(--pp-navy-dark)" }}>{entry.residentName}</div>
@@ -636,11 +649,30 @@ export function AccQueueNeonTable(props: Props) {
             <div style={{ color: "#991b1b" }}>{detailError}</div>
           ) : detail ? (
             <div className="stack" style={{ gap: "1rem" }}>
+              {(() => {
+                const summaryItems = [
+                  { label: "Permit Number", value: detail.permitNumber },
+                  { label: "Submitted", value: formatDateTime(detail.submittedAt) },
+                  { label: "Review Cycle", value: detail.reviewCycle },
+                  { label: "Work Type", value: detail.workType },
+                  { label: "Vote Deadline", value: detail.voteDeadlineAt ? formatDateTime(detail.voteDeadlineAt) : null },
+                ].filter((item) => hasDisplayValue(item.value))
+
+                const formSnapshotEntries = Object.entries(detail.formData).filter(([, value]) => hasDisplayValue(value))
+
+                return (
+                  <>
               <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
                 <div>
                   <h3 style={{ margin: 0, color: "var(--pp-navy-dark)" }}>{detail.title || "ACC Request"}</h3>
                   <div className="text-fluid-sm" style={{ color: "var(--pp-slate-600)", marginTop: "0.25rem" }}>
                     <span style={{ fontFamily: "monospace", fontWeight: 700 }}>{detail.requestNumber}</span>
+                    {detail.permitNumber ? (
+                      <>
+                        {" • Permit "}
+                        <span style={{ fontFamily: "monospace", fontWeight: 700 }}>{detail.permitNumber}</span>
+                      </>
+                    ) : null}
                     {" • "}
                     {detail.residentName} • {detail.residentAddress || "No address"}
                   </div>
@@ -681,16 +713,20 @@ export function AccQueueNeonTable(props: Props) {
               ) : null}
 
               <div style={{ display: "grid", gap: "0.8rem", gridTemplateColumns: "repeat(auto-fit, minmax(11rem, 1fr))" }}>
-                <div><strong>Submitted</strong><div>{formatDateTime(detail.submittedAt)}</div></div>
-                <div><strong>Review Cycle</strong><div>{detail.reviewCycle}</div></div>
-                <div><strong>Work Type</strong><div>{detail.workType || "—"}</div></div>
-                <div><strong>Vote Deadline</strong><div>{formatDateTime(detail.voteDeadlineAt)}</div></div>
+                {summaryItems.map((item) => (
+                  <div key={item.label}>
+                    <strong>{item.label}</strong>
+                    <div>{String(item.value)}</div>
+                  </div>
+                ))}
               </div>
 
-              <div>
-                <strong>Project Description</strong>
-                <p style={{ margin: "0.35rem 0 0 0", color: "var(--pp-slate-700)" }}>{detail.description || "—"}</p>
-              </div>
+              {detail.description ? (
+                <div>
+                  <strong>Project Description</strong>
+                  <p style={{ margin: "0.35rem 0 0 0", color: "var(--pp-slate-700)" }}>{detail.description}</p>
+                </div>
+              ) : null}
 
               {detail.locationDetails ? (
                 <div>
@@ -712,17 +748,19 @@ export function AccQueueNeonTable(props: Props) {
                 </div>
               </div>
 
-              <div>
-                <strong>Form Snapshot</strong>
-                <div style={{ display: "grid", gap: "0.5rem", gridTemplateColumns: "repeat(auto-fit, minmax(12rem, 1fr))", marginTop: "0.6rem" }}>
-                  {Object.entries(detail.formData).map(([key, value]) => (
-                    <div key={key} style={{ padding: "0.65rem 0.75rem", borderRadius: "var(--radius-sm)", background: "#f8fafc" }}>
-                      <div className="text-fluid-xs" style={{ color: "var(--pp-slate-600)", textTransform: "capitalize" }}>{key.replace(/([A-Z])/g, " $1")}</div>
-                      <div style={{ marginTop: "0.25rem" }}>{value || "—"}</div>
-                    </div>
-                  ))}
+              {formSnapshotEntries.length ? (
+                <div>
+                  <strong>Form Snapshot</strong>
+                  <div style={{ display: "grid", gap: "0.5rem", gridTemplateColumns: "repeat(auto-fit, minmax(12rem, 1fr))", marginTop: "0.6rem" }}>
+                    {formSnapshotEntries.map(([key, value]) => (
+                      <div key={key} style={{ padding: "0.65rem 0.75rem", borderRadius: "var(--radius-sm)", background: "#f8fafc" }}>
+                        <div className="text-fluid-xs" style={{ color: "var(--pp-slate-600)", textTransform: "capitalize" }}>{key.replace(/([A-Z])/g, " $1")}</div>
+                        <div style={{ marginTop: "0.25rem" }}>{String(value)}</div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              ) : null}
 
               <div>
                 <strong>Event Timeline</strong>
@@ -927,6 +965,9 @@ export function AccQueueNeonTable(props: Props) {
                   </div>
                 ) : null}
               </div>
+                  </>
+                )
+              })()}
             </div>
           ) : null}
         </div>

@@ -53,6 +53,7 @@ interface Resident360Detail {
   nativeAccRequests: Array<{
     id: string
     requestNumber: string
+    permitNumber: string | null
     submittedAt: string | null
     status: string
     finalDecision: string | null

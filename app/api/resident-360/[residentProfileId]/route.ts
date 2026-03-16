@@ -89,6 +89,7 @@ export async function GET(
       nativeAccRequests: nativeRequests.map((request) => ({
         id: request.id,
         requestNumber: request.requestNumber,
+        permitNumber: request.permitNumber,
         submittedAt: request.submittedAt,
         status: request.status,
         finalDecision: request.finalDecision,

@@ -419,6 +419,7 @@ model AccRequest {
 model AccWorkflowRequest {
   id                      String                   @id @default(cuid())
   requestNumber           String                   @unique
+  permitNumber            String?                  @unique
   origin                  AccWorkflowRequestOrigin @default(portal_native)
   importedAccRequestId    String?                  @unique
   importedAccRequest      AccRequest?              @relation("ImportedAccRequestToWorkflow", fields: [importedAccRequestId], references: [id], onDelete: SetNull)
@@ -473,6 +474,13 @@ model AccWorkflowRequest {
 }
 
 model AccWorkflowRequestNumberSequence {
+  year       Int      @id
+  nextNumber Int      @default(1)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model AccWorkflowPermitNumberSequence {
   year       Int      @id
   nextNumber Int      @default(1)
   createdAt  DateTime @default(now())

@@ -88,6 +88,11 @@ export default async function MyAccRequestsPage() {
                         <p style={{ margin: 0, color: "var(--pp-slate-600)", fontFamily: "monospace", fontSize: "0.95rem" }}>
                           {request.requestNumber}
                         </p>
+                        {request.permitNumber ? (
+                          <p style={{ margin: 0, color: "var(--pp-slate-600)", fontFamily: "monospace", fontSize: "0.95rem" }}>
+                            Permit {request.permitNumber}
+                          </p>
+                        ) : null}
                         <p style={{ margin: 0, color: "var(--pp-slate-700)" }}>{request.residentAddress || "Address unavailable"}</p>
                         <p style={{ margin: 0, color: "var(--pp-slate-500)", fontSize: "0.95rem" }}>
                           Submitted {formatDateOnly(request.submittedAt)}

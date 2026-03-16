@@ -85,6 +85,12 @@ export default async function AccRequestDetailPage({ params }: { params: Promise
                   <strong style={{ color: "var(--pp-navy-dark)" }}>Request Number</strong>
                   <span style={{ fontFamily: "monospace" }}>{request.requestNumber}</span>
                 </div>
+                {request.permitNumber ? (
+                  <div style={{ display: "grid", gap: "0.25rem" }}>
+                    <strong style={{ color: "var(--pp-navy-dark)" }}>Permit Number</strong>
+                    <span style={{ fontFamily: "monospace" }}>{request.permitNumber}</span>
+                  </div>
+                ) : null}
                 <div style={{ display: "grid", gap: "0.25rem" }}>
                   <strong style={{ color: "var(--pp-navy-dark)" }}>Status</strong>
                   <span

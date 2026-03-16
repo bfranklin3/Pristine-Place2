@@ -38,6 +38,7 @@ function parseVoteDeadline(value: string | null | undefined) {
 async function deliverFinalDecisionNotification(request: {
   id: string
   requestNumber?: string | null
+  permitNumber?: string | null
   title?: string | null
   residentName?: string | null
   residentEmail?: string | null
@@ -49,6 +50,7 @@ async function deliverFinalDecisionNotification(request: {
   return sendAccWorkflowFinalDecisionNotification({
     requestId: request.id,
     requestNumber: request.requestNumber,
+    permitNumber: request.permitNumber,
     title: request.title,
     residentName: request.residentName,
     residentEmail: request.residentEmail,
