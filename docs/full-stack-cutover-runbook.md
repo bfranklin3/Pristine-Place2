@@ -166,6 +166,7 @@ npm run report:acc:match-quality
 Because legacy WordPress remains active until cutover:
 
 - [ ] Re-run ACC import (`--mode full`)
+- [ ] Re-check [ACC import overrides](/Volumes/Data%20SSD/%20Software%20Development/Vercel-Next-JS/Pristine-Place-HOA/docs/acc-import-overrides.md) before the final ACC reimport
 - [ ] Re-run matching
 - [ ] Re-resolve new unmatched rows
 - [ ] Re-check record counts against source

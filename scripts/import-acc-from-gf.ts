@@ -2,6 +2,7 @@ import "dotenv/config"
 import path from "node:path"
 import { PrismaClient } from "@prisma/client"
 import { canonicalizeAddressParts, normalizeSpace } from "../lib/address-normalization"
+import { getAccImportOverride } from "./lib/acc-import-overrides"
 
 type GfEntry = Record<string, unknown> & {
   id?: string
@@ -181,7 +182,8 @@ function mapEntry(entry: GfEntry, formId: string) {
   const notes = asString(entry["37"])
   const permitNumber = asString(entry["39"])
   const processDate = parseMdyDate(entry["61"])
-  const disposition = normalizeDisposition(entry["55"])
+  const override = getAccImportOverride(sourceEntryId)
+  const disposition = override?.disposition ?? normalizeDisposition(entry["55"])
   const phase = asString(entry["4"])
   const lot = asString(entry["5"])
   const address = normalizeAddress(asString(entry["58"]))
@@ -214,7 +216,13 @@ function mapEntry(entry: GfEntry, formId: string) {
     lot,
     description,
     notes,
-    rawEntryJson: entry,
+    rawEntryJson: override
+      ? {
+          ...entry,
+          ...override.rawEntryPatch,
+          _importOverrideNote: override.note,
+        }
+      : entry,
     attachments,
   }
 }
@@ -305,6 +313,7 @@ async function main() {
   const modeArg = (getArg("--mode") ?? "full").toLowerCase()
   const mode: ImportMode = modeArg === "delta" || modeArg === "final" ? modeArg : "full"
   const dryRun = hasFlag("--dry-run")
+  const entryIdFilter = getArg("--entry-id") ?? null
   const limitArg = getArg("--limit")
   const pageSize = Math.max(10, Number.parseInt(getArg("--page-size") ?? "200", 10) || 200)
 
@@ -333,7 +342,10 @@ async function main() {
   try {
     const allRows = await fetchAllEntries(formId, pageSize)
     const limit = limitArg ? Math.max(1, Number.parseInt(limitArg, 10) || allRows.length) : allRows.length
-    const selected = allRows.slice(0, limit)
+    const filtered = entryIdFilter
+      ? allRows.filter((row) => asString(row.id) === entryIdFilter)
+      : allRows
+    const selected = filtered.slice(0, limit)
     rowsRead = allRows.length
 
     for (const entry of selected) {
@@ -512,6 +524,7 @@ async function main() {
       {
         mode: dryRun ? "dry-run" : mode,
         formId,
+        entryIdFilter,
         pageSize,
         rowsRead,
         rowsProcessed,
