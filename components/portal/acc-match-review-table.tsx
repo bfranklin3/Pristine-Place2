@@ -345,6 +345,12 @@ export function AccMatchReviewTable({ initialQ = "", initialStatus = "needs_revi
           <input
             value={qInput}
             onChange={(e) => setQInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault()
+                handleSearch()
+              }
+            }}
             placeholder="Search owner, address, permit, resident..."
             style={{
               width: "100%",

@@ -497,6 +497,13 @@ export function AccQueueNeonTable(props: Props) {
           <input
             value={queryInput}
             onChange={(event) => setQueryInput(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault()
+                setQuery(queryInput.trim())
+                setPage(1)
+              }
+            }}
             placeholder="Search request number, name, address, title, or description"
             style={{ width: "100%", border: "1.5px solid var(--pp-slate-200)", borderRadius: "var(--radius-sm)", padding: "0.7rem 0.8rem" }}
           />
