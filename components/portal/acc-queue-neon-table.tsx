@@ -284,7 +284,9 @@ export function AccQueueNeonTable(props: Props) {
   const [internalAttachmentFiles, setInternalAttachmentFiles] = useState<File[]>([])
   const [attachmentInputKey, setAttachmentInputKey] = useState(0)
   const [statusMessage, setStatusMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
+  const [actionValidationMessage, setActionValidationMessage] = useState<string | null>(null)
   const autoSelectedIdRef = useRef<string | null>(null)
+  const actionNoteRef = useRef<HTMLTextAreaElement | null>(null)
 
   function resetFilters() {
     setQueryInput("")
@@ -380,8 +382,18 @@ export function AccQueueNeonTable(props: Props) {
   async function runAction(action: QueueAction, extras: Record<string, unknown> = {}) {
     if (!detail) return
 
+    if (action === "override" && !actionNote.trim()) {
+      setActionValidationMessage(
+        "Enter an override note explaining why the chair override is needed before approving or rejecting.",
+      )
+      actionNoteRef.current?.focus()
+      actionNoteRef.current?.scrollIntoView({ block: "center", behavior: "smooth" })
+      return
+    }
+
     setSaving(true)
     setStatusMessage(null)
+    setActionValidationMessage(null)
 
     try {
       const res = await fetch(`/api/acc/queue/${detail.id}`, {
@@ -826,12 +838,22 @@ export function AccQueueNeonTable(props: Props) {
                 </div>
 
                 <textarea
+                  ref={actionNoteRef}
                   value={actionNote}
-                  onChange={(event) => setActionNote(event.target.value)}
+                  onChange={(event) => {
+                    setActionNote(event.target.value)
+                    if (actionValidationMessage) setActionValidationMessage(null)
+                  }}
                   rows={4}
                   placeholder="Decision note, resident note, override note, or verification note"
                   style={{ width: "100%", border: "1.5px solid var(--pp-slate-200)", borderRadius: "var(--radius-sm)", padding: "0.75rem", resize: "vertical" }}
                 />
+
+                {props.canOverrideVote && detail.status === "committee_vote" && !detail.lockedAt ? (
+                  <div className="text-fluid-sm" style={{ marginTop: "0.45rem", color: "var(--pp-slate-600)" }}>
+                    Chair overrides require a note explaining why the override is being used.
+                  </div>
+                ) : null}
 
                 <div style={{ marginTop: "0.75rem", display: "grid", gap: "0.6rem" }}>
                   {props.canControlWorkflow && detail.status === "initial_review" ? (
@@ -906,13 +928,27 @@ export function AccQueueNeonTable(props: Props) {
                   ) : null}
 
                   {props.canOverrideVote && detail.status === "committee_vote" && !detail.lockedAt ? (
-                    <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-                      <button type="button" className="btn btn-primary" disabled={saving} onClick={() => runAction("override", { decision: "approve" })}>
-                        Chair Override Approve
-                      </button>
-                      <button type="button" className="btn btn-secondary" disabled={saving} onClick={() => runAction("override", { decision: "reject" })}>
-                        Chair Override Reject
-                      </button>
+                    <div style={{ display: "grid", gap: "0.55rem" }}>
+                      {actionValidationMessage ? (
+                        <div
+                          style={{
+                            padding: "0.75rem 0.85rem",
+                            borderRadius: "var(--radius-sm)",
+                            background: "#fef2f2",
+                            color: "#991b1b",
+                          }}
+                        >
+                          {actionValidationMessage}
+                        </div>
+                      ) : null}
+                      <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                        <button type="button" className="btn btn-primary" disabled={saving} onClick={() => runAction("override", { decision: "approve" })}>
+                          Chair Override Approve
+                        </button>
+                        <button type="button" className="btn btn-secondary" disabled={saving} onClick={() => runAction("override", { decision: "reject" })}>
+                          Chair Override Reject
+                        </button>
+                      </div>
                     </div>
                   ) : null}
 
