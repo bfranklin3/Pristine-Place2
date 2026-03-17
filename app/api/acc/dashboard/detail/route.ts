@@ -178,7 +178,7 @@ async function getNativeDetail(id: string, viewerUserId: string, viewMode: Combi
     residentAddress: request.residentAddress || null,
     title: request.title || "Native ACC Request",
     description: request.description || null,
-    permitNumber: null,
+    permitNumber: request.permitNumber,
     workType: request.workType || null,
     phase: request.phase || null,
     lot: request.lot || null,

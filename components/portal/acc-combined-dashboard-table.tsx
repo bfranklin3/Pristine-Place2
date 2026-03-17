@@ -591,9 +591,17 @@ export function AccCombinedDashboardTable({ viewMode = "full" }: { viewMode?: Vi
                 ) : null}
 
                 <div style={{ display: "flex", justifyContent: "space-between", gap: "0.75rem", flexWrap: "wrap" }}>
-                  <Link href={activeEntry.sourceHref} className="btn btn-secondary">
-                    {activeEntry.source === "native" ? "Open in Native Queue" : "Open in WP Queue"}
-                  </Link>
+                  <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+                    <Link href={activeEntry.sourceHref} className="btn btn-secondary">
+                      {activeEntry.source === "native" ? "Open in Native Queue" : "Open in WP Queue"}
+                    </Link>
+                    <a
+                      href={`/api/acc/submitted-form?source=${encodeURIComponent(activeEntry.source)}&id=${encodeURIComponent(activeEntry.sourceRecordId)}`}
+                      className="btn btn-secondary"
+                    >
+                      Download Submitted Form
+                    </a>
+                  </div>
                   <Dialog.Close asChild>
                     <button type="button" className="btn btn-primary">Close</button>
                   </Dialog.Close>

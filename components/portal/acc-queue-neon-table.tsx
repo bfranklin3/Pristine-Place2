@@ -789,11 +789,28 @@ export function AccQueueNeonTable(props: Props) {
                 </div>
 
                 {props.canControlWorkflow && detail.status === "initial_review" ? (
-                  <p style={{ margin: "0 0 0.75rem 0" }}>
+                  <div style={{ margin: "0 0 0.75rem 0", display: "flex", gap: "0.6rem", flexWrap: "wrap" }}>
                     <Link href={`/resident-portal/management/acc-queue/${detail.id}/edit`} className="btn btn-secondary">
                       Open Full Edit Form
                     </Link>
-                  </p>
+                    <a
+                      href={`/api/acc/submitted-form?source=native&id=${encodeURIComponent(detail.id)}`}
+                      className="btn btn-secondary"
+                    >
+                      Download Submitted Form
+                    </a>
+                  </div>
+                ) : null}
+
+                {(!props.canControlWorkflow || detail.status !== "initial_review") ? (
+                  <div style={{ margin: "0 0 0.75rem 0" }}>
+                    <a
+                      href={`/api/acc/submitted-form?source=native&id=${encodeURIComponent(detail.id)}`}
+                      className="btn btn-secondary"
+                    >
+                      Download Submitted Form
+                    </a>
+                  </div>
                 ) : null}
 
                 <div style={{ marginBottom: "0.75rem", padding: "0.75rem 0.85rem", borderRadius: "var(--radius-sm)", background: "#f8fafc", color: "var(--pp-slate-700)" }}>

@@ -238,6 +238,23 @@ export function AccSubmitPageClient({
     }
   }
 
+  async function notifySubmission(requestId: string, kind: "submitted" | "resubmitted") {
+    try {
+      const res = await fetch(`/api/acc/requests/${requestId}/notify-submission`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ kind }),
+      })
+
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string; detail?: string }
+        console.error("ACC submission notification failed:", body.error || body.detail || res.statusText)
+      }
+    } catch (error) {
+      console.error("ACC submission notification failed:", error)
+    }
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
     setStatus(null)
@@ -337,6 +354,8 @@ export function AccSubmitPageClient({
           )
         }
 
+        await notifySubmission(resubmitBody.request.id, "resubmitted")
+
         setStatus({ type: "success", message: "Your ACC request was updated and resubmitted for review." })
         router.push(`/resident-portal/acc/requests/${resubmitBody.request.id}`)
         router.refresh()
@@ -391,6 +410,8 @@ export function AccSubmitPageClient({
       if (form.hasSupportingDocs === "yes" && selectedFiles.length > 0) {
         await uploadSelectedFiles(`/api/acc/requests/${body.request.id}/attachments`)
       }
+
+      await notifySubmission(body.request.id, "submitted")
 
       setStatus({ type: "success", message: "Your ACC request was submitted successfully." })
       setForm(initialForm)

@@ -1,6 +1,6 @@
 import { clerkClient } from "@clerk/nextjs/server"
 import { createClient } from "next-sanity"
-import { sendEmail } from "@/lib/email/service"
+import { sendEmail, type SendEmailOptions } from "@/lib/email/service"
 import { siteConfig } from "@/lib/site-config"
 import { normalizeCommitteeChairSlugs, normalizeCommitteeSlugs } from "@/lib/portal/committees"
 
@@ -299,6 +299,7 @@ async function deliverAccWorkflowEmail(input: {
   to: string[]
   templateKey: NotificationTemplateKey
   replacements: Record<string, string>
+  attachments?: SendEmailOptions["attachments"]
 }) : Promise<AccWorkflowNotificationResult> {
   const recipients = dedupeEmails(input.to)
   const mode = resolveNotificationMode()
@@ -369,6 +370,7 @@ async function deliverAccWorkflowEmail(input: {
     to: effectiveRecipients,
     subject: template.subject,
     html: template.html,
+    attachments: input.attachments,
   })
 
   const notificationResult = {
@@ -442,7 +444,10 @@ function buildCommonReplacements(payload: AccWorkflowNotificationPayload) {
   }
 }
 
-export async function sendAccWorkflowSubmittedNotifications(payload: AccWorkflowNotificationPayload) {
+export async function sendAccWorkflowSubmittedNotifications(
+  payload: AccWorkflowNotificationPayload,
+  options?: { chairAttachments?: SendEmailOptions["attachments"] },
+) {
   try {
     const replacements = buildCommonReplacements(payload)
     const [residentResult, chairRecipients] = await Promise.all([
@@ -458,6 +463,7 @@ export async function sendAccWorkflowSubmittedNotifications(payload: AccWorkflow
       to: chairRecipients,
       templateKey: "acc_workflow_submitted_chair",
       replacements,
+      attachments: options?.chairAttachments,
     })
 
     return { residentResult, chairResult }
@@ -483,12 +489,16 @@ export async function sendAccWorkflowMoreInfoNotification(payload: AccWorkflowNo
   }
 }
 
-export async function sendAccWorkflowResubmittedNotification(payload: AccWorkflowNotificationPayload) {
+export async function sendAccWorkflowResubmittedNotification(
+  payload: AccWorkflowNotificationPayload,
+  options?: { attachments?: SendEmailOptions["attachments"] },
+) {
   try {
     return await deliverAccWorkflowEmail({
       to: await fetchAccRecipients("chairs"),
       templateKey: "acc_workflow_resubmitted_chair",
       replacements: buildCommonReplacements(payload),
+      attachments: options?.attachments,
     })
   } catch (error) {
     console.error("ACC workflow resubmitted notification failed:", error)
