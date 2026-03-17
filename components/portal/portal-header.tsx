@@ -137,6 +137,12 @@ const managementItems = [
     allowed: ["admin"] as Array<CommitteeSlug | "admin">,
   },
   {
+    label: "ACC Permit Lookup",
+    href: "/resident-portal/management/acc-permit-lookup",
+    description: "Redacted property permit history for Board and admin review",
+    allowed: ["admin", "board_of_directors"] as Array<CommitteeSlug | "admin">,
+  },
+  {
     label: "Access Control Management Wordpress",
     href: "/resident-portal/management/wp-access",
     description: "Manage gate access (Access Control committee)",
@@ -210,6 +216,7 @@ function categorizeManagementItems(items: ManagementItem[]) {
     "/resident-portal/management/acc-dashboard-redacted",
     "/resident-portal/management/acc-queue",
     "/resident-portal/management/access",
+    "/resident-portal/management/acc-permit-lookup",
     "/resident-portal/management/resident-360",
     "/resident-portal/management/acc-link-review",
     "/resident-portal/management/acc-match-review",
