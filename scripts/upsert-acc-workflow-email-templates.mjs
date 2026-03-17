@@ -20,17 +20,25 @@ const templates = [
   {
     key: "acc_workflow_submitted_resident",
     subject: "ACC request received: {{requestTitle}}",
-    htmlBody: `<p>Your ACC request has been received.</p>
-<p><strong>Request:</strong> {{requestTitle}}</p>
+    htmlBody: `<p>Your ACC request has been received and is now in review.</p>
 <p><strong>Request Number:</strong> {{requestNumber}}</p>
-<p><a href="{{detailUrl}}">View your request</a></p>`,
-    textBody: `Your ACC request has been received.
+<p><strong>Project:</strong> {{requestTitle}}</p>
+<p><strong>Property Address:</strong> {{residentAddress}}</p>
+<p>Online submissions are usually reviewed within one week. Decisions are communicated by email or phone.</p>
+<p><a href="{{detailUrl}}">View your request in the resident portal</a></p>
+<p>If you have questions, contact the ACC at <a href="mailto:{{contactEmail}}">{{contactEmail}}</a>.</p>`,
+    textBody: `Your ACC request has been received and is now in review.
 
-Request: {{requestTitle}}
 Request Number: {{requestNumber}}
+Project: {{requestTitle}}
+Property Address: {{residentAddress}}
 
-View your request:
-{{detailUrl}}`,
+Online submissions are usually reviewed within one week. Decisions are communicated by email or phone.
+
+View your request in the resident portal:
+{{detailUrl}}
+
+If you have questions, contact the ACC at {{contactEmail}}.`,
   },
   {
     key: "acc_workflow_submitted_chair",
@@ -54,15 +62,22 @@ Open ACC workflow queue:
     subject: "More information needed for your ACC request",
     htmlBody: `<p>Your ACC request needs more information before review can continue.</p>
 <p><strong>Request Number:</strong> {{requestNumber}}</p>
-<p><strong>Note:</strong> {{residentActionNote}}</p>
-<p><a href="{{detailUrl}}">Open your request</a></p>`,
+<p><strong>Project:</strong> {{requestTitle}}</p>
+<p><strong>Property Address:</strong> {{residentAddress}}</p>
+<p><strong>ACC Note:</strong> {{residentActionNote}}</p>
+<p><a href="{{detailUrl}}">Update and resubmit your request in the resident portal</a></p>
+<p>If you have questions, contact the ACC at <a href="mailto:{{contactEmail}}">{{contactEmail}}</a>.</p>`,
     textBody: `Your ACC request needs more information before review can continue.
 
 Request Number: {{requestNumber}}
-Note: {{residentActionNote}}
+Project: {{requestTitle}}
+Property Address: {{residentAddress}}
+ACC Note: {{residentActionNote}}
 
-Open your request:
-{{detailUrl}}`,
+Update and resubmit your request in the resident portal:
+{{detailUrl}}
+
+If you have questions, contact the ACC at {{contactEmail}}.`,
   },
   {
     key: "acc_workflow_resubmitted_chair",
@@ -101,30 +116,46 @@ Open ACC workflow queue:
     subject: "ACC request approved: {{requestTitle}}",
     htmlBody: `<p>Your ACC request has been approved.</p>
 <p><strong>Request Number:</strong> {{requestNumber}}</p>
-<p><strong>Note:</strong> {{decisionNote}}</p>
-<p><a href="{{detailUrl}}">View your request</a></p>`,
+<p><strong>Permit Number:</strong> {{permitNumber}}</p>
+<p><strong>Project:</strong> {{requestTitle}}</p>
+<p><strong>Property Address:</strong> {{residentAddress}}</p>
+<p><strong>Decision Note:</strong> {{decisionNote}}</p>
+<p><a href="{{detailUrl}}">View your request in the resident portal</a></p>
+<p>If you have questions, contact the ACC at <a href="mailto:{{contactEmail}}">{{contactEmail}}</a>.</p>`,
     textBody: `Your ACC request has been approved.
 
 Request Number: {{requestNumber}}
-Note: {{decisionNote}}
+Permit Number: {{permitNumber}}
+Project: {{requestTitle}}
+Property Address: {{residentAddress}}
+Decision Note: {{decisionNote}}
 
-View your request:
-{{detailUrl}}`,
+View your request in the resident portal:
+{{detailUrl}}
+
+If you have questions, contact the ACC at {{contactEmail}}.`,
   },
   {
     key: "acc_workflow_rejected_resident",
     subject: "ACC request decision: {{requestTitle}}",
-    htmlBody: `<p>Your ACC request has been rejected.</p>
+    htmlBody: `<p>Your ACC request was not approved.</p>
 <p><strong>Request Number:</strong> {{requestNumber}}</p>
-<p><strong>Note:</strong> {{decisionNote}}</p>
-<p><a href="{{detailUrl}}">View your request</a></p>`,
-    textBody: `Your ACC request has been rejected.
+<p><strong>Project:</strong> {{requestTitle}}</p>
+<p><strong>Property Address:</strong> {{residentAddress}}</p>
+<p><strong>Decision Note:</strong> {{decisionNote}}</p>
+<p><a href="{{detailUrl}}">View your request in the resident portal</a></p>
+<p>If you have questions, contact the ACC at <a href="mailto:{{contactEmail}}">{{contactEmail}}</a>.</p>`,
+    textBody: `Your ACC request was not approved.
 
 Request Number: {{requestNumber}}
-Note: {{decisionNote}}
+Project: {{requestTitle}}
+Property Address: {{residentAddress}}
+Decision Note: {{decisionNote}}
 
-View your request:
-{{detailUrl}}`,
+View your request in the resident portal:
+{{detailUrl}}
+
+If you have questions, contact the ACC at {{contactEmail}}.`,
   },
 ]
 
