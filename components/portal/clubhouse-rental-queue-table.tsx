@@ -167,6 +167,8 @@ function StatusBadge({ status }: { status: RentalStatus }) {
         color: styles.color,
         fontSize: "0.78rem",
         fontWeight: 700,
+        lineHeight: 1.2,
+        textAlign: "center",
       }}
     >
       {statusLabel(status)}
