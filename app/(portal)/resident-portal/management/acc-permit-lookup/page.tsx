@@ -6,7 +6,7 @@ import { AccPermitLookupTable } from "@/components/portal/acc-permit-lookup-tabl
 
 export const metadata: Metadata = {
   title: `ACC Permit Lookup | ${siteConfig.name} Resident Portal`,
-  description: "Redacted property permit history for Board and admin review.",
+  description: "Redacted property permit history for Board review.",
 }
 
 export default async function AccPermitLookupPage() {
@@ -34,7 +34,7 @@ export default async function AccPermitLookupPage() {
           </div>
           <h1 className="hero-title">ACC Permit Lookup</h1>
           <p className="hero-subtitle" style={{ maxWidth: "60ch" }}>
-            Redacted property permit history for Board and admin review.
+            Redacted property permit history for Board review.
           </p>
         </div>
       </section>
