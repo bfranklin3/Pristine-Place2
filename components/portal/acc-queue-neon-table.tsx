@@ -207,6 +207,11 @@ function StatusBadge({ status }: { status: WorkflowStatus }) {
   )
 }
 
+const disabledVoteButtonStyle = {
+  opacity: 0.55,
+  cursor: "not-allowed" as const,
+}
+
 function EventLabel({ eventType }: { eventType: string }) {
   const label = eventType
     .split("_")
@@ -857,14 +862,47 @@ export function AccQueueNeonTable(props: Props) {
                   ) : null}
 
                   {props.canVote && detail.status === "committee_vote" && !detail.lockedAt ? (
-                    <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-                      <button type="button" className="btn btn-primary" disabled={saving || detail.voteSummary.hasCurrentUserVoted} onClick={() => runAction("cast_vote", { vote: "approve" })}>
-                        Cast Approve Vote
-                      </button>
-                      <button type="button" className="btn btn-secondary" disabled={saving || detail.voteSummary.hasCurrentUserVoted} onClick={() => runAction("cast_vote", { vote: "reject" })}>
-                        Cast Reject Vote
-                      </button>
-                    </div>
+                    detail.voteSummary.hasCurrentUserVoted ? (
+                      <div style={{ display: "grid", gap: "0.6rem" }}>
+                        <div
+                          style={{
+                            padding: "0.75rem 0.85rem",
+                            borderRadius: "var(--radius-sm)",
+                            background: "#eff6ff",
+                            color: "#1d4ed8",
+                          }}
+                        >
+                          Your {detail.voteSummary.currentUserVote || ""} vote has already been recorded for this review cycle.
+                        </div>
+                        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                          <button
+                            type="button"
+                            className="btn btn-primary"
+                            disabled
+                            style={disabledVoteButtonStyle}
+                          >
+                            Cast Approve Vote
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-secondary"
+                            disabled
+                            style={disabledVoteButtonStyle}
+                          >
+                            Cast Reject Vote
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                        <button type="button" className="btn btn-primary" disabled={saving} onClick={() => runAction("cast_vote", { vote: "approve" })}>
+                          Cast Approve Vote
+                        </button>
+                        <button type="button" className="btn btn-secondary" disabled={saving} onClick={() => runAction("cast_vote", { vote: "reject" })}>
+                          Cast Reject Vote
+                        </button>
+                      </div>
+                    )
                   ) : null}
 
                   {props.canOverrideVote && detail.status === "committee_vote" && !detail.lockedAt ? (
