@@ -56,7 +56,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
 
     try {
       const response = await fetch(
-        `/api/search?q=${encodeURIComponent(searchQuery.trim())}&limit=10`
+        `/api/search?q=${encodeURIComponent(searchQuery.trim())}&limit=18`
       )
 
       if (!response.ok) {
@@ -119,6 +119,12 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
     router.push(result.href)
   }
 
+  const handleViewAllResults = () => {
+    if (!query.trim()) return
+    router.push(`/resident-portal/search?q=${encodeURIComponent(query.trim())}`)
+    onClose()
+  }
+
   // Scroll selected item into view
   useEffect(() => {
     if (resultsRef.current) {
@@ -133,7 +139,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
       acc[result.type].push(result)
       return acc
     },
-    { announcement: [], event: [], page: [], document: [], faq: [], committee: [] } as Record<string, SearchResult[]>
+    { announcement: [], event: [], page: [], document: [], faq: [], committee: [], "acc-guideline": [] } as Record<string, SearchResult[]>
   )
 
   // Result icon component
@@ -141,6 +147,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
     if (type === "announcement") return <Megaphone className="w-4 h-4 text-pp-navy" />
     if (type === "event") return <Calendar className="w-4 h-4 text-pp-navy" />
     if (type === "page") return <FileText className="w-4 h-4 text-pp-navy" />
+    if (type === "acc-guideline") return <FileText className="w-4 h-4 text-pp-navy" />
     if (type === "document") return <Download className="w-4 h-4 text-pp-navy" />
     if (type === "faq") return <HelpCircle className="w-4 h-4 text-pp-navy" />
     if (type === "committee") return <Users className="w-4 h-4 text-pp-navy" />
@@ -152,6 +159,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
     if (type === "announcement") return "Announcement"
     if (type === "event") return "Event"
     if (type === "page") return "Page"
+    if (type === "acc-guideline") return "ACC Guideline"
     if (type === "document") return "Document"
     if (type === "faq") return "FAQ"
     if (type === "committee") return "Committee"
@@ -189,7 +197,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
               value={query}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
-              placeholder="Search announcements, events, pages, documents, FAQs..."
+              placeholder="Search announcements, events, pages, ACC guidelines, documents, FAQs..."
               className="flex-1 text-base outline-none placeholder:text-pp-slate-400"
               aria-label="Search portal content"
               id="search-modal-title"
@@ -217,7 +225,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
               <div className="p-8 text-center">
                 <Search className="w-12 h-12 text-pp-slate-300 mx-auto mb-3" aria-hidden="true" />
                 <p className="text-pp-slate-500 text-sm">
-                  Start typing to search announcements, events, pages, documents, FAQs, and committees
+                  Start typing to search announcements, events, pages, ACC guidelines, documents, FAQs, and committees
                 </p>
                 <div className="mt-4 flex items-center justify-center gap-4 text-xs text-pp-slate-400">
                   <div className="flex items-center gap-1">
@@ -442,6 +450,65 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
                   </div>
                 )}
 
+                {/* ACC Guidelines */}
+                {groupedResults["acc-guideline"].length > 0 && (
+                  <div className="p-3">
+                    <h3 className="text-xs font-semibold text-pp-slate-500 uppercase tracking-wide px-3 py-2">
+                      ACC Guidelines ({groupedResults["acc-guideline"].length})
+                    </h3>
+                    <div className="space-y-1">
+                      {groupedResults["acc-guideline"].map((result) => {
+                        const globalIndex = results.indexOf(result)
+                        const isSelected = globalIndex === selectedIndex
+                        return (
+                          <button
+                            key={result.id}
+                            onClick={() => handleResultClick(result)}
+                            onMouseEnter={() => setSelectedIndex(globalIndex)}
+                            className={`w-full text-left px-3 py-2.5 rounded-md transition-colors ${
+                              isSelected
+                                ? "bg-pp-navy text-white"
+                                : "hover:bg-pp-slate-50"
+                            }`}
+                            aria-selected={isSelected}
+                          >
+                            <div className="flex items-start gap-2">
+                              <ResultIcon type={result.type} />
+                              <div className="flex-1 min-w-0">
+                                <div
+                                  className={`text-sm font-medium truncate ${
+                                    isSelected ? "text-white" : "text-pp-navy-dark"
+                                  }`}
+                                >
+                                  {result.title}
+                                </div>
+                                <div
+                                  className={`text-xs mt-0.5 line-clamp-2 ${
+                                    isSelected ? "text-white/80" : "text-pp-slate-600"
+                                  }`}
+                                >
+                                  {result.excerpt}
+                                </div>
+                                {result.category && (
+                                  <div
+                                    className={`text-xs px-1.5 py-0.5 rounded mt-1 inline-block ${
+                                      isSelected
+                                        ? "bg-white/20 text-white"
+                                        : "bg-pp-slate-100 text-pp-slate-600"
+                                    }`}
+                                  >
+                                    {result.category}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 {/* Documents */}
                 {groupedResults.document.length > 0 && (
                   <div className="p-3">
@@ -601,30 +668,41 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
           </div>
 
           {/* Footer with keyboard hints */}
-          {results.length > 0 && (
+          {(results.length > 0 || query.trim().length >= 2) && (
             <div className="border-t border-pp-slate-200 px-4 py-2 bg-pp-slate-50">
-              <div className="flex items-center gap-4 text-xs text-pp-slate-500">
-                <div className="flex items-center gap-1">
-                  <kbd className="px-1.5 py-0.5 bg-white rounded border border-pp-slate-300 font-mono text-[10px]">
-                    ↑
-                  </kbd>
-                  <kbd className="px-1.5 py-0.5 bg-white rounded border border-pp-slate-300 font-mono text-[10px]">
-                    ↓
-                  </kbd>
-                  <span>navigate</span>
+              <div className="flex items-center justify-between gap-4 flex-wrap">
+                <div className="flex items-center gap-4 text-xs text-pp-slate-500">
+                  <div className="flex items-center gap-1">
+                    <kbd className="px-1.5 py-0.5 bg-white rounded border border-pp-slate-300 font-mono text-[10px]">
+                      ↑
+                    </kbd>
+                    <kbd className="px-1.5 py-0.5 bg-white rounded border border-pp-slate-300 font-mono text-[10px]">
+                      ↓
+                    </kbd>
+                    <span>navigate</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <kbd className="px-1.5 py-0.5 bg-white rounded border border-pp-slate-300 font-mono text-[10px]">
+                      ENTER
+                    </kbd>
+                    <span>select</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <kbd className="px-1.5 py-0.5 bg-white rounded border border-pp-slate-300 font-mono text-[10px]">
+                      ESC
+                    </kbd>
+                    <span>close</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1">
-                  <kbd className="px-1.5 py-0.5 bg-white rounded border border-pp-slate-300 font-mono text-[10px]">
-                    ENTER
-                  </kbd>
-                  <span>select</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <kbd className="px-1.5 py-0.5 bg-white rounded border border-pp-slate-300 font-mono text-[10px]">
-                    ESC
-                  </kbd>
-                  <span>close</span>
-                </div>
+                {query.trim().length >= 2 ? (
+                  <button
+                    type="button"
+                    onClick={handleViewAllResults}
+                    className="text-xs font-semibold text-pp-navy hover:text-pp-navy-dark"
+                  >
+                    View all results
+                  </button>
+                ) : null}
               </div>
             </div>
           )}
