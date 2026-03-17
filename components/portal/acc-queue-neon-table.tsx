@@ -191,10 +191,13 @@ function StatusBadge({ status }: { status: WorkflowStatus }) {
       style={{
         display: "inline-flex",
         alignItems: "center",
+        justifyContent: "center",
         borderRadius: "999px",
         padding: "0.25rem 0.7rem",
         fontSize: "0.75rem",
         fontWeight: 700,
+        lineHeight: 1.2,
+        textAlign: "center",
         background: styles.background,
         color: styles.color,
       }}

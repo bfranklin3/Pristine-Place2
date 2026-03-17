@@ -1,11 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getWorkflowRequestForResident } from "@/lib/acc-workflow/repository"
 import { requireApprovedPortalApiAccess } from "@/lib/auth/portal-api"
-import { generateAccSubmittedFormPdf } from "@/lib/acc-submitted-form-pdf"
-import {
-  sendAccWorkflowResubmittedNotification,
-  sendAccWorkflowSubmittedNotifications,
-} from "@/lib/email/acc-workflow-notifications"
+import { sendSubmissionNotificationsForResidentRequest } from "@/lib/acc-workflow/submission-notifications"
 
 type NotifyKind = "submitted" | "resubmitted"
 
@@ -28,53 +23,22 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   }
 
   try {
-    const request = await getWorkflowRequestForResident(access.identity.clerkUserId, id)
-    if (!request) {
+    const result = await sendSubmissionNotificationsForResidentRequest({
+      clerkUserId: access.identity.clerkUserId,
+      requestId: id,
+      kind,
+    })
+
+    if (result.kind === "not_found") {
       return NextResponse.json({ error: "ACC request not found." }, { status: 404 })
     }
 
-    let pdfAttachment: { filename: string; content: Buffer; contentType: string }[] | undefined
-    try {
-      const generated = await generateAccSubmittedFormPdf({
-        source: "native",
-        id: request.id,
-        viewerUserId: access.identity.clerkUserId,
-        viewMode: "full",
-      })
-
-      if (generated) {
-        pdfAttachment = [
-          {
-            filename: generated.filename,
-            content: generated.pdf,
-            contentType: "application/pdf",
-          },
-        ]
-      }
-    } catch (error) {
-      console.error("ACC submitted-form PDF attachment generation failed:", error)
-    }
-
-    const payload = {
-      requestId: request.id,
-      requestNumber: request.requestNumber,
-      permitNumber: request.permitNumber,
-      title: request.title,
-      residentName: request.residentName,
-      residentEmail: request.residentEmail,
-      residentAddress: request.residentAddress,
-    }
-
-    const notificationResult =
-      kind === "submitted"
-        ? await sendAccWorkflowSubmittedNotifications(payload, { chairAttachments: pdfAttachment })
-        : await sendAccWorkflowResubmittedNotification(payload, { attachments: pdfAttachment })
-
     return NextResponse.json({
       ok: true,
-      pdfAttached: Boolean(pdfAttachment?.length),
-      pdfFilename: pdfAttachment?.[0]?.filename || null,
-      notificationResult,
+      pdfAttached: Boolean(result.pdfAttachment?.length),
+      pdfFilename: result.pdfAttachment?.[0]?.filename || null,
+      deliverySummary: result.deliverySummary,
+      notificationResult: result.notificationResult,
     })
   } catch (error) {
     const detail = error instanceof Error ? error.message : "unknown error"

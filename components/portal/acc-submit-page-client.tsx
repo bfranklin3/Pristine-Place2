@@ -34,6 +34,16 @@ export type AccSubmitFormState = {
 
 type FormErrors = Partial<Record<keyof AccSubmitFormState | "agreedToTerms", string>>
 type UploadStatus = { type: "info" | "error" | "success"; message: string } | null
+type NotifySubmissionOutcome = {
+  ok: boolean
+  residentDelivered: boolean
+  staffDelivered: boolean
+  detail?: string
+}
+
+function delay(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
 
 const MAX_UPLOAD_FILES = 20
 const MAX_FILE_BYTES = 256 * 1024 * 1024
@@ -238,20 +248,66 @@ export function AccSubmitPageClient({
     }
   }
 
-  async function notifySubmission(requestId: string, kind: "submitted" | "resubmitted") {
-    try {
-      const res = await fetch(`/api/acc/requests/${requestId}/notify-submission`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kind }),
-      })
+  async function notifySubmission(requestId: string, kind: "submitted" | "resubmitted"): Promise<NotifySubmissionOutcome> {
+    const maxAttempts = 3
 
-      if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as { error?: string; detail?: string }
-        console.error("ACC submission notification failed:", body.error || body.detail || res.statusText)
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      try {
+        const res = await fetch(`/api/acc/requests/${requestId}/notify-submission`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ kind }),
+        })
+
+        const body = (await res.json().catch(() => ({}))) as {
+          error?: string
+          detail?: string
+          deliverySummary?: {
+            residentDelivered?: boolean
+            staffDelivered?: boolean
+          }
+        }
+
+        if (!res.ok) {
+          const detail = body.error || body.detail || res.statusText
+          console.error("ACC submission notification failed:", detail)
+          if (attempt < maxAttempts) {
+            await delay(500 * attempt)
+            continue
+          }
+          return {
+            ok: false,
+            residentDelivered: false,
+            staffDelivered: false,
+            detail,
+          }
+        }
+
+        return {
+          ok: true,
+          residentDelivered: Boolean(body.deliverySummary?.residentDelivered),
+          staffDelivered: Boolean(body.deliverySummary?.staffDelivered),
+        }
+      } catch (error) {
+        console.error("ACC submission notification failed:", error)
+        if (attempt < maxAttempts) {
+          await delay(500 * attempt)
+          continue
+        }
+        return {
+          ok: false,
+          residentDelivered: false,
+          staffDelivered: false,
+          detail: error instanceof Error ? error.message : "unknown error",
+        }
       }
-    } catch (error) {
-      console.error("ACC submission notification failed:", error)
+    }
+
+    return {
+      ok: false,
+      residentDelivered: false,
+      staffDelivered: false,
+      detail: "unknown error",
     }
   }
 
@@ -354,10 +410,15 @@ export function AccSubmitPageClient({
           )
         }
 
-        await notifySubmission(resubmitBody.request.id, "resubmitted")
+        const notifyOutcome = await notifySubmission(resubmitBody.request.id, "resubmitted")
 
         setStatus({ type: "success", message: "Your ACC request was updated and resubmitted for review." })
-        router.push(`/resident-portal/acc/requests/${resubmitBody.request.id}`)
+        const redirectUrl = new URL(`/resident-portal/acc/requests/${resubmitBody.request.id}`, window.location.origin)
+        if (!notifyOutcome.ok || !notifyOutcome.residentDelivered || !notifyOutcome.staffDelivered) {
+          redirectUrl.searchParams.set("email", "issue")
+          redirectUrl.searchParams.set("kind", "resubmitted")
+        }
+        router.push(`${redirectUrl.pathname}${redirectUrl.search}`)
         router.refresh()
         return
       }
@@ -411,14 +472,19 @@ export function AccSubmitPageClient({
         await uploadSelectedFiles(`/api/acc/requests/${body.request.id}/attachments`)
       }
 
-      await notifySubmission(body.request.id, "submitted")
+      const notifyOutcome = await notifySubmission(body.request.id, "submitted")
 
       setStatus({ type: "success", message: "Your ACC request was submitted successfully." })
       setForm(initialForm)
       setAgreedToTerms(!requiresTerms)
       setSelectedFiles([])
       setUploadStatus(null)
-      router.push(`/resident-portal/acc/requests/${body.request.id}`)
+      const redirectUrl = new URL(`/resident-portal/acc/requests/${body.request.id}`, window.location.origin)
+      if (!notifyOutcome.ok || !notifyOutcome.residentDelivered || !notifyOutcome.staffDelivered) {
+        redirectUrl.searchParams.set("email", "issue")
+        redirectUrl.searchParams.set("kind", "submitted")
+      }
+      router.push(`${redirectUrl.pathname}${redirectUrl.search}`)
       router.refresh()
     } catch (error) {
       setStatus({

@@ -35,10 +35,17 @@ function formatDateOnly(value: string) {
   return date.toLocaleDateString()
 }
 
-export default async function AccRequestDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function AccRequestDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>
+  searchParams: Promise<{ email?: string; kind?: string }>
+}) {
   await requireApprovedPortalAccess()
   const { userId } = await getPortalSession()
   const { id } = await params
+  const resolvedSearchParams = await searchParams
 
   if (!userId) notFound()
 
@@ -46,6 +53,9 @@ export default async function AccRequestDetailPage({ params }: { params: Promise
   if (!request) notFound()
 
   const formData = request.formData ?? EMPTY_FORM_DATA
+  const showEmailWarning = resolvedSearchParams.email === "issue"
+  const showEmailSuccess = resolvedSearchParams.email === "resent"
+  const emailWarningKind = resolvedSearchParams.kind === "resubmitted" ? "resubmitted" : "submitted"
 
   return (
     <>
@@ -80,6 +90,49 @@ export default async function AccRequestDetailPage({ params }: { params: Promise
             </div>
 
             <div className="card" style={{ padding: "var(--space-l)", background: "#fffef9", display: "grid", gap: "0.9rem" }}>
+              {showEmailSuccess ? (
+                <div
+                  style={{
+                    padding: "0.9rem 1rem",
+                    borderRadius: "var(--radius-md)",
+                    background: "#ecfdf5",
+                    color: "#166534",
+                    border: "1px solid #86efac",
+                  }}
+                >
+                  <strong>Confirmation emails sent:</strong> Your request confirmation emails were sent successfully.
+                </div>
+              ) : null}
+              {showEmailWarning ? (
+                <div
+                  style={{
+                    padding: "0.9rem 1rem",
+                    borderRadius: "var(--radius-md)",
+                    background: "#fff7ed",
+                    color: "#9a3412",
+                    border: "1px solid #fdba74",
+                    display: "grid",
+                    gap: "0.75rem",
+                  }}
+                >
+                  <div>
+                    <strong>Email delivery issue:</strong> Your request was saved successfully, but one or more confirmation emails could not be sent.
+                  </div>
+                  <form
+                    action={`/resident-portal/acc/requests/${request.id}/retry-email`}
+                    method="post"
+                    style={{ display: "flex", gap: "0.75rem", alignItems: "center", flexWrap: "wrap" }}
+                  >
+                    <input type="hidden" name="kind" value={emailWarningKind} />
+                    <button type="submit" className="btn btn-secondary">
+                      Retry Confirmation Email
+                    </button>
+                    <span style={{ fontSize: "0.92rem" }}>
+                      If needed, contact the ACC at {siteConfig.contact.email}.
+                    </span>
+                  </form>
+                </div>
+              ) : null}
               <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
                 <div style={{ display: "grid", gap: "0.25rem" }}>
                   <strong style={{ color: "var(--pp-navy-dark)" }}>Request Number</strong>
