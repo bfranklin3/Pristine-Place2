@@ -3,16 +3,17 @@
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import Link from "next/link"
+import Image from "next/image"
 import { ArrowLeft, Calendar, Tag, AlertCircle } from "lucide-react"
 import { client } from "@/lib/sanity/client"
 import { PortableText } from "@portabletext/react"
 import { siteConfig } from "@/lib/site-config"
+import { getOptimizedImageUrl, getImageSizes, type ImageFit, type ImageLayout } from "@/lib/sanity/image-builder"
 
 interface AnnouncementPageProps {
   params: Promise<{ slug: string }>
 }
 
-// Fetch announcement data
 async function getAnnouncement(slug: string) {
   const query = `*[_type == "announcement" && slug.current == $slug && published == true][0] {
     _id,
@@ -20,6 +21,19 @@ async function getAnnouncement(slug: string) {
     slug,
     content,
     excerpt,
+    featuredImage {
+      asset-> {
+        url,
+        metadata {
+          dimensions {
+            width,
+            height
+          }
+        }
+      }
+    },
+    imageLayout,
+    imageFit,
     category,
     priority,
     publishDate,
@@ -29,8 +43,7 @@ async function getAnnouncement(slug: string) {
     visibility
   }`
 
-  const announcement = await client.fetch(query, { slug })
-  return announcement
+  return client.fetch(query, { slug })
 }
 
 export async function generateMetadata({ params }: AnnouncementPageProps): Promise<Metadata> {
@@ -57,7 +70,6 @@ export default async function AnnouncementPage({ params }: AnnouncementPageProps
     notFound()
   }
 
-  // Category colors
   const categoryColors: Record<string, string> = {
     general: "var(--pp-navy)",
     maintenance: "var(--pp-slate-600)",
@@ -68,7 +80,6 @@ export default async function AnnouncementPage({ params }: AnnouncementPageProps
 
   const categoryColor = categoryColors[announcement.category] || "var(--pp-navy)"
 
-  // Priority badge
   const priorityConfig: Record<string, { label: string; color: string }> = {
     normal: { label: "Notice", color: "var(--pp-slate-500)" },
     high: { label: "Important", color: "#d97706" },
@@ -76,10 +87,77 @@ export default async function AnnouncementPage({ params }: AnnouncementPageProps
   }
 
   const priority = priorityConfig[announcement.priority] || priorityConfig.normal
+  const layout = (announcement.imageLayout || "hero") as ImageLayout
+  const imageFit = (announcement.imageFit || "cover") as ImageFit
+  const imageUrl = announcement.featuredImage ? getOptimizedImageUrl(announcement.featuredImage, layout, imageFit) : null
+  const imageSizes = getImageSizes(layout)
+  const imageWidth = announcement.featuredImage?.asset?.metadata?.dimensions?.width || 1600
+  const imageHeight = announcement.featuredImage?.asset?.metadata?.dimensions?.height || 600
+
+  const badges = (
+    <div className="cluster" style={{ gap: "var(--space-xs)", flexWrap: "wrap" }}>
+      <span
+        className="badge"
+        style={{
+          background: categoryColor,
+          color: "var(--pp-white)",
+          textTransform: "capitalize",
+        }}
+      >
+        <Tag className="w-3 h-3" />
+        {announcement.category}
+      </span>
+      {announcement.priority !== "normal" && (
+        <span
+          className="badge"
+          style={{
+            background: priority.color,
+            color: "var(--pp-white)",
+          }}
+        >
+          <AlertCircle className="w-3 h-3" />
+          {priority.label}
+        </span>
+      )}
+    </div>
+  )
+
+  const renderFeaturedImage = (priority = false) => {
+    if (!imageUrl) return null
+
+    if (imageFit === "contain") {
+      return (
+        <Image
+          src={imageUrl}
+          alt={announcement.title}
+          width={imageWidth}
+          height={imageHeight}
+          sizes={imageSizes}
+          priority={priority}
+          style={{
+            width: "100%",
+            height: "100%",
+            objectFit: "contain",
+            objectPosition: "left top",
+          }}
+        />
+      )
+    }
+
+    return (
+      <Image
+        src={imageUrl}
+        alt={announcement.title}
+        fill
+        sizes={imageSizes}
+        style={{ objectFit: "cover" }}
+        priority={priority}
+      />
+    )
+  }
 
   return (
     <>
-      {/* Back Link */}
       <div className="container" style={{ paddingTop: "var(--space-m)" }}>
         <Link
           href="/announcements"
@@ -90,70 +168,102 @@ export default async function AnnouncementPage({ params }: AnnouncementPageProps
         </Link>
       </div>
 
-      {/* Article */}
       <article className="section">
         <div className="container">
           <div className="stack" style={{ gap: "var(--space-l)" }}>
-            {/* Header */}
-            <div className="stack" style={{ gap: "var(--space-s)" }}>
-              {/* Badges */}
-              <div className="cluster" style={{ gap: "var(--space-xs)" }}>
-                <span
-                  className="badge"
+            {imageUrl && layout === "hero" && (
+              <div
+                style={{
+                  position: "relative",
+                  width: "100%",
+                  height: "400px",
+                  borderRadius: "var(--radius-lg)",
+                  overflow: "hidden",
+                  background: imageFit === "contain" ? "transparent" : undefined,
+                }}
+              >
+                {renderFeaturedImage(true)}
+              </div>
+            )}
+
+            {imageUrl && layout === "side" && (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-l)", alignItems: "start" }}>
+                <div
                   style={{
-                    background: categoryColor,
-                    color: "var(--pp-white)",
-                    textTransform: "capitalize",
+                    position: "relative",
+                    width: "100%",
+                    aspectRatio: "1",
+                    borderRadius: "var(--radius-lg)",
+                    overflow: "hidden",
+                    background: imageFit === "contain" ? "transparent" : undefined,
                   }}
                 >
-                  <Tag className="w-3 h-3" />
-                  {announcement.category}
-                </span>
-                {announcement.priority !== "normal" && (
-                  <span
-                    className="badge"
-                    style={{
-                      background: priority.color,
-                      color: "var(--pp-white)",
-                    }}
-                  >
-                    <AlertCircle className="w-3 h-3" />
-                    {priority.label}
-                  </span>
-                )}
+                  {renderFeaturedImage(true)}
+                </div>
+                <div className="stack" style={{ gap: "var(--space-s)" }}>
+                  {badges}
+                  <h1 className="text-step-3 font-bold" style={{ color: "var(--pp-navy-dark)" }}>
+                    {announcement.title}
+                  </h1>
+                </div>
               </div>
+            )}
 
-              {/* Title */}
-              <h1 className="text-step-4 font-bold" style={{ color: "var(--pp-navy-dark)" }}>
-                {announcement.title}
-              </h1>
+            {imageUrl && layout === "compact" && (
+              <div style={{ display: "flex", gap: "var(--space-m)", alignItems: "flex-start" }}>
+                <div
+                  style={{
+                    position: "relative",
+                    width: "150px",
+                    height: "150px",
+                    borderRadius: "var(--radius-md)",
+                    overflow: "hidden",
+                    flexShrink: 0,
+                    background: imageFit === "contain" ? "transparent" : undefined,
+                  }}
+                >
+                  {renderFeaturedImage()}
+                </div>
+                <div className="stack" style={{ gap: "var(--space-xs)", flex: 1 }}>
+                  {badges}
+                  <h1 className="text-step-3 font-bold" style={{ color: "var(--pp-navy-dark)" }}>
+                    {announcement.title}
+                  </h1>
+                </div>
+              </div>
+            )}
 
-              {/* Meta */}
-              <div className="cluster text-fluid-sm" style={{ color: "var(--pp-slate-500)", gap: "var(--space-s)" }}>
-                <span className="inline-flex items-center gap-2">
-                  <Calendar className="w-4 h-4" />
-                  {new Date(announcement.publishDate).toLocaleDateString("en-US", {
-                    month: "long",
+            {(layout === "hero" || layout === "none") && (
+              <div className="stack" style={{ gap: "var(--space-s)" }}>
+                {badges}
+                <h1 className="text-step-4 font-bold" style={{ color: "var(--pp-navy-dark)" }}>
+                  {announcement.title}
+                </h1>
+              </div>
+            )}
+
+            <div className="cluster text-fluid-sm" style={{ color: "var(--pp-slate-500)", gap: "var(--space-s)" }}>
+              <span className="inline-flex items-center gap-2">
+                <Calendar className="w-4 h-4" />
+                {new Date(announcement.publishDate).toLocaleDateString("en-US", {
+                  month: "long",
+                  day: "numeric",
+                  year: "numeric",
+                })}
+              </span>
+              {announcement.expiryDate && (
+                <span>
+                  • Expires{" "}
+                  {new Date(announcement.expiryDate).toLocaleDateString("en-US", {
+                    month: "short",
                     day: "numeric",
-                    year: "numeric",
                   })}
                 </span>
-                {announcement.expiryDate && (
-                  <span>
-                    • Expires{" "}
-                    {new Date(announcement.expiryDate).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                    })}
-                  </span>
-                )}
-              </div>
+              )}
             </div>
 
-            {/* Divider */}
             <hr style={{ border: "none", borderTop: "1px solid var(--pp-slate-200)" }} />
 
-            {/* Content */}
             <div
               className="prose"
               style={{
@@ -165,10 +275,8 @@ export default async function AnnouncementPage({ params }: AnnouncementPageProps
               <PortableText value={announcement.content} />
             </div>
 
-            {/* Divider */}
             <hr style={{ border: "none", borderTop: "1px solid var(--pp-slate-200)" }} />
 
-            {/* Footer */}
             <div className="stack" style={{ gap: "var(--space-s)", alignItems: "center" }}>
               <Link href="/announcements" className="btn btn-outline">
                 <ArrowLeft className="w-4 h-4" />

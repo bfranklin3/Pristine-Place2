@@ -9,7 +9,7 @@ import { client } from "@/lib/sanity/client"
 import { PortableText } from "@portabletext/react"
 import { siteConfig } from "@/lib/site-config"
 import { formatRecurrence } from "@/lib/sanity/recurring-events"
-import { getOptimizedImageUrl, getImageDimensions, getImageSizes, type ImageLayout } from "@/lib/sanity/image-builder"
+import { getOptimizedImageUrl, getImageSizes, type ImageFit, type ImageLayout } from "@/lib/sanity/image-builder"
 import { HOA_TIME_ZONE, formatTimeInHoaTimeZone } from "@/lib/timezone"
 
 interface EventPageProps {
@@ -30,10 +30,17 @@ async function getEvent(slug: string) {
     description,
     featuredImage {
       asset-> {
-        url
+        url,
+        metadata {
+          dimensions {
+            width,
+            height
+          }
+        }
       }
     },
     imageLayout,
+    imageFit,
     category,
     rsvpRequired,
     rsvpEmail,
@@ -82,8 +89,45 @@ export default async function EventPage({ params }: EventPageProps) {
 
   // Get image layout and optimized URL
   const layout = (event.imageLayout || 'hero') as ImageLayout
-  const imageUrl = event.featuredImage ? getOptimizedImageUrl(event.featuredImage, layout) : null
+  const imageFit = (event.imageFit || 'cover') as ImageFit
+  const imageUrl = event.featuredImage ? getOptimizedImageUrl(event.featuredImage, layout, imageFit) : null
   const imageSizes = getImageSizes(layout)
+  const imageWidth = event.featuredImage?.asset?.metadata?.dimensions?.width || 1600
+  const imageHeight = event.featuredImage?.asset?.metadata?.dimensions?.height || 600
+
+  const renderFeaturedImage = (priority = false) => {
+    if (!imageUrl) return null
+
+    if (imageFit === "contain") {
+      return (
+        <Image
+          src={imageUrl}
+          alt={event.title}
+          width={imageWidth}
+          height={imageHeight}
+          sizes={imageSizes}
+          priority={priority}
+          style={{
+            width: "100%",
+            height: "100%",
+            objectFit: "contain",
+            objectPosition: "left top",
+          }}
+        />
+      )
+    }
+
+    return (
+      <Image
+        src={imageUrl}
+        alt={event.title}
+        fill
+        sizes={imageSizes}
+        style={{ objectFit: "cover" }}
+        priority={priority}
+      />
+    )
+  }
 
   return (
     <>
@@ -112,24 +156,27 @@ export default async function EventPage({ params }: EventPageProps) {
                   height: "400px",
                   borderRadius: "var(--radius-lg)",
                   overflow: "hidden",
+                  background: imageFit === "contain" ? "transparent" : undefined,
                 }}
               >
-                <Image
-                  src={imageUrl}
-                  alt={event.title}
-                  fill
-                  sizes={imageSizes}
-                  className="object-cover"
-                  priority
-                />
+                {renderFeaturedImage(true)}
               </div>
             )}
 
             {/* Side-by-Side Layout */}
             {imageUrl && layout === 'side' && (
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-l)", alignItems: "start" }}>
-                <div style={{ position: "relative", width: "100%", aspectRatio: "1", borderRadius: "var(--radius-lg)", overflow: "hidden" }}>
-                  <Image src={imageUrl} alt={event.title} fill sizes={imageSizes} className="object-cover" priority />
+                <div
+                  style={{
+                    position: "relative",
+                    width: "100%",
+                    aspectRatio: "1",
+                    borderRadius: "var(--radius-lg)",
+                    overflow: "hidden",
+                    background: imageFit === "contain" ? "transparent" : undefined,
+                  }}
+                >
+                  {renderFeaturedImage(true)}
                 </div>
                 <div className="stack" style={{ gap: "var(--space-s)" }}>
                   <div className="cluster" style={{ gap: "var(--space-xs)", flexWrap: "wrap" }}>
@@ -157,8 +204,18 @@ export default async function EventPage({ params }: EventPageProps) {
             {/* Compact Layout */}
             {imageUrl && layout === 'compact' && (
               <div style={{ display: "flex", gap: "var(--space-m)", alignItems: "flex-start" }}>
-                <div style={{ position: "relative", width: "150px", height: "150px", borderRadius: "var(--radius-md)", overflow: "hidden", flexShrink: 0 }}>
-                  <Image src={imageUrl} alt={event.title} fill sizes={imageSizes} className="object-cover" />
+                <div
+                  style={{
+                    position: "relative",
+                    width: "150px",
+                    height: "150px",
+                    borderRadius: "var(--radius-md)",
+                    overflow: "hidden",
+                    flexShrink: 0,
+                    background: imageFit === "contain" ? "transparent" : undefined,
+                  }}
+                >
+                  {renderFeaturedImage()}
                 </div>
                 <div className="stack" style={{ gap: "var(--space-xs)", flex: 1 }}>
                   <div className="cluster" style={{ gap: "var(--space-xs)", flexWrap: "wrap" }}>

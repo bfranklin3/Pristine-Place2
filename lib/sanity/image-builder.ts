@@ -7,27 +7,25 @@ import { client } from './client'
 const builder = imageUrlBuilder(client)
 
 export type ImageLayout = 'hero' | 'side' | 'compact' | 'none'
+export type ImageFit = 'cover' | 'contain'
 
 // Image configuration for each layout type
 export const IMAGE_CONFIGS = {
   hero: {
     width: 1600,
     height: 600,
-    fit: 'crop' as const,
     quality: 85,
     sizes: '(max-width: 768px) 100vw, (max-width: 1200px) 90vw, 1600px',
   },
   side: {
     width: 800,
     height: 800,
-    fit: 'crop' as const,
     quality: 85,
     sizes: '(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 800px',
   },
   compact: {
     width: 300,
     height: 300,
-    fit: 'crop' as const,
     quality: 80,
     sizes: '(max-width: 768px) 200px, 300px',
   },
@@ -38,21 +36,26 @@ export const IMAGE_CONFIGS = {
  */
 export function getOptimizedImageUrl(
   image: SanityImageSource,
-  layout: ImageLayout = 'hero'
+  layout: ImageLayout = 'hero',
+  imageFit: ImageFit = 'cover',
 ): string | null {
   if (!image || layout === 'none') return null
 
   const config = IMAGE_CONFIGS[layout]
   if (!config) return null
 
-  return builder
+  const imageBuilder = builder
     .image(image)
     .width(config.width)
     .height(config.height)
-    .fit(config.fit)
     .quality(config.quality)
-    .auto('format') // Automatically serve WebP/AVIF if supported
-    .url()
+    .auto('format')
+
+  if (imageFit === 'contain') {
+    return imageBuilder.ignoreImageParams().fit('max').url()
+  }
+
+  return imageBuilder.fit('crop').url()
 }
 
 /**

@@ -21,6 +21,13 @@ export interface SanityAnnouncement {
   slug: { current: string }
   content: PortableTextValue
   excerpt?: string
+  featuredImage?: {
+    asset: {
+      _ref: string
+      url?: string
+    }
+  }
+  imageLayout?: "hero" | "side" | "compact" | "none"
   category: string
   priority: "normal" | "high" | "urgent"
   publishDate: string
@@ -120,6 +127,8 @@ export async function getAnnouncements(site: "public" | "portal"): Promise<Sanit
     slug,
     content,
     excerpt,
+    featuredImage,
+    imageLayout,
     category,
     priority,
     publishDate,

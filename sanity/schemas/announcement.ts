@@ -64,6 +64,46 @@ export const announcement = defineType({
       validation: (Rule) => Rule.max(200),
     }),
     defineField({
+      name: "featuredImage",
+      title: "Featured Image",
+      type: "image",
+      options: {
+        hotspot: true,
+      },
+    }),
+    defineField({
+      name: "imageLayout",
+      title: "Image Layout",
+      type: "string",
+      description: "Choose how the featured image is displayed on the announcement detail page",
+      options: {
+        list: [
+          { title: "Full-width Banner (default)", value: "hero" },
+          { title: "Side-by-side (Image + Content)", value: "side" },
+          { title: "Compact Thumbnail", value: "compact" },
+          { title: "No Image", value: "none" },
+        ],
+        layout: "radio",
+      },
+      initialValue: "hero",
+      hidden: ({ parent }) => !parent?.featuredImage,
+    }),
+    defineField({
+      name: "imageFit",
+      title: "Image Fit",
+      type: "string",
+      description: "Use Fill frame (cover) for photos. Use Show full image (contain) for flyers, posters, or graphics with text.",
+      options: {
+        list: [
+          { title: "Fill frame (cover)", value: "cover" },
+          { title: "Show full image (contain)", value: "contain" },
+        ],
+        layout: "radio",
+      },
+      initialValue: "cover",
+      hidden: ({ parent }) => !parent?.featuredImage || parent?.imageLayout === "none",
+    }),
+    defineField({
       name: "category",
       title: "Category",
       type: "string",
@@ -151,12 +191,14 @@ export const announcement = defineType({
       category: "category",
       priority: "priority",
       date: "publishDate",
+      media: "featuredImage",
     },
-    prepare({ title, category, priority, date }) {
+    prepare({ title, category, priority, date, media }) {
       const priorityEmoji = priority === "urgent" ? "🚨" : priority === "high" ? "⚠️" : ""
       return {
         title: `${priorityEmoji} ${title}`,
         subtitle: `${category ? category.toUpperCase() : ""} ${date ? "• " + new Date(date).toLocaleDateString() : ""}`,
+        media,
       }
     },
   },

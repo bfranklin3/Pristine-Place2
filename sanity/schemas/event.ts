@@ -100,6 +100,21 @@ export const event = defineType({
       hidden: ({ parent }) => !parent?.featuredImage,
     }),
     defineField({
+      name: "imageFit",
+      title: "Image Fit",
+      type: "string",
+      description: "Use Fill frame (cover) for photos. Use Show full image (contain) for flyers, posters, or graphics with text.",
+      options: {
+        list: [
+          { title: "Fill frame (cover)", value: "cover" },
+          { title: "Show full image (contain)", value: "contain" },
+        ],
+        layout: "radio",
+      },
+      initialValue: "cover",
+      hidden: ({ parent }) => !parent?.featuredImage || parent?.imageLayout === "none",
+    }),
+    defineField({
       name: "category",
       title: "Category",
       type: "string",
