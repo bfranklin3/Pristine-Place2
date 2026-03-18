@@ -239,11 +239,18 @@ export async function getUpcomingEvents(site: "public" | "portal", limit: number
   const occurrences = expandRecurringEvents(events, {
     startDate: new Date(),
     endDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
-    limit,
+    limit: Math.max(limit * 4, limit),
+  })
+
+  // For homepage-style previews, show only the next occurrence of a recurring series.
+  // This keeps recurring events visible without letting one series dominate the page.
+  const dedupedOccurrences = occurrences.filter((occurrence, index, all) => {
+    if (!occurrence.isRecurring) return true
+    return index === all.findIndex((candidate) => candidate.originalEventId === occurrence.originalEventId)
   })
 
   // Convert occurrences back to SanityEvent format
-  return occurrences.slice(0, limit).map(occ => ({
+  return dedupedOccurrences.slice(0, limit).map(occ => ({
     _id: occ._id,
     title: occ.title,
     slug: occ.slug,

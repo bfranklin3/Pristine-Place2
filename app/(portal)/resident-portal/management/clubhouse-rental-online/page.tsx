@@ -57,7 +57,7 @@ export default async function ClubhouseRentalOnlinePage() {
           </div>
           <h1 className="hero-title">Clubhouse Rental Online</h1>
           <p className="hero-subtitle" style={{ maxWidth: "60ch" }}>
-            Restricted-access preview of the future online clubhouse rental request workflow for admins, Board members,
+            Restricted-access preview of the future online clubhouse rental request workflow for Board members,
             and Clubhouse committee reviewers while the experience is reviewed and tested.
           </p>
           <div style={{ marginTop: "var(--space-s)" }}>
@@ -251,6 +251,83 @@ export default async function ClubhouseRentalOnlinePage() {
               <Download style={{ width: "0.875rem", height: "0.875rem" }} />
               Download Form (PDF)
             </a>
+          </div>
+
+          <div className="stack" style={{ gap: "var(--space-l)" }}>
+            <div className="stack-xs">
+              <h2 style={{ color: "var(--pp-navy-dark)" }}>Contact the Rental Coordinator</h2>
+              <p className="text-fluid-base" style={{ color: "var(--pp-slate-600)" }}>
+                For questions about availability, the rental process, or supporting paperwork.
+              </p>
+            </div>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 15rem), 1fr))",
+                gap: "var(--space-m)",
+              }}
+            >
+              {[
+                { icon: User, label: "Coordinator", value: "Janet Fehlhaber", href: null, sub: "" },
+                { icon: Phone, label: "Phone", value: "(352) 238-0097", href: "tel:+13522380097", sub: "Available 2:30 PM – 8:30 PM" },
+                { icon: Mail, label: "Email", value: "clubhouserentals@pristineplace.us", href: "mailto:clubhouserentals@pristineplace.us", sub: "" },
+              ].map(({ icon: Icon, label, value, href, sub }) => (
+                <div
+                  key={label}
+                  className="card"
+                  style={{
+                    padding: "var(--space-m)",
+                    background: "var(--pp-white)",
+                    border: "1px solid var(--pp-slate-200)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "var(--space-m)",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: "2.75rem",
+                      height: "2.75rem",
+                      borderRadius: "50%",
+                      background: "var(--pp-navy-dark)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <Icon style={{ width: "1.25rem", height: "1.25rem", color: "var(--pp-gold-light)" }} />
+                  </div>
+                  <div>
+                    <p
+                      className="text-fluid-xs font-bold"
+                      style={{ color: "var(--pp-slate-500)", textTransform: "uppercase", letterSpacing: "0.07em" }}
+                    >
+                      {label}
+                    </p>
+                    {href ? (
+                      <a
+                        href={href}
+                        className="text-fluid-base font-semibold"
+                        style={{ color: "var(--pp-navy-dark)", textDecoration: "none", wordBreak: "break-all" }}
+                      >
+                        {value}
+                      </a>
+                    ) : (
+                      <p className="text-fluid-base font-semibold" style={{ color: "var(--pp-navy-dark)", marginTop: "0.125rem" }}>
+                        {value}
+                      </p>
+                    )}
+                    {sub ? (
+                      <p className="text-fluid-xs" style={{ color: "var(--pp-slate-500)", marginTop: "0.125rem" }}>
+                        {sub}
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
 
           <div
@@ -450,87 +527,6 @@ export default async function ClubhouseRentalOnlinePage() {
                   View document →
                 </span>
               </a>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="section" style={{ background: "var(--pp-slate-50)" }}>
-        <div className="container" style={{ maxWidth: "52rem" }}>
-          <div className="stack" style={{ gap: "var(--space-l)" }}>
-            <div className="stack-xs">
-              <h2 style={{ color: "var(--pp-navy-dark)" }}>Contact the Rental Coordinator</h2>
-              <p className="text-fluid-base" style={{ color: "var(--pp-slate-600)" }}>
-                For questions about availability, the rental process, or supporting paperwork.
-              </p>
-            </div>
-
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 15rem), 1fr))",
-                gap: "var(--space-m)",
-              }}
-            >
-              {[
-                { icon: User, label: "Coordinator", value: "Janet Fehlhaber", href: null, sub: "" },
-                { icon: Phone, label: "Phone", value: "(352) 238-0097", href: "tel:+13522380097", sub: "Available 2:30 PM – 8:30 PM" },
-                { icon: Mail, label: "Email", value: "clubhouserentals@pristineplace.us", href: "mailto:clubhouserentals@pristineplace.us", sub: "" },
-              ].map(({ icon: Icon, label, value, href, sub }) => (
-                <div
-                  key={label}
-                  className="card"
-                  style={{
-                    padding: "var(--space-m)",
-                    background: "var(--pp-white)",
-                    border: "1px solid var(--pp-slate-200)",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "var(--space-m)",
-                  }}
-                >
-                  <div
-                    style={{
-                      width: "2.75rem",
-                      height: "2.75rem",
-                      borderRadius: "50%",
-                      background: "var(--pp-navy-dark)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      flexShrink: 0,
-                    }}
-                  >
-                    <Icon style={{ width: "1.25rem", height: "1.25rem", color: "var(--pp-gold-light)" }} />
-                  </div>
-                  <div>
-                    <p
-                      className="text-fluid-xs font-bold"
-                      style={{ color: "var(--pp-slate-500)", textTransform: "uppercase", letterSpacing: "0.07em" }}
-                    >
-                      {label}
-                    </p>
-                    {href ? (
-                      <a
-                        href={href}
-                        className="text-fluid-base font-semibold"
-                        style={{ color: "var(--pp-navy-dark)", textDecoration: "none", wordBreak: "break-all" }}
-                      >
-                        {value}
-                      </a>
-                    ) : (
-                      <p className="text-fluid-base font-semibold" style={{ color: "var(--pp-navy-dark)", marginTop: "0.125rem" }}>
-                        {value}
-                      </p>
-                    )}
-                    {sub ? (
-                      <p className="text-fluid-xs" style={{ color: "var(--pp-slate-500)", marginTop: "0.125rem" }}>
-                        {sub}
-                      </p>
-                    ) : null}
-                  </div>
-                </div>
-              ))}
             </div>
           </div>
         </div>
