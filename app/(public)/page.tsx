@@ -3,7 +3,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import Image from "next/image"
-import { Calendar, Bell, FileText, ShieldCheck, CreditCard, Receipt, ClipboardList, MessageSquare, BookOpen, BellRing, MapPin } from "lucide-react"
+import { Calendar, Bell, FileText, ShieldCheck, CreditCard, ClipboardList, BookOpen, MapPin, CalendarDays, AlertTriangle, Newspaper } from "lucide-react"
 import { siteConfig } from "@/lib/site-config"
 import { getUpcomingEvents as getSanityEvents, getAnnouncements } from "@/lib/sanity/queries"
 import { formatTimeInHoaTimeZone } from "@/lib/timezone"
@@ -88,19 +88,19 @@ const content = {
         description: "Securely pay your HOA dues anytime, from any device — no checks, no office visits required.",
       },
       {
-        icon: Receipt,
-        title: "Account & Statements",
-        description: "View your current balance, full payment history, and year-end statements in one place.",
+        icon: CalendarDays,
+        title: "Reserve the Clubhouse",
+        description: "Submit a clubhouse rental request online and keep your event planning in one place.",
       },
       {
         icon: ClipboardList,
-        title: "Submit & Track Requests",
-        description: "File maintenance requests and architectural applications digitally — and track their status in real time.",
+        title: "Submit & Track ACC Requests",
+        description: "Submit Architectural Change Requests online — and track their status.",
       },
       {
-        icon: MessageSquare,
-        title: "Community Message Board",
-        description: "Connect with neighbors, share tips, coordinate carpools, and stay in the loop on what's happening.",
+        icon: AlertTriangle,
+        title: "Report an Issue",
+        description: "Report maintenance, safety, or common-area concerns to the appropriate HOA team.",
       },
       {
         icon: BookOpen,
@@ -108,9 +108,9 @@ const content = {
         description: "Access meeting minutes, annual budgets, audit reports, and every governing document — all in one secure place.",
       },
       {
-        icon: BellRing,
-        title: "Priority Alerts",
-        description: "Be the first to know about gate outages, policy changes, weather closures, and community emergencies.",
+        icon: Newspaper,
+        title: "Community Newsletters",
+        description: "Browse community newsletters and stay up to date on neighborhood news and updates.",
       },
     ],
     cta: { text: "Access the Resident Portal", href: "/resident-portal" },
