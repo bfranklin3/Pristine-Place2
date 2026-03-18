@@ -55,8 +55,8 @@ const utilities = [
 const countyServices = [
   {
     title: "Trash, Yard Waste & Recycling Schedule",
-    description: "Garbage pickup: Tuesdays and Fridays. Recycling: Tuesdays. Yard Waste: Wednesdays. Place containers at curb after 5:00 PM the evening before pickup. No pickup on major holidays.",
-    href: "https://www.hernandocounty.us/living-here/garbage-recycling/",
+    description: "Garbage pickup: Tuesdays and Fridays. Recycling: Tuesdays. Yard Waste: Wednesdays. Place containers at curb after 5:00 PM the evening before pickup. No pickup on the following holidays: New Year’s Day, Independence Day, Thanksgiving Day, Christmas Day.",
+    href: "https://www.coastalwasteinc.com/hernando-county/?fbclid=IwZXh0bgNhZW0CMTAAYnJpZBExZW00YXpGeEh0NXI1dlByRHNydGMGYXBwX2lkDzUxNDc3MTU2OTIyODA2MQABHvMCRUe-QAncYq25UZeZKEFSJ9ljwk2Y3jUmepPPfUZp6uFZ5rmlh6kEEfZL_aem_ar1rLuTojchB3oAAgXQvMQ",
     external: true,
   },
   {
