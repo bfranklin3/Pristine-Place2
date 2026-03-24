@@ -15,6 +15,7 @@ Pristine-Place-HOA using next.js
 - ACC workflow implementation plan (phased WordPress -> Neon): [`docs/acc-workflow-implementation-plan.md`](docs/acc-workflow-implementation-plan.md)
 - ACC Gravity Flow bridge implementation plan (transition): [`docs/acc-gravityflow-bridge-implementation-plan.md`](docs/acc-gravityflow-bridge-implementation-plan.md)
 - Permissions model plan (committee roles + capability overrides): [`docs/permissions-model-plan.md`](docs/permissions-model-plan.md)
+- Other TBD
 
 
 
