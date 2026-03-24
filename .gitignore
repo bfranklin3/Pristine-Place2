@@ -6,13 +6,11 @@ CLAUDE.md
 out/
 build/
 
-# Environment variables
+# Environment variables — catch ALL variants
 .env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-.env-old
+.env.*
+!.env.example
+!.env.local.example
 env
 
 # Logs
@@ -83,3 +81,30 @@ node_modules/
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# macOS archive artifacts
+__MACOSX/
+
+# Temp files and generated reports (may contain resident data)
+tmp/
+reports/
+
+# Screenshots (not needed in repo)
+screenshots of old portal navigations/
+
+# Private keys and certificates
+*.pem
+*.key
+*.p12
+*.pfx
+*.cert
+
+# Vercel
+.vercel
+
+# IDE
+.vscode/
+.idea/
+
+# Sentry
+.sentryclirc
