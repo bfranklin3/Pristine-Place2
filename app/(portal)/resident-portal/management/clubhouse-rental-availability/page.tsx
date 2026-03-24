@@ -2,7 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { CalendarDays, Shield } from "lucide-react"
 import { CalendarMonth } from "@/components/portal/calendar-month"
-import { requirePortalAdminPageAccess } from "@/lib/auth/portal-admin"
+import { requirePortalRolePageAccess } from "@/lib/auth/portal-admin"
 import { getMonthRange, parseMonthParam } from "@/lib/calendar/month"
 import { siteConfig } from "@/lib/site-config"
 import {
@@ -37,7 +37,10 @@ export default async function ClubhouseRentalAvailabilityPage({
 }: {
   searchParams?: Promise<{ month?: string | string[] | undefined }>
 }) {
-  await requirePortalAdminPageAccess("/resident-portal/management/clubhouse-rental-availability")
+  await requirePortalRolePageAccess(
+    ["admin", "board_of_directors", "clubhouse_maintenance", "clubhouse_rental"],
+    "/resident-portal/management/clubhouse-rental-availability",
+  )
   const resolvedSearchParams = searchParams ? await searchParams : undefined
   const monthDate = parseMonthParam(resolvedSearchParams?.month)
   const { start, endExclusive } = getMonthRange(monthDate)

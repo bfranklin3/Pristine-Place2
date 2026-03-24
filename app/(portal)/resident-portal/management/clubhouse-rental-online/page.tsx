@@ -34,7 +34,7 @@ const rentalRules = [
 
 export default async function ClubhouseRentalOnlinePage() {
   await requirePortalRolePageAccess(
-    ["admin", "board_of_directors", "clubhouse_maintenance"],
+    ["admin", "board_of_directors", "clubhouse_maintenance", "clubhouse_rental"],
     "/resident-portal/management/clubhouse-rental-online",
   )
 
