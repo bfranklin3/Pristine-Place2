@@ -3,3 +3,6 @@
   "installCommand": "npm install --legacy-peer-deps",
   "framework": "nextjs"
 }
+{
+  "relatedProjects": ["prj_33KmPa4sTmy2Gmpkkun8WXMbbqzE"]
+}
