@@ -123,11 +123,11 @@ const content = {
 }
 
 export default async function HomePage() {
-  // Fetch data from Sanity CMS 
+  // Fetch data from Sanity CMS
   const sanityEvents = await getSanityEvents("public", 3)
   const sanityAnnouncements = await getAnnouncements("public")
 
-  // Transform for display
+  // Transform for display 
   const upcomingEvents = sanityEvents.map((event) => ({
     id: event._id,
     title: event.title,
